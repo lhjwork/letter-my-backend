@@ -1,0 +1,38 @@
+# 자동 텍스트 감지(기본)
+* text=auto
+
+# 코드/문서: 강제 LF (저장소·협업용 표준)
+*.js     text eol=lf
+*.jsx    text eol=lf
+*.ts     text eol=lf
+*.tsx    text eol=lf
+*.mjs    text eol=lf
+*.cjs    text eol=lf
+*.json   text eol=lf
+*.md     text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.html   text eol=lf
+*.css    text eol=lf
+*.scss   text eol=lf
+
+# 쉘 스크립트는 LF
+*.sh     text eol=lf
+
+# Windows 전용 스크립트는 CRLF (선택)
+*.ps1    text eol=crlf
+
+# 바이너리 파일은 변환 금지
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.pdf    binary
+*.zip    binary
+
+# 패키지 잠금 파일은 LF 유지 권장
+pnpm-lock.yaml text eol=lf
+
+# gitattributes 파일 자체는 LF
+.gitattributes text eol=lf

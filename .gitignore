@@ -1,0 +1,33 @@
+# dependencies
+/node_modules/
+
+# build output
+/dist/
+
+# env files
+.env
+.env.local
+.env.*.local
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+.idea/
+
+# lockfiles (keep pnpm-lock committed normally, but ignore others if any)
+# (pnpm-lock.yaml is included in repo in many projects; adjust as needed)
+
+# coverage
+coverage/
+
+# misc
+*.log
