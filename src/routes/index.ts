@@ -1,4 +1,5 @@
 import { Router } from "express";
+import userRoutes from "./users";
 
 const router: Router = Router();
 
@@ -11,8 +12,8 @@ router.get("/health", (_req, res) => {
   });
 });
 
-// Example route placeholder
-// router.use('/users', userRoutes);
+// User routes
+router.use("/users", userRoutes);
 
 // Fallback for undefined routes
 router.use((_req, res) => {
