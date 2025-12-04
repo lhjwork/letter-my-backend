@@ -57,23 +57,6 @@ export class UserService {
     };
   }
 
-  // 일반 회원가입 (이메일/비밀번호)
-  async createUser(data: { email: string; password: string; name: string }): Promise<IUser> {
-    // 이메일 중복 체크
-    const existingUser = await User.findByEmail(data.email);
-    if (existingUser) {
-      throw new Error("Email already exists");
-    }
-
-    const user = new User({
-      email: data.email,
-      password: data.password,
-      name: data.name,
-    });
-
-    return user.save();
-  }
-
   // OAuth 로그인/회원가입
   async findOrCreateOAuthUser(data: {
     provider: OAuthProvider;
@@ -168,32 +151,6 @@ export class UserService {
     return user;
   }
 
-  // 비밀번호 변경
-  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<boolean> {
-    const user = await User.findById(userId).select("+password");
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    // OAuth 전용 사용자인 경우
-    if (!user.password) {
-      throw new Error("Cannot change password for OAuth-only users");
-    }
-
-    // 현재 비밀번호 확인
-    const isMatch = await user.comparePassword(currentPassword);
-    if (!isMatch) {
-      throw new Error("Current password is incorrect");
-    }
-
-    // 새 비밀번호 설정
-    user.password = newPassword;
-    await user.save();
-
-    return true;
-  }
-
   // 사용자 삭제
   async deleteUser(userId: string): Promise<boolean> {
     const result = await User.findByIdAndDelete(userId);
@@ -220,44 +177,18 @@ export class UserService {
 
   // OAuth 계정 연결 해제
   async unlinkOAuthAccount(userId: string, provider: OAuthProvider): Promise<IUser | null> {
-    const user = await User.findById(userId).select("+password");
+    const user = await User.findById(userId);
 
     if (!user) {
       throw new Error("User not found");
     }
 
-    // 비밀번호가 없고 OAuth 계정이 1개뿐인 경우 연결 해제 불가
-    if (!user.password && user.oauthAccounts.length === 1) {
-      throw new Error("Cannot unlink the last OAuth account without a password. Please set a password first.");
+    // OAuth 계정이 1개뿐인 경우 연결 해제 불가
+    if (user.oauthAccounts.length === 1) {
+      throw new Error("Cannot unlink the last OAuth account. You must have at least one login method.");
     }
 
     return user.removeOAuthAccount(provider);
-  }
-
-  // 로그인 (이메일/비밀번호)
-  async login(email: string, password: string): Promise<{ user: IUser; token: string }> {
-    const user = await User.findOne({ email }).select("+password");
-
-    if (!user) {
-      throw new Error("Invalid email or password");
-    }
-
-    if (!user.password) {
-      throw new Error("This account uses OAuth login. Please sign in with your OAuth provider.");
-    }
-
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      throw new Error("Invalid email or password");
-    }
-
-    // 마지막 로그인 시간 업데이트
-    user.lastLoginAt = new Date();
-    await user.save();
-
-    const token = this.generateToken(user);
-
-    return { user, token };
   }
 }
 

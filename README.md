@@ -5,13 +5,12 @@ Express + TypeScript + MongoDB 기반의 사용자 인증 백엔드 API
 ## 🚀 주요 기능
 
 - ✅ **MVC 패턴** 아키텍처 (Model-View-Controller)
-- ✅ **OAuth 소셜 로그인** 지원 (Instagram, Naver, Kakao)
+- ✅ **OAuth 전용 소셜 로그인** (Instagram, Naver, Kakao)
 - ✅ **JWT 토큰** 기반 인증
 - ✅ **NextAuth.js** 연동 지원
 - ✅ **TypeScript** 타입 안정성
 - ✅ **MongoDB + Mongoose** ODM
 - ✅ **Express Validator** 요청 검증
-- ✅ **Bcrypt** 비밀번호 암호화
 
 ## 📁 프로젝트 구조
 
@@ -75,15 +74,12 @@ pnpm start
 
 ### 인증 API
 
-- `POST /api/users/register` - 일반 회원가입
-- `POST /api/users/login` - 일반 로그인
-- `POST /api/users/oauth/login` - OAuth 로그인 (Instagram/Naver/Kakao)
+- `POST /api/users/oauth/login` - OAuth 로그인/회원가입 (Instagram/Naver/Kakao)
 
 ### 사용자 API (인증 필요)
 
 - `GET /api/users/me` - 내 정보 조회
 - `PUT /api/users/me` - 내 정보 수정
-- `PUT /api/users/me/password` - 비밀번호 변경
 - `DELETE /api/users/me` - 계정 삭제
 - `POST /api/users/me/oauth/link` - OAuth 계정 연결
 - `DELETE /api/users/me/oauth/:provider` - OAuth 계정 해제
@@ -123,9 +119,9 @@ async signIn({ user, account, profile }) {
 
 ```bash
 # Postman, Thunder Client 또는 curl 사용
-curl -X POST http://localhost:5000/api/users/register \
+curl -X POST http://localhost:5000/api/users/oauth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"Test123","name":"테스트"}'
+  -d '{"provider":"kakao","providerId":"123456","email":"test@example.com","name":"테스트"}'
 ```
 
 ## 📚 기술 스택
@@ -134,7 +130,7 @@ curl -X POST http://localhost:5000/api/users/register \
 - **Framework**: Express 5
 - **Language**: TypeScript
 - **Database**: MongoDB + Mongoose
-- **Authentication**: JWT, bcryptjs
+- **Authentication**: JWT (OAuth only)
 - **Validation**: express-validator
 - **Security**: Helmet, CORS
 

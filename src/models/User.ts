@@ -1,5 +1,4 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
-import bcrypt from "bcryptjs";
 
 // OAuth Provider 타입
 export enum OAuthProvider {
@@ -26,7 +25,6 @@ export interface IOAuthAccount {
 // User Document 인터페이스
 export interface IUser extends Document {
   email: string;
-  password?: string; // Optional for OAuth-only users
   name: string;
   image?: string;
   emailVerified?: Date;
@@ -36,7 +34,6 @@ export interface IUser extends Document {
   lastLoginAt?: Date;
 
   // 메서드
-  comparePassword(candidatePassword: string): Promise<boolean>;
   addOAuthAccount(account: IOAuthAccount): Promise<IUser>;
   removeOAuthAccount(provider: OAuthProvider): Promise<IUser>;
   getOAuthAccount(provider: OAuthProvider): IOAuthAccount | undefined;
@@ -82,11 +79,6 @@ const UserSchema = new Schema<IUser, IUserModel>(
       trim: true,
       index: true,
     },
-    password: {
-      type: String,
-      minlength: 6,
-      select: false, // 기본적으로 password 필드는 조회하지 않음
-    },
     name: {
       type: String,
       required: true,
@@ -110,7 +102,6 @@ const UserSchema = new Schema<IUser, IUserModel>(
     timestamps: true, // createdAt, updatedAt 자동 생성
     toJSON: {
       transform: function (_doc, ret: any) {
-        delete ret.password;
         delete ret.__v;
         return ret;
       },
@@ -120,30 +111,6 @@ const UserSchema = new Schema<IUser, IUserModel>(
 
 // 인덱스 설정
 UserSchema.index({ "oauthAccounts.provider": 1, "oauthAccounts.providerId": 1 });
-
-// 비밀번호 해싱 미들웨어
-UserSchema.pre("save", async function () {
-  const user = this as IUser;
-
-  // 비밀번호가 수정되지 않았으면 스킵
-  if (!user.isModified("password") || !user.password) {
-    return;
-  }
-
-  const salt = await bcrypt.genSalt(10);
-  user.password = await bcrypt.hash(user.password, salt);
-});
-
-// 비밀번호 비교 메서드
-UserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
-  const user = this as IUser;
-
-  if (!user.password) {
-    return false;
-  }
-
-  return bcrypt.compare(candidatePassword, user.password);
-};
 
 // OAuth 계정 추가 메서드
 UserSchema.methods.addOAuthAccount = async function (account: IOAuthAccount): Promise<IUser> {

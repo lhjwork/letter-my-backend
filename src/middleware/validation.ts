@@ -17,21 +17,6 @@ export const validate = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
-// 회원가입 Validation
-export const registerValidation = [
-  body("email").isEmail().withMessage("Valid email is required").normalizeEmail(),
-  body("password")
-    .isLength({ min: 6 })
-    .withMessage("Password must be at least 6 characters long")
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage("Password must contain at least one uppercase letter, one lowercase letter, and one number"),
-  body("name").trim().notEmpty().withMessage("Name is required").isLength({ min: 2, max: 50 }).withMessage("Name must be between 2 and 50 characters"),
-  validate,
-];
-
-// 로그인 Validation
-export const loginValidation = [body("email").isEmail().withMessage("Valid email is required").normalizeEmail(), body("password").notEmpty().withMessage("Password is required"), validate];
-
 // OAuth 로그인 Validation
 export const oauthLoginValidation = [
   body("provider").isIn(["instagram", "naver", "kakao"]).withMessage("Provider must be instagram, naver, or kakao"),
@@ -50,17 +35,6 @@ export const updateUserValidation = [
   body("name").optional().trim().isLength({ min: 2, max: 50 }).withMessage("Name must be between 2 and 50 characters"),
   body("image").optional().isURL().withMessage("Image must be a valid URL"),
   body("email").optional().isEmail().withMessage("Valid email is required").normalizeEmail(),
-  validate,
-];
-
-// 비밀번호 변경 Validation
-export const changePasswordValidation = [
-  body("currentPassword").notEmpty().withMessage("Current password is required"),
-  body("newPassword")
-    .isLength({ min: 6 })
-    .withMessage("New password must be at least 6 characters long")
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage("New password must contain at least one uppercase letter, one lowercase letter, and one number"),
   validate,
 ];
 

@@ -4,7 +4,7 @@ import userRoutes from "./users";
 const router: Router = Router();
 
 // Health check route
-router.get("/health", (_req, res) => {
+router.get("/test", (_req, res) => {
   res.status(200).json({
     status: "ok",
     timestamp: new Date().toISOString(),
@@ -12,7 +12,7 @@ router.get("/health", (_req, res) => {
   });
 });
 
-// User routes
+// User routes -> 요청 분배
 router.use("/users", userRoutes);
 
 // Fallback for undefined routes

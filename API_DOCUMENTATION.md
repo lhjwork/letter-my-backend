@@ -60,40 +60,7 @@ Authorization: Bearer <your_jwt_token>
 
 ### 공개 엔드포인트 (인증 불필요)
 
-#### 1. 일반 회원가입
-
-```http
-POST /api/users/register
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "Password123",
-  "name": "홍길동"
-}
-```
-
-**응답:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "user": {
-      "_id": "...",
-      "email": "user@example.com",
-      "name": "홍길동",
-      "oauthAccounts": [],
-      "createdAt": "2025-12-04T...",
-      "updatedAt": "2025-12-04T..."
-    },
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  },
-  "message": "User registered successfully"
-}
-```
-
-#### 2. 일반 로그인
+#### 1. OAuth 로그인/회원가입
 
 ```http
 POST /api/users/login
@@ -134,14 +101,14 @@ Content-Type: application/json
 
 ### 보호된 엔드포인트 (인증 필요)
 
-#### 4. 내 정보 조회
+#### 2. 내 정보 조회
 
 ```http
 GET /api/users/me
 Authorization: Bearer <token>
 ```
 
-#### 5. 사용자 정보 업데이트
+#### 3. 사용자 정보 업데이트
 
 ```http
 PUT /api/users/me
@@ -155,27 +122,14 @@ Content-Type: application/json
 }
 ```
 
-#### 6. 비밀번호 변경
-
-```http
-PUT /api/users/me/password
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "currentPassword": "OldPassword123",
-  "newPassword": "NewPassword123"
-}
-```
-
-#### 7. 계정 삭제 (탈퇴)
+#### 4. 계정 삭제 (탈퇴)
 
 ```http
 DELETE /api/users/me
 Authorization: Bearer <token>
 ```
 
-#### 8. OAuth 계정 연결
+#### 5. OAuth 계정 연결
 
 ```http
 POST /api/users/me/oauth/link
@@ -194,7 +148,7 @@ Content-Type: application/json
 }
 ```
 
-#### 9. OAuth 계정 연결 해제
+#### 6. OAuth 계정 연결 해제
 
 ```http
 DELETE /api/users/me/oauth/:provider
@@ -203,14 +157,14 @@ Authorization: Bearer <token>
 
 예시: `DELETE /api/users/me/oauth/kakao`
 
-#### 10. 모든 사용자 조회 (페이지네이션)
+#### 7. 모든 사용자 조회 (페이지네이션)
 
 ```http
 GET /api/users?page=1&limit=10
 Authorization: Bearer <token>
 ```
 
-#### 11. ID로 사용자 조회
+#### 8. ID로 사용자 조회
 
 ```http
 GET /api/users/:id
@@ -343,15 +297,10 @@ const userData = await response.json();
 # Postman이나 Thunder Client로 테스트
 # 또는 curl 사용:
 
-# 회원가입
-curl -X POST http://localhost:5000/api/users/register \
+# OAuth 로그인
+curl -X POST http://localhost:5000/api/users/oauth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"Test123","name":"테스트"}'
-
-# 로그인
-curl -X POST http://localhost:5000/api/users/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"Test123"}'
+  -d '{"provider":"kakao","providerId":"123456","email":"test@example.com","name":"테스트","image":"https://example.com/avatar.jpg"}'
 
 # 내 정보 조회 (토큰 필요)
 curl -X GET http://localhost:5000/api/users/me \

@@ -1,34 +1,11 @@
 import { Router, type IRouter } from "express";
 import userController from "../controllers/userController";
 import { authenticate } from "../middleware/auth";
-import {
-  registerValidation,
-  loginValidation,
-  oauthLoginValidation,
-  updateUserValidation,
-  changePasswordValidation,
-  linkOAuthValidation,
-  unlinkOAuthValidation,
-  mongoIdValidation,
-} from "../middleware/validation";
+import { oauthLoginValidation, updateUserValidation, linkOAuthValidation, unlinkOAuthValidation, mongoIdValidation } from "../middleware/validation";
 
 const router: IRouter = Router();
 
 // 공개 라우트 (인증 불필요)
-/**
- * @route   POST /api/users/register
- * @desc    일반 회원가입 (이메일/비밀번호)
- * @access  Public
- */
-router.post("/register", registerValidation, userController.register);
-
-/**
- * @route   POST /api/users/login
- * @desc    일반 로그인 (이메일/비밀번호)
- * @access  Public
- */
-router.post("/login", loginValidation, userController.login);
-
 /**
  * @route   POST /api/users/oauth/login
  * @desc    OAuth 로그인/회원가입 (Instagram, Naver, Kakao)
@@ -65,13 +42,6 @@ router.get("/:id", authenticate, mongoIdValidation, userController.getUserById);
  * @access  Private
  */
 router.put("/me", authenticate, updateUserValidation, userController.updateUser);
-
-/**
- * @route   PUT /api/users/me/password
- * @desc    비밀번호 변경
- * @access  Private
- */
-router.put("/me/password", authenticate, changePasswordValidation, userController.changePassword);
 
 /**
  * @route   DELETE /api/users/me

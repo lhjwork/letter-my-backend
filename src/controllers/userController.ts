@@ -78,55 +78,6 @@ export class UserController {
     }
   }
 
-  // 일반 회원가입
-  async register(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const { email, password, name } = req.body;
-
-      const user = await userService.createUser({ email, password, name });
-      const token = userService.generateToken(user);
-
-      res.status(201).json({
-        success: true,
-        data: {
-          user,
-          token,
-        },
-        message: "User registered successfully",
-      });
-    } catch (error: any) {
-      if (error.message === "Email already exists") {
-        res.status(409).json({ message: error.message });
-        return;
-      }
-      next(error);
-    }
-  }
-
-  // 일반 로그인
-  async login(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const { email, password } = req.body;
-
-      const { user, token } = await userService.login(email, password);
-
-      res.status(200).json({
-        success: true,
-        data: {
-          user,
-          token,
-        },
-        message: "Login successful",
-      });
-    } catch (error: any) {
-      if (error.message === "Invalid email or password" || error.message?.includes("OAuth login")) {
-        res.status(401).json({ message: error.message });
-        return;
-      }
-      next(error);
-    }
-  }
-
   // OAuth 로그인/회원가입
   async oauthLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -195,31 +146,6 @@ export class UserController {
     } catch (error: any) {
       if (error.message === "Email already exists") {
         res.status(409).json({ message: error.message });
-        return;
-      }
-      next(error);
-    }
-  }
-
-  // 비밀번호 변경
-  async changePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({ message: "Unauthorized" });
-        return;
-      }
-
-      const { currentPassword, newPassword } = req.body;
-
-      await userService.changePassword(req.user.userId, currentPassword, newPassword);
-
-      res.status(200).json({
-        success: true,
-        message: "Password changed successfully",
-      });
-    } catch (error: any) {
-      if (error.message === "User not found" || error.message === "Current password is incorrect" || error.message?.includes("OAuth-only users")) {
-        res.status(400).json({ message: error.message });
         return;
       }
       next(error);
