@@ -1,6 +1,7 @@
 import { Router } from "express";
 import userRoutes from "./users";
 import testRoutes from "./tests";
+import devAuthRoutes from "./devAuth";
 
 const router: Router = Router();
 
@@ -15,6 +16,9 @@ router.get("/health", (_req, res) => {
 
 // User routes
 router.use("/users", userRoutes);
+
+// Dev-only auth helper (token issuance for Postman/local testing)
+router.use("/dev", devAuthRoutes);
 
 // Test routes (MVC 패턴 예제)
 router.use("/tests", testRoutes);

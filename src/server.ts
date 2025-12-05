@@ -15,7 +15,7 @@ const startServer = async () => {
     // Start Express server
     app.listen(PORT, () => {
       console.log(`✅ Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
-      console.log(`🚀 API available at http://localhost:${PORT}/api/health`);
+      console.log(`🚀 API available at http://localhost:${PORT}/`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);

@@ -20,6 +20,16 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     // 토큰 검증
     const decoded = userService.verifyToken(token);
 
+    // 개발 환경에서는 DB 조회 건너뛰기 (dev token 지원)
+    if (process.env.NODE_ENV !== "production" && decoded.userId === "test") {
+      req.user = {
+        userId: decoded.userId,
+        email: decoded.email,
+      };
+      next();
+      return;
+    }
+
     // 사용자 존재 확인
     const user = await userService.findById(decoded.userId);
 

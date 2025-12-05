@@ -4,6 +4,7 @@ import testService from "../services/testService";
 // Test Controller 클래스
 export class TestController {
   // 모든 테스트 조회
+  // next : Express가 미들웨어 체인에서 제공하는 함수
   async getAllTests(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const page = parseInt(req.query.page as string) || 1;
