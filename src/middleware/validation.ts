@@ -21,7 +21,15 @@ export const validate = (req: Request, res: Response, next: NextFunction) => {
 export const oauthLoginValidation = [
   body("provider").isIn(["instagram", "naver", "kakao"]).withMessage("Provider must be instagram, naver, or kakao"),
   body("providerId").notEmpty().withMessage("Provider ID is required"),
-  body("email").isEmail().withMessage("Valid email is required").normalizeEmail(),
+  body("email")
+    .if((value, { req }) => {
+      // Kakao provider일 경우 email이 없으면 validation 건너뜀
+      if (req.body.provider === "kakao" && !value) return false;
+      return true;
+    })
+    .isEmail()
+    .withMessage("Valid email is required")
+    .normalizeEmail(),
   body("name").trim().notEmpty().withMessage("Name is required"),
   body("image").optional().isURL().withMessage("Image must be a valid URL"),
   body("accessToken").optional().isString(),

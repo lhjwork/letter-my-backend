@@ -61,7 +61,7 @@ export class UserService {
   async findOrCreateOAuthUser(data: {
     provider: OAuthProvider;
     providerId: string;
-    email: string;
+    email?: string;
     name: string;
     image?: string;
     accessToken?: string;
@@ -87,26 +87,31 @@ export class UserService {
     }
 
     // 이메일로 기존 사용자 찾기 (다른 OAuth로 가입한 경우)
-    user = await this.findByEmail(data.email);
+    if (data.email) {
+      user = await this.findByEmail(data.email);
 
-    if (user) {
-      // 기존 사용자에 OAuth 계정 연결
-      const oauthAccount: IOAuthAccount = {
-        provider: data.provider,
-        providerId: data.providerId,
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
-        profile: data.profile,
-      };
+      if (user) {
+        // 기존 사용자에 OAuth 계정 연결
+        const oauthAccount: IOAuthAccount = {
+          provider: data.provider,
+          providerId: data.providerId,
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          profile: data.profile,
+        };
 
-      await user.addOAuthAccount(oauthAccount);
-      user.lastLoginAt = new Date();
-      return user.save();
+        await user.addOAuthAccount(oauthAccount);
+        user.lastLoginAt = new Date();
+        return user.save();
+      }
     }
+
+    // 이메일이 없는 경우 (Kakao 등) 임시 이메일 생성
+    const email = data.email || `not-provided-${data.providerId}`;
 
     // 새로운 사용자 생성
     const newUser = new User({
-      email: data.email,
+      email: email,
       name: data.name,
       image: data.image,
       emailVerified: new Date(), // OAuth로 가입한 경우 이메일 검증됨

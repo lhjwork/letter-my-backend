@@ -62,8 +62,8 @@ const TestSchema = new Schema<ITest, ITestModel>(
 );
 
 // 인덱스 설정
-TestSchema.index({ status: 1, priority: -1 });
-TestSchema.index({ createdBy: 1 });
+TestSchema.index({ status: 1, priority: -1, createdBy: 1 });
+// TestSchema.index({ });
 
 // Static 메서드: 상태로 검색
 TestSchema.statics.findByStatus = function (status: string): Promise<ITest[]> {
