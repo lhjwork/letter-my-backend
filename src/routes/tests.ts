@@ -7,17 +7,37 @@ const router: IRouter = Router();
 
 // 공개 라우트 (인증 불필요)
 /**
- * @route   GET /api/tests/statistics
- * @desc    전체 테스트 통계 조회
- * @access  Public
+ * @swagger
+ * /tests/statistics:
+ *   get:
+ *     summary: 전체 테스트 통계 조회
+ *     tags: [Tests]
+ *     responses:
+ *       200:
+ *         description: 통계 조회 성공
  */
 router.get("/statistics", testController.getStatistics);
 
 /**
- * @route   GET /api/tests
- * @desc    모든 테스트 조회 (페이지네이션)
- * @access  Public
- * @query   page, limit
+ * @swagger
+ * /tests:
+ *   get:
+ *     summary: 모든 테스트 조회 (페이지네이션)
+ *     tags: [Tests]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: 페이지 번호
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: 페이지당 항목 수
+ *     responses:
+ *       200:
+ *         description: 테스트 목록 조회 성공
  */
 router.get("/", testController.getAllTests);
 
@@ -45,9 +65,37 @@ router.get("/:id", testIdValidation, testController.getTestById);
 
 // 보호된 라우트 (인증 필요)
 /**
- * @route   POST /api/tests
- * @desc    새 테스트 생성
- * @access  Private
+ * @swagger
+ * /tests:
+ *   post:
+ *     summary: 새 테스트 생성
+ *     tags: [Tests]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - description
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *                 enum: [pending, in-progress, completed, failed]
+ *               priority:
+ *                 type: number
+ *     responses:
+ *       201:
+ *         description: 테스트 생성 성공
+ *       401:
+ *         description: 인증 필요
  */
 router.post("/", authenticate, createTestValidation, testController.createTest);
 
