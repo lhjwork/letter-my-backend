@@ -1,5 +1,6 @@
 import { Router } from "express";
 import userRoutes from "./users";
+import letterRoutes from "./letters";
 import testRoutes from "./tests";
 import devAuthRoutes from "./devAuth";
 
@@ -16,6 +17,9 @@ router.get("/health", (_req, res) => {
 
 // User routes
 router.use("/users", userRoutes);
+
+// Letter routes
+router.use("/letters", letterRoutes);
 
 // Dev-only auth helper (token issuance for Postman/local testing)
 router.use("/dev", devAuthRoutes);

@@ -61,3 +61,11 @@ export const unlinkOAuthValidation = [param("provider").isIn(["instagram", "nave
 
 // MongoDB ObjectId Validation
 export const mongoIdValidation = [param("id").isMongoId().withMessage("Invalid user ID"), validate];
+
+// 편지 생성/수정 Validation
+export const letterValidation = [
+  body("title").trim().notEmpty().withMessage("Title is required").isLength({ max: 100 }).withMessage("Title must be less than 100 characters"),
+  body("content").notEmpty().withMessage("Content is required"),
+  body("authorName").trim().notEmpty().withMessage("Author name is required"),
+  validate,
+];
