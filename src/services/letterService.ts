@@ -13,16 +13,10 @@ export class LetterService {
   }
 
   // 모든 편지 조회 (페이지네이션)
-  async findAll(
-    page: number = 1,
-    limit: number = 10
-  ): Promise<{ letters: ILetter[]; total: number; page: number; totalPages: number }> {
+  async findAll(page: number = 1, limit: number = 10): Promise<{ letters: ILetter[]; total: number; page: number; totalPages: number }> {
     const skip = (page - 1) * limit;
 
-    const [letters, total] = await Promise.all([
-      Letter.find().skip(skip).limit(limit).sort({ createdAt: -1 }),
-      Letter.countDocuments(),
-    ]);
+    const [letters, total] = await Promise.all([Letter.find().skip(skip).limit(limit).sort({ createdAt: -1 }), Letter.countDocuments()]);
 
     return {
       letters,
@@ -35,13 +29,23 @@ export class LetterService {
   // 편지 생성
   async createLetter(data: {
     userId: string;
+    title: string;
     content: string;
+    authorName: string;
     ogPreviewMessage?: string;
+    ogBgColor?: string;
+    ogIllustration?: string;
+    ogFontSize?: number;
   }): Promise<ILetter> {
     const letter = new Letter({
       userId: data.userId,
+      title: data.title,
       content: data.content,
+      authorName: data.authorName,
       ogPreviewMessage: data.ogPreviewMessage || data.content.substring(0, 50),
+      ogBgColor: data.ogBgColor || "#FFF5F5",
+      ogIllustration: data.ogIllustration || "💌",
+      ogFontSize: data.ogFontSize || 48,
       ogImageType: OgImageType.AUTO,
     });
 
@@ -52,8 +56,13 @@ export class LetterService {
   async updateLetter(
     letterId: string,
     data: {
+      title?: string;
       content?: string;
+      authorName?: string;
       ogPreviewMessage?: string;
+      ogBgColor?: string;
+      ogIllustration?: string;
+      ogFontSize?: number;
     }
   ): Promise<ILetter | null> {
     return Letter.findByIdAndUpdate(letterId, { $set: data }, { new: true, runValidators: true });
@@ -80,11 +89,7 @@ export class LetterService {
   }
 
   // OG 이미지 커스텀 업데이트
-  async updateCustomOgImage(
-    letterId: string,
-    ogImageUrl: string,
-    ogPreviewMessage?: string
-  ): Promise<ILetter | null> {
+  async updateCustomOgImage(letterId: string, ogImageUrl: string, ogPreviewMessage?: string): Promise<ILetter | null> {
     const updateData: any = {
       ogImageUrl,
       ogImageType: OgImageType.CUSTOM,

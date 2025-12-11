@@ -8,9 +8,14 @@ export enum OgImageType {
 
 // Letter Document 인터페이스
 export interface ILetter extends Document {
-  userId: string;
+  userId: mongoose.Types.ObjectId;
+  title: string;
   content: string;
+  authorName: string;
   ogPreviewMessage: string;
+  ogBgColor: string;
+  ogIllustration: string;
+  ogFontSize: number;
   ogImageType: OgImageType;
   ogImageUrl?: string;
   createdAt: Date;
@@ -26,17 +31,40 @@ interface ILetterModel extends Model<ILetter> {
 const LetterSchema = new Schema<ILetter, ILetterModel>(
   {
     userId: {
-      type: String,
+      type: Schema.Types.ObjectId,
+      ref: "User",
       required: true,
       index: true,
+    },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
     },
     content: {
       type: String,
       required: true,
     },
+    authorName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     ogPreviewMessage: {
       type: String,
       default: "",
+    },
+    ogBgColor: {
+      type: String,
+      default: "#FFF5F5",
+    },
+    ogIllustration: {
+      type: String,
+      default: "💌",
+    },
+    ogFontSize: {
+      type: Number,
+      default: 48,
     },
     ogImageType: {
       type: String,

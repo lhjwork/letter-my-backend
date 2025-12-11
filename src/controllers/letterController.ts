@@ -7,21 +7,32 @@ export class LetterController {
   async createLetter(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) {
-        res.status(401).json({ message: "Unauthorized" });
+        res.status(401).json({
+          success: false,
+          message: "Unauthorized",
+        });
         return;
       }
 
-      const { content, ogPreviewMessage } = req.body;
+      const { title, content, authorName, ogPreviewMessage, ogBgColor, ogIllustration, ogFontSize } = req.body;
 
-      if (!content) {
-        res.status(400).json({ message: "Content is required" });
+      if (!title || !content || !authorName) {
+        res.status(400).json({
+          success: false,
+          message: "Title, content, and authorName are required",
+        });
         return;
       }
 
       const letter = await letterService.createLetter({
         userId: req.user.userId,
+        title,
         content,
+        authorName,
         ogPreviewMessage,
+        ogBgColor,
+        ogIllustration,
+        ogFontSize,
       });
 
       res.status(201).json({
@@ -59,7 +70,10 @@ export class LetterController {
   async getMyLetters(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) {
-        res.status(401).json({ message: "Unauthorized" });
+        res.status(401).json({
+          success: false,
+          message: "Unauthorized",
+        });
         return;
       }
 
@@ -70,7 +84,11 @@ export class LetterController {
         data: letters,
       });
     } catch (error) {
-      next(error);
+      console.error("Error fetching user letters:", error);
+      res.status(500).json({
+        success: false,
+        message: "서버 오류가 발생했습니다",
+      });
     }
   }
 
@@ -95,28 +113,42 @@ export class LetterController {
   async updateLetter(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) {
-        res.status(401).json({ message: "Unauthorized" });
+        res.status(401).json({
+          success: false,
+          message: "Unauthorized",
+        });
         return;
       }
 
       const { id } = req.params;
-      const { content, ogPreviewMessage } = req.body;
+      const { title, content, authorName, ogPreviewMessage, ogBgColor, ogIllustration, ogFontSize } = req.body;
 
       // 편지 존재 및 권한 확인
       const existingLetter = await letterService.findById(id);
       if (!existingLetter) {
-        res.status(404).json({ message: "Letter not found" });
+        res.status(404).json({
+          success: false,
+          message: "편지를 찾을 수 없습니다",
+        });
         return;
       }
 
-      if (existingLetter.userId !== req.user.userId) {
-        res.status(403).json({ message: "Forbidden: You can only update your own letters" });
+      if (existingLetter.userId.toString() !== req.user.userId) {
+        res.status(403).json({
+          success: false,
+          message: "이 편지를 수정할 권한이 없습니다",
+        });
         return;
       }
 
       const letter = await letterService.updateLetter(id, {
+        title,
         content,
+        authorName,
         ogPreviewMessage,
+        ogBgColor,
+        ogIllustration,
+        ogFontSize,
       });
 
       res.status(200).json({
@@ -133,7 +165,10 @@ export class LetterController {
   async deleteLetter(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) {
-        res.status(401).json({ message: "Unauthorized" });
+        res.status(401).json({
+          success: false,
+          message: "Unauthorized",
+        });
         return;
       }
 
@@ -142,28 +177,44 @@ export class LetterController {
       // 편지 존재 및 권한 확인
       const existingLetter = await letterService.findById(id);
       if (!existingLetter) {
-        res.status(404).json({ message: "Letter not found" });
+        res.status(404).json({
+          success: false,
+          message: "편지를 찾을 수 없습니다",
+        });
         return;
       }
 
-      if (existingLetter.userId !== req.user.userId) {
-        res.status(403).json({ message: "Forbidden: You can only delete your own letters" });
+      if (existingLetter.userId.toString() !== req.user.userId) {
+        res.status(403).json({
+          success: false,
+          message: "이 편지를 삭제할 권한이 없습니다",
+        });
         return;
       }
 
       const deleted = await letterService.deleteLetter(id);
 
       if (!deleted) {
-        res.status(404).json({ message: "Letter not found" });
+        res.status(404).json({
+          success: false,
+          message: "편지를 찾을 수 없습니다",
+        });
         return;
       }
 
       res.status(200).json({
         success: true,
-        message: "Letter deleted successfully",
+        message: "편지가 삭제되었습니다",
+        data: {
+          _id: id,
+        },
       });
     } catch (error) {
-      next(error);
+      console.error("Error deleting letter:", error);
+      res.status(500).json({
+        success: false,
+        message: "편지 삭제에 실패했습니다",
+      });
     }
   }
 }

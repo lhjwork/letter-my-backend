@@ -13,11 +13,11 @@ const router: Router = Router();
 router.post("/", authenticate, createLetterValidation, letterController.createLetter);
 
 /**
- * @route   GET /api/letters/me
- * @desc    내 편지 목록 조회
+ * @route   GET /api/letters/my
+ * @desc    내 편지 목록 조회 (주의: /my는 /:id보다 위에 있어야 함)
  * @access  Private
  */
-router.get("/me", authenticate, letterController.getMyLetters);
+router.get("/my", authenticate, letterController.getMyLetters);
 
 /**
  * @route   GET /api/letters
