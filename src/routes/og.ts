@@ -2,7 +2,7 @@ import { Router } from "express";
 import ogController from "../controllers/ogController";
 import { uploadCustomImageValidation, autoGenerateValidation, getOgImageValidation } from "../middleware/ogValidation";
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * @route   POST /api/og/upload

@@ -67,7 +67,7 @@ export class LetterController {
   }
 
   // 내 편지 목록 조회
-  async getMyLetters(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getMyLetters(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user) {
         res.status(401).json({
@@ -162,7 +162,7 @@ export class LetterController {
   }
 
   // 편지 삭제
-  async deleteLetter(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async deleteLetter(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user) {
         res.status(401).json({

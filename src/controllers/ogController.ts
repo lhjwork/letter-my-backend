@@ -8,7 +8,7 @@ export class OgController {
   // 커스텀 OG 이미지 업로드
   async uploadCustomImage(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { letterId, ogPreviewMessage, style } = req.body;
+      const { letterId, ogPreviewMessage } = req.body;
 
       if (!letterId) {
         res.status(400).json({ message: "letterId is required" });
@@ -48,11 +48,7 @@ export class OgController {
       }
 
       // Letter 업데이트
-      const updatedLetter = await letterService.updateCustomOgImage(
-        letterId,
-        ogImageUrl,
-        ogPreviewMessage
-      );
+      const updatedLetter = await letterService.updateCustomOgImage(letterId, ogImageUrl, ogPreviewMessage);
 
       res.status(200).json({
         success: true,
