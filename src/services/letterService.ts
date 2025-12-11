@@ -1,22 +1,26 @@
-import Letter, { ILetter } from "../models/Letter";
+import Letter, { ILetter, OgImageType } from "../models/Letter";
 
+// Letter Service 클래스
 export class LetterService {
-  // 편지 생성
-  async createLetter(data: { title: string; content: string; authorName: string; userId: string }): Promise<ILetter> {
-    const letter = new Letter({
-      title: data.title,
-      content: data.content,
-      authorName: data.authorName,
-      userId: data.userId,
-    });
-    return letter.save();
+  // ID로 편지 조회
+  async findById(letterId: string): Promise<ILetter | null> {
+    return Letter.findById(letterId);
+  }
+
+  // userId로 편지 목록 조회
+  async findByUserId(userId: string): Promise<ILetter[]> {
+    return Letter.findByUserId(userId);
   }
 
   // 모든 편지 조회 (페이지네이션)
-  async findAll(page: number = 1, limit: number = 10): Promise<{ letters: ILetter[]; total: number; page: number; totalPages: number }> {
+  async findAll(
+    page: number = 1,
+    limit: number = 10
+  ): Promise<{ letters: ILetter[]; total: number; page: number; totalPages: number }> {
     const skip = (page - 1) * limit;
+
     const [letters, total] = await Promise.all([
-      Letter.find().sort({ createdAt: -1 }).skip(skip).limit(limit).populate("userId", "name email image"), // 작성자 정보 포함
+      Letter.find().skip(skip).limit(limit).sort({ createdAt: -1 }),
       Letter.countDocuments(),
     ]);
 
@@ -28,39 +32,77 @@ export class LetterService {
     };
   }
 
-  // ID로 편지 조회
-  async findById(id: string): Promise<ILetter | null> {
-    return Letter.findById(id).populate("userId", "name email image");
-  }
+  // 편지 생성
+  async createLetter(data: {
+    userId: string;
+    content: string;
+    ogPreviewMessage?: string;
+  }): Promise<ILetter> {
+    const letter = new Letter({
+      userId: data.userId,
+      content: data.content,
+      ogPreviewMessage: data.ogPreviewMessage || data.content.substring(0, 50),
+      ogImageType: OgImageType.AUTO,
+    });
 
-  // 사용자별 편지 조회
-  async findByUserId(userId: string, page: number = 1, limit: number = 10): Promise<{ letters: ILetter[]; total: number; page: number; totalPages: number }> {
-    const skip = (page - 1) * limit;
-    const [letters, total] = await Promise.all([Letter.find({ userId }).sort({ createdAt: -1 }).skip(skip).limit(limit), Letter.countDocuments({ userId })]);
-
-    return {
-      letters,
-      total,
-      page,
-      totalPages: Math.ceil(total / limit),
-    };
-  }
-
-  // 편지 수정
-  async updateLetter(id: string, userId: string, data: Partial<ILetter>): Promise<ILetter | null> {
-    // 본인이 작성한 편지인지 확인
-    const letter = await Letter.findOne({ _id: id, userId });
-    if (!letter) return null;
-
-    Object.assign(letter, data);
     return letter.save();
   }
 
+  // 편지 업데이트
+  async updateLetter(
+    letterId: string,
+    data: {
+      content?: string;
+      ogPreviewMessage?: string;
+    }
+  ): Promise<ILetter | null> {
+    return Letter.findByIdAndUpdate(letterId, { $set: data }, { new: true, runValidators: true });
+  }
+
   // 편지 삭제
-  async deleteLetter(id: string, userId: string): Promise<boolean> {
-    const result = await Letter.deleteOne({ _id: id, userId });
-    return result.deletedCount === 1;
+  async deleteLetter(letterId: string): Promise<boolean> {
+    const result = await Letter.findByIdAndDelete(letterId);
+    return !!result;
+  }
+
+  // OG 이미지 URL 업데이트 (자동 생성)
+  async updateAutoOgImage(letterId: string, ogImageUrl: string): Promise<ILetter | null> {
+    return Letter.findByIdAndUpdate(
+      letterId,
+      {
+        $set: {
+          ogImageUrl,
+          ogImageType: OgImageType.AUTO,
+        },
+      },
+      { new: true }
+    );
+  }
+
+  // OG 이미지 커스텀 업데이트
+  async updateCustomOgImage(
+    letterId: string,
+    ogImageUrl: string,
+    ogPreviewMessage?: string
+  ): Promise<ILetter | null> {
+    const updateData: any = {
+      ogImageUrl,
+      ogImageType: OgImageType.CUSTOM,
+    };
+
+    if (ogPreviewMessage !== undefined) {
+      updateData.ogPreviewMessage = ogPreviewMessage;
+    }
+
+    return Letter.findByIdAndUpdate(letterId, { $set: updateData }, { new: true });
+  }
+
+  // OG 이미지 URL 조회
+  async getOgImageUrl(letterId: string): Promise<string | null> {
+    const letter = await Letter.findById(letterId).select("ogImageUrl");
+    return letter?.ogImageUrl || null;
   }
 }
 
+// Service 인스턴스 생성 및 내보내기
 export default new LetterService();

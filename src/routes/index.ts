@@ -1,6 +1,7 @@
 import { Router } from "express";
 import userRoutes from "./users";
 import letterRoutes from "./letters";
+import ogRoutes from "./og";
 import testRoutes from "./tests";
 import devAuthRoutes from "./devAuth";
 
@@ -20,6 +21,9 @@ router.use("/users", userRoutes);
 
 // Letter routes
 router.use("/letters", letterRoutes);
+
+// OG Image routes
+router.use("/og", ogRoutes);
 
 // Dev-only auth helper (token issuance for Postman/local testing)
 router.use("/dev", devAuthRoutes);

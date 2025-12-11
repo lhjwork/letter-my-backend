@@ -2,6 +2,7 @@ import express, { Application } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
+import path from "path";
 import { specs } from "./config/swagger";
 // import "express-async-errors";
 import routes from "./routes";
@@ -25,6 +26,9 @@ app.use(
 // Body parsing middleware
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Static files (OG 이미지 서빙)
+app.use("/og-custom", express.static(path.join(process.cwd(), "public", "og-custom")));
 
 // Root route - 서버 실행 확인
 app.get("/", (_req, res) => {
