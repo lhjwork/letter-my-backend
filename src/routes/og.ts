@@ -1,7 +1,7 @@
 import { Router } from "express";
 import ogController from "../controllers/ogController";
 import { uploadCustomImageValidation, autoGenerateValidation, getOgImageValidation } from "../middleware/ogValidation";
-
+//
 const router: Router = Router();
 
 /**
