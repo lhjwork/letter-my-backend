@@ -3,7 +3,7 @@ import letterController from "../controllers/letterController";
 import { authenticate } from "../middleware/auth";
 import { createLetterValidation, updateLetterValidation, letterIdValidation } from "../middleware/letterValidation";
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * @route   POST /api/letters
