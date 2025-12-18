@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { getAddresses, getRecentAddresses, getAddressById, createAddress, updateAddress, deleteAddress, setDefaultAddress, saveRecentToAddressBook } from "../controllers/addressController";
+import { getAddresses, getRecentAddresses, getAddressById, createAddress, updateAddress, deleteAddress, setDefaultAddress } from "../controllers/addressController";
 import { authenticate } from "../middleware/auth";
 import { validate } from "../middleware/validation";
-import { createAddressValidation, updateAddressValidation, addressIdValidation, recentAddressQueryValidation, saveToAddressBookValidation } from "../middleware/addressValidation";
+import { createAddressValidation, updateAddressValidation, addressIdValidation, recentAddressQueryValidation } from "../middleware/addressValidation";
 
 const router = Router();
 
@@ -49,10 +49,11 @@ const router = Router();
  *         isDefault:
  *           type: boolean
  *           description: 기본 배송지 여부
- *         createdAt:
+ *         lastUsedAt:
  *           type: string
  *           format: date-time
- *         updatedAt:
+ *           description: 마지막 사용일
+ *         createdAt:
  *           type: string
  *           format: date-time
  */
@@ -61,24 +62,13 @@ const router = Router();
  * @swagger
  * /api/addresses:
  *   get:
- *     summary: 배송지 목록 조회 (주소록)
+ *     summary: 배송지 목록 조회
  *     tags: [Address]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: 배송지 목록
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Address'
  */
 router.get("/", authenticate, getAddresses);
 
@@ -86,7 +76,7 @@ router.get("/", authenticate, getAddresses);
  * @swagger
  * /api/addresses/recent:
  *   get:
- *     summary: 최근 배송지 목록 조회
+ *     summary: 최근 사용 배송지 목록 조회
  *     tags: [Address]
  *     security:
  *       - bearerAuth: []
@@ -95,8 +85,6 @@ router.get("/", authenticate, getAddresses);
  *         name: limit
  *         schema:
  *           type: integer
- *           minimum: 1
- *           maximum: 20
  *           default: 20
  *         description: 조회할 개수 (최대 20개)
  *     responses:
@@ -119,12 +107,9 @@ router.get("/recent", authenticate, recentAddressQueryValidation, validate, getR
  *         required: true
  *         schema:
  *           type: string
- *         description: 배송지 ID
  *     responses:
  *       200:
  *         description: 배송지 상세 정보
- *       404:
- *         description: 배송지를 찾을 수 없음
  */
 router.get("/:id", authenticate, addressIdValidation, validate, getAddressById);
 
@@ -141,30 +126,7 @@ router.get("/:id", authenticate, addressIdValidation, validate, getAddressById);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - addressName
- *               - recipientName
- *               - zipCode
- *               - address
- *               - phone
- *             properties:
- *               addressName:
- *                 type: string
- *               recipientName:
- *                 type: string
- *               zipCode:
- *                 type: string
- *               address:
- *                 type: string
- *               addressDetail:
- *                 type: string
- *               phone:
- *                 type: string
- *               tel:
- *                 type: string
- *               isDefault:
- *                 type: boolean
+ *             $ref: '#/components/schemas/Address'
  *     responses:
  *       201:
  *         description: 배송지 추가 성공
@@ -194,8 +156,6 @@ router.post("/", authenticate, createAddressValidation, validate, createAddress)
  *     responses:
  *       200:
  *         description: 배송지 수정 성공
- *       404:
- *         description: 배송지를 찾을 수 없음
  */
 router.put("/:id", authenticate, updateAddressValidation, validate, updateAddress);
 
@@ -216,8 +176,6 @@ router.put("/:id", authenticate, updateAddressValidation, validate, updateAddres
  *     responses:
  *       200:
  *         description: 배송지 삭제 성공
- *       404:
- *         description: 배송지를 찾을 수 없음
  */
 router.delete("/:id", authenticate, addressIdValidation, validate, deleteAddress);
 
@@ -238,40 +196,7 @@ router.delete("/:id", authenticate, addressIdValidation, validate, deleteAddress
  *     responses:
  *       200:
  *         description: 기본 배송지 설정 성공
- *       404:
- *         description: 배송지를 찾을 수 없음
  */
 router.put("/:id/default", authenticate, addressIdValidation, validate, setDefaultAddress);
-
-/**
- * @swagger
- * /api/addresses/{id}/save-to-book:
- *   post:
- *     summary: 최근 배송지를 주소록에 저장
- *     tags: [Address]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               addressName:
- *                 type: string
- *                 description: 배송지명 (선택, 미입력시 기존 이름 사용)
- *     responses:
- *       201:
- *         description: 주소록 저장 성공
- *       404:
- *         description: 배송지를 찾을 수 없음
- */
-router.post("/:id/save-to-book", authenticate, saveToAddressBookValidation, validate, saveRecentToAddressBook);
 
 export default router;

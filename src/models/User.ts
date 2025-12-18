@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, { Schema, Document, Model, Types } from "mongoose";
 
 // OAuth Provider 타입
 export enum OAuthProvider {
@@ -22,6 +22,21 @@ export interface IOAuthAccount {
   };
 }
 
+// Address 인터페이스
+export interface IAddress {
+  _id: Types.ObjectId;
+  addressName: string;
+  recipientName: string;
+  zipCode: string;
+  address: string;
+  addressDetail?: string;
+  phone: string;
+  tel?: string;
+  isDefault: boolean;
+  lastUsedAt?: Date;
+  createdAt: Date;
+}
+
 // User Document 인터페이스
 export interface IUser extends Document {
   email: string;
@@ -29,6 +44,7 @@ export interface IUser extends Document {
   image?: string;
   emailVerified?: Date;
   oauthAccounts: IOAuthAccount[];
+  addresses: IAddress[];
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt?: Date;
@@ -68,6 +84,59 @@ const OAuthAccountSchema = new Schema<IOAuthAccount>(
   { _id: false }
 );
 
+// Address 스키마 (User에 임베딩)
+const AddressSchema = new Schema<IAddress>(
+  {
+    addressName: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 20,
+    },
+    recipientName: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 50,
+    },
+    zipCode: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    address: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    addressDetail: {
+      type: String,
+      trim: true,
+    },
+    phone: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    tel: {
+      type: String,
+      trim: true,
+    },
+    isDefault: {
+      type: Boolean,
+      default: false,
+    },
+    lastUsedAt: {
+      type: Date,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: true }
+);
+
 // User 스키마
 const UserSchema = new Schema<IUser, IUserModel>(
   {
@@ -94,12 +163,16 @@ const UserSchema = new Schema<IUser, IUserModel>(
       type: [OAuthAccountSchema],
       default: [],
     },
+    addresses: {
+      type: [AddressSchema],
+      default: [],
+    },
     lastLoginAt: {
       type: Date,
     },
   },
   {
-    timestamps: true, // createdAt, updatedAt 자동 생성
+    timestamps: true,
     toJSON: {
       transform: function (_doc, ret: any) {
         delete ret.__v;
@@ -115,8 +188,6 @@ UserSchema.index({ "oauthAccounts.provider": 1, "oauthAccounts.providerId": 1 })
 // OAuth 계정 추가 메서드
 UserSchema.methods.addOAuthAccount = async function (account: IOAuthAccount): Promise<IUser> {
   const user = this as IUser;
-
-  // 이미 존재하는 provider는 업데이트
   const existingIndex = user.oauthAccounts.findIndex((acc) => acc.provider === account.provider);
 
   if (existingIndex !== -1) {
@@ -131,9 +202,7 @@ UserSchema.methods.addOAuthAccount = async function (account: IOAuthAccount): Pr
 // OAuth 계정 제거 메서드
 UserSchema.methods.removeOAuthAccount = async function (provider: OAuthProvider): Promise<IUser> {
   const user = this as IUser;
-
   user.oauthAccounts = user.oauthAccounts.filter((acc) => acc.provider !== provider);
-
   return user.save();
 };
 
@@ -156,7 +225,6 @@ UserSchema.statics.findByOAuthProvider = function (provider: OAuthProvider, prov
   });
 };
 
-// User 모델 생성 및 내보내기
 const User = mongoose.model<IUser, IUserModel>("User", UserSchema);
 
 export default User;

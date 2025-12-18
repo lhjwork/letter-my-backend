@@ -1,40 +1,81 @@
 import { Request, Response } from "express";
-import Address from "../models/Address";
+import mongoose from "mongoose";
+import User from "../models/User";
 
-// 배송지 목록 조회 (주소록)
+// 배송지 목록 조회
 export const getAddresses = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
 
-  const addresses = await Address.find({ userId, isFromRecent: false }).sort({
-    isDefault: -1,
-    createdAt: -1,
+  const user = await User.findById(userId).select("addresses");
+
+  if (!user) {
+    res.status(404).json({
+      success: false,
+      message: "사용자를 찾을 수 없습니다.",
+    });
+    return;
+  }
+
+  // 기본 배송지가 먼저 오도록 정렬
+  const sortedAddresses = [...user.addresses].sort((a, b) => {
+    if (a.isDefault && !b.isDefault) return -1;
+    if (!a.isDefault && b.isDefault) return 1;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
   res.json({
     success: true,
-    data: addresses,
+    data: sortedAddresses,
   });
 };
 
-// 최근 배송지 목록 조회
+// 최근 사용 배송지 목록 조회
 export const getRecentAddresses = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
   const limit = parseInt(req.query.limit as string) || 20;
 
-  const addresses = await Address.find({ userId }).sort({ lastUsedAt: -1 }).limit(limit);
+  const user = await User.findById(userId).select("addresses");
+
+  if (!user) {
+    res.status(404).json({
+      success: false,
+      message: "사용자를 찾을 수 없습니다.",
+    });
+    return;
+  }
+
+  // lastUsedAt 기준 정렬, 최근 사용한 것만
+  const recentAddresses = [...user.addresses]
+    .filter((addr) => addr.lastUsedAt)
+    .sort((a, b) => {
+      const aTime = a.lastUsedAt ? new Date(a.lastUsedAt).getTime() : 0;
+      const bTime = b.lastUsedAt ? new Date(b.lastUsedAt).getTime() : 0;
+      return bTime - aTime;
+    })
+    .slice(0, limit);
 
   res.json({
     success: true,
-    data: addresses,
+    data: recentAddresses,
   });
 };
 
 // 배송지 상세 조회
 export const getAddressById = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
   const { id } = req.params;
 
-  const address = await Address.findOne({ _id: id, userId });
+  const user = await User.findById(userId).select("addresses");
+
+  if (!user) {
+    res.status(404).json({
+      success: false,
+      message: "사용자를 찾을 수 없습니다.",
+    });
+    return;
+  }
+
+  const address = user.addresses.find((addr) => addr._id.toString() === id);
 
   if (!address) {
     res.status(404).json({
@@ -52,16 +93,28 @@ export const getAddressById = async (req: Request, res: Response): Promise<void>
 
 // 배송지 추가
 export const createAddress = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
   const { addressName, recipientName, zipCode, address, addressDetail, phone, tel, isDefault } = req.body;
+
+  const user = await User.findById(userId);
+
+  if (!user) {
+    res.status(404).json({
+      success: false,
+      message: "사용자를 찾을 수 없습니다.",
+    });
+    return;
+  }
 
   // 기본 배송지로 설정하는 경우, 기존 기본 배송지 해제
   if (isDefault) {
-    await Address.updateMany({ userId, isDefault: true }, { isDefault: false });
+    user.addresses.forEach((addr) => {
+      addr.isDefault = false;
+    });
   }
 
-  const newAddress = await Address.create({
-    userId,
+  const newAddress = {
+    _id: new mongoose.Types.ObjectId(),
     addressName,
     recipientName,
     zipCode,
@@ -70,8 +123,11 @@ export const createAddress = async (req: Request, res: Response): Promise<void> 
     phone,
     tel,
     isDefault: isDefault || false,
-    isFromRecent: false,
-  });
+    createdAt: new Date(),
+  };
+
+  user.addresses.push(newAddress);
+  await user.save();
 
   res.status(201).json({
     success: true,
@@ -82,13 +138,23 @@ export const createAddress = async (req: Request, res: Response): Promise<void> 
 
 // 배송지 수정
 export const updateAddress = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
   const { id } = req.params;
   const { addressName, recipientName, zipCode, address, addressDetail, phone, tel, isDefault } = req.body;
 
-  const existingAddress = await Address.findOne({ _id: id, userId });
+  const user = await User.findById(userId);
 
-  if (!existingAddress) {
+  if (!user) {
+    res.status(404).json({
+      success: false,
+      message: "사용자를 찾을 수 없습니다.",
+    });
+    return;
+  }
+
+  const addressIndex = user.addresses.findIndex((addr) => addr._id.toString() === id);
+
+  if (addressIndex === -1) {
     res.status(404).json({
       success: false,
       message: "배송지를 찾을 수 없습니다.",
@@ -97,46 +163,61 @@ export const updateAddress = async (req: Request, res: Response): Promise<void> 
   }
 
   // 기본 배송지로 설정하는 경우, 기존 기본 배송지 해제
-  if (isDefault && !existingAddress.isDefault) {
-    await Address.updateMany({ userId, isDefault: true }, { isDefault: false });
+  if (isDefault && !user.addresses[addressIndex].isDefault) {
+    user.addresses.forEach((addr) => {
+      addr.isDefault = false;
+    });
   }
 
-  const updatedAddress = await Address.findByIdAndUpdate(
-    id,
-    {
-      addressName,
-      recipientName,
-      zipCode,
-      address,
-      addressDetail,
-      phone,
-      tel,
-      isDefault,
-    },
-    { new: true }
-  );
+  // 배송지 업데이트
+  user.addresses[addressIndex] = {
+    ...user.addresses[addressIndex],
+    addressName,
+    recipientName,
+    zipCode,
+    address,
+    addressDetail,
+    phone,
+    tel,
+    isDefault,
+  };
+
+  await user.save();
 
   res.json({
     success: true,
     message: "배송지가 수정되었습니다.",
-    data: updatedAddress,
+    data: user.addresses[addressIndex],
   });
 };
 
 // 배송지 삭제
 export const deleteAddress = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
   const { id } = req.params;
 
-  const address = await Address.findOneAndDelete({ _id: id, userId });
+  const user = await User.findById(userId);
 
-  if (!address) {
+  if (!user) {
+    res.status(404).json({
+      success: false,
+      message: "사용자를 찾을 수 없습니다.",
+    });
+    return;
+  }
+
+  const addressIndex = user.addresses.findIndex((addr) => addr._id.toString() === id);
+
+  if (addressIndex === -1) {
     res.status(404).json({
       success: false,
       message: "배송지를 찾을 수 없습니다.",
     });
     return;
   }
+
+  user.addresses.splice(addressIndex, 1);
+  await user.save();
 
   res.json({
     success: true,
@@ -146,12 +227,22 @@ export const deleteAddress = async (req: Request, res: Response): Promise<void> 
 
 // 기본 배송지 설정
 export const setDefaultAddress = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
   const { id } = req.params;
 
-  const address = await Address.findOne({ _id: id, userId });
+  const user = await User.findById(userId);
 
-  if (!address) {
+  if (!user) {
+    res.status(404).json({
+      success: false,
+      message: "사용자를 찾을 수 없습니다.",
+    });
+    return;
+  }
+
+  const addressIndex = user.addresses.findIndex((addr) => addr._id.toString() === id);
+
+  if (addressIndex === -1) {
     res.status(404).json({
       success: false,
       message: "배송지를 찾을 수 없습니다.",
@@ -159,89 +250,21 @@ export const setDefaultAddress = async (req: Request, res: Response): Promise<vo
     return;
   }
 
-  // 기존 기본 배송지 해제
-  await Address.updateMany({ userId, isDefault: true }, { isDefault: false });
+  // 모든 배송지 기본 해제 후 선택한 것만 기본으로
+  user.addresses.forEach((addr, idx) => {
+    addr.isDefault = idx === addressIndex;
+  });
 
-  // 새 기본 배송지 설정
-  address.isDefault = true;
-  await address.save();
+  await user.save();
 
   res.json({
     success: true,
     message: "기본 배송지로 설정되었습니다.",
-    data: address,
+    data: user.addresses[addressIndex],
   });
 };
 
-// 최근 배송지로 저장 (편지 발송 시 호출)
-export const saveToRecent = async (userId: string, addressData: any): Promise<void> => {
-  // 동일한 주소가 있는지 확인
-  const existing = await Address.findOne({
-    userId,
-    zipCode: addressData.zipCode,
-    address: addressData.address,
-    addressDetail: addressData.addressDetail,
-  });
-
-  if (existing) {
-    // 기존 주소의 lastUsedAt 업데이트
-    existing.lastUsedAt = new Date();
-    await existing.save();
-  } else {
-    // 새 주소 저장
-    await Address.create({
-      ...addressData,
-      userId,
-      isFromRecent: true,
-      lastUsedAt: new Date(),
-    });
-
-    // 최근 배송지가 20개 초과시 오래된 것 삭제
-    const recentCount = await Address.countDocuments({ userId });
-    if (recentCount > 20) {
-      const oldestRecent = await Address.find({ userId, isFromRecent: true })
-        .sort({ lastUsedAt: 1 })
-        .limit(recentCount - 20);
-
-      const idsToDelete = oldestRecent.map((addr) => addr._id);
-      await Address.deleteMany({ _id: { $in: idsToDelete } });
-    }
-  }
-};
-
-// 최근 배송지를 주소록에 저장
-export const saveRecentToAddressBook = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
-  const { id } = req.params;
-  const { addressName } = req.body;
-
-  const recentAddress = await Address.findOne({ _id: id, userId });
-
-  if (!recentAddress) {
-    res.status(404).json({
-      success: false,
-      message: "배송지를 찾을 수 없습니다.",
-    });
-    return;
-  }
-
-  // 주소록에 저장
-  const newAddress = await Address.create({
-    userId,
-    addressName: addressName || recentAddress.addressName,
-    recipientName: recentAddress.recipientName,
-    zipCode: recentAddress.zipCode,
-    address: recentAddress.address,
-    addressDetail: recentAddress.addressDetail,
-    phone: recentAddress.phone,
-    tel: recentAddress.tel,
-    isDefault: false,
-    isFromRecent: false,
-  });
-
-  res.status(201).json({
-    success: true,
-    message: "주소록에 저장되었습니다.",
-    data: newAddress,
-  });
+// 배송지 사용 기록 업데이트 (편지 발송 시 호출)
+export const updateAddressUsage = async (userId: string, addressId: string): Promise<void> => {
+  await User.findOneAndUpdate({ _id: userId, "addresses._id": addressId }, { $set: { "addresses.$.lastUsedAt": new Date() } });
 };

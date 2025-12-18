@@ -36,9 +36,3 @@ export const addressIdValidation = [param("id").isMongoId().withMessage("유효�
 
 // 최근 배송지 조회 유효성 검사
 export const recentAddressQueryValidation = [query("limit").optional().isInt({ min: 1, max: 20 }).withMessage("limit은 1~20 사이의 숫자여야 합니다.")];
-
-// 주소록 저장 유효성 검사
-export const saveToAddressBookValidation = [
-  param("id").isMongoId().withMessage("유효하지 않은 배송지 ID입니다."),
-  body("addressName").optional().trim().isLength({ max: 20 }).withMessage("배송지명은 20자 이내로 입력해주세요."),
-];
