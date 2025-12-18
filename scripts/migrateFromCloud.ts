@@ -3,8 +3,8 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Atlas MongoDB URI (클라우드)
-const CLOUD_URI = "mongodb+srv://admin:1234@letter-backend-db.sg3hxtf.mongodb.net/letter-db?retryWrites=true&w=majority&appName=letter-backend-db";
+// Atlas MongoDB URI (클라우드) - 환경변수 또는 직접 입력
+const CLOUD_URI = process.env.CLOUD_MONGODB_URI || "mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<dbname>?retryWrites=true&w=majority";
 // 로컬 MongoDB URI
 const LOCAL_URI = "mongodb://localhost:27017/letter-db";
 
