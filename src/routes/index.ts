@@ -4,6 +4,7 @@ import letterRoutes from "./letters";
 import ogRoutes from "./og";
 import testRoutes from "./tests";
 import devAuthRoutes from "./devAuth";
+import addressRoutes from "./addressRoutes";
 
 const router: Router = Router();
 
@@ -30,6 +31,9 @@ router.use("/dev", devAuthRoutes);
 
 // Test routes (MVC 패턴 예제)
 router.use("/tests", testRoutes);
+
+// Address routes (배송지 관리)
+router.use("/addresses", addressRoutes);
 
 // Fallback for undefined routes
 router.use((_req, res) => {
