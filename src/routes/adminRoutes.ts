@@ -7,7 +7,7 @@ import adminController from "../controllers/adminController";
 const router: Router = Router();
 
 // ===== 인증 API =====
-router.get("/auth/public-key", adminAuthController.getPublicKey);
+router.get("/auth/encryption-key", adminAuthController.getEncryptionKey);
 router.post("/auth/login", adminAuthController.login);
 router.post("/auth/logout", adminAuthenticate, adminAuthController.logout);
 router.get("/auth/me", adminAuthenticate, adminAuthController.getMe);

@@ -19,8 +19,8 @@ Admin은 별도 인증 시스템(이메일/비밀번호)을 사용하며, 역할
 ## 필요한 추가 패키지
 
 ```bash
-pnpm add react-router-dom jsencrypt
-pnpm add -D @types/react-router-dom
+pnpm add react-router-dom crypto-js
+pnpm add -D @types/react-router-dom @types/crypto-js
 ```
 
 ---
@@ -31,13 +31,13 @@ Base URL: `http://localhost:5001/api/admin`
 
 ### 인증 API
 
-| Method | Endpoint           | 설명            | 권한   |
-| ------ | ------------------ | --------------- | ------ |
-| GET    | `/auth/public-key` | RSA 공개키 조회 | Public |
-| POST   | `/auth/login`      | 로그인          | Public |
-| POST   | `/auth/logout`     | 로그아웃        | Admin  |
-| GET    | `/auth/me`         | 내 정보 조회    | Admin  |
-| PUT    | `/auth/password`   | 비밀번호 변경   | Admin  |
+| Method | Endpoint               | 설명               | 권한   |
+| ------ | ---------------------- | ------------------ | ------ |
+| GET    | `/auth/encryption-key` | AES 암호화 키 조회 | Public |
+| POST   | `/auth/login`          | 로그인             | Public |
+| POST   | `/auth/logout`         | 로그아웃           | Admin  |
+| GET    | `/auth/me`             | 내 정보 조회       | Admin  |
+| PUT    | `/auth/password`       | 비밀번호 변경      | Admin  |
 
 ### 관리자 관리 API (Super Admin 전용)
 
@@ -388,33 +388,28 @@ export const apiClient = ky.create({
 // src/api/auth.ts
 import { apiClient } from "./client";
 import type { ApiResponse, Admin } from "../types";
-import JSEncrypt from "jsencrypt";
+import CryptoJS from "crypto-js";
 
 interface LoginResponse {
   admin: Admin;
   token: string;
 }
 
-interface PublicKeyResponse {
-  publicKey: string;
+interface EncryptionKeyResponse {
+  encryptionKey: string;
 }
 
-// RSA 공개키 조회
-export const getPublicKey = () => apiClient.get("admin/auth/public-key").json<ApiResponse<PublicKeyResponse>>();
+// AES 암호화 키 조회
+export const getEncryptionKey = () => apiClient.get("admin/auth/encryption-key").json<ApiResponse<EncryptionKeyResponse>>();
 
-// RSA 암호화 함수
+// AES 암호화 함수
 export const encryptPassword = async (password: string): Promise<string> => {
-  const response = await getPublicKey();
-  const encrypt = new JSEncrypt();
-  encrypt.setPublicKey(response.data.publicKey);
-  const encrypted = encrypt.encrypt(password);
-  if (!encrypted) {
-    throw new Error("비밀번호 암호화에 실패했습니다");
-  }
+  const response = await getEncryptionKey();
+  const encrypted = CryptoJS.AES.encrypt(password, response.data.encryptionKey).toString();
   return encrypted;
 };
 
-// 로그인 (RSA 암호화 적용)
+// 로그인 (AES 암호화 적용)
 export const login = async (username: string, password: string) => {
   const encryptedPassword = await encryptPassword(password);
   return apiClient
@@ -428,7 +423,7 @@ export const logout = () => apiClient.post("admin/auth/logout").json<ApiResponse
 
 export const getMe = () => apiClient.get("admin/auth/me").json<ApiResponse<Admin>>();
 
-// 비밀번호 변경 (RSA 암호화 적용)
+// 비밀번호 변경 (AES 암호화 적용)
 export const changePassword = async (currentPassword: string, newPassword: string) => {
   const [encryptedCurrent, encryptedNew] = await Promise.all([encryptPassword(currentPassword), encryptPassword(newPassword)]);
   return apiClient

@@ -14,9 +14,22 @@ const app: Application = express();
 app.use(helmet());
 
 // CORS configuration
+const allowedOrigins = [
+  "http://localhost:3000", // 메인 프론트엔드
+  "http://localhost:5173", // Admin 프론트엔드 (Vite)
+  "http://localhost:5175", // Admin 프론트엔드 (Vite 대체 포트)
+];
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: (origin, callback) => {
+      // 개발 환경에서 origin이 없는 경우 (Postman 등) 허용
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS not allowed"));
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -95,7 +108,7 @@ app.get("/", (_req, res) => {
         <div class="status">✅ 서버가 정상적으로 실행 중입니다</div>
         <div class="info">
           <p>포트: ${process.env.PORT || 5000}</p>
-          <p>환경: ${process.env.NODE_ENV || 'development'}</p>
+          <p>환경: ${process.env.NODE_ENV || "development"}</p>
         </div>
         <div class="links">
           <a href="/api-docs">📚 API 문서 (Swagger)</a>

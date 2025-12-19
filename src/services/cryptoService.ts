@@ -1,31 +1,27 @@
-import NodeRSA from "node-rsa";
+import CryptoJS from "crypto-js";
 import fs from "fs";
 import path from "path";
 
 class CryptoService {
-  private key: NodeRSA;
-  private publicKey: string;
+  private secretKey: string;
   private readonly keyPath = path.join(process.cwd(), ".keys");
-  private readonly privateKeyFile = path.join(this.keyPath, "private.pem");
-  private readonly publicKeyFile = path.join(this.keyPath, "public.pem");
+  private readonly keyFile = path.join(this.keyPath, "aes.key");
 
   constructor() {
-    this.key = this.loadOrGenerateKey();
-    this.publicKey = this.key.exportKey("public");
+    this.secretKey = this.loadOrGenerateKey();
   }
 
-  // 키 로드 또는 생성
-  private loadOrGenerateKey(): NodeRSA {
+  // AES 키 로드 또는 생성
+  private loadOrGenerateKey(): string {
     // 기존 키가 있으면 로드
-    if (fs.existsSync(this.privateKeyFile) && fs.existsSync(this.publicKeyFile)) {
-      const privateKey = fs.readFileSync(this.privateKeyFile, "utf8");
-      const key = new NodeRSA(privateKey);
-      console.log("✅ RSA 키 로드 완료");
+    if (fs.existsSync(this.keyFile)) {
+      const key = fs.readFileSync(this.keyFile, "utf8");
+      console.log("✅ AES 키 로드 완료");
       return key;
     }
 
-    // 새 키 생성
-    const key = new NodeRSA({ b: 2048 });
+    // 새 키 생성 (256bit 랜덤 키)
+    const key = CryptoJS.lib.WordArray.random(256 / 8).toString();
 
     // 키 저장 디렉토리 생성
     if (!fs.existsSync(this.keyPath)) {
@@ -33,30 +29,44 @@ class CryptoService {
     }
 
     // 키 파일 저장
-    fs.writeFileSync(this.privateKeyFile, key.exportKey("private"));
-    fs.writeFileSync(this.publicKeyFile, key.exportKey("public"));
-
-    console.log("✅ RSA 키 생성 완료");
+    fs.writeFileSync(this.keyFile, key);
+    console.log("✅ AES 키 생성 완료");
     return key;
   }
 
-  // 공개키 반환 (프론트엔드에서 사용)
-  getPublicKey(): string {
-    return this.publicKey;
+  // 암호화 키 반환 (프론트엔드에서 사용)
+  getEncryptionKey(): string {
+    console.log("📤 암호화 키 요청됨");
+    return this.secretKey;
   }
 
   // 복호화 (백엔드에서 사용)
   decrypt(encryptedData: string): string {
     try {
-      return this.key.decrypt(encryptedData, "utf8");
-    } catch {
+      console.log("🔐 복호화 시도:", {
+        dataLength: encryptedData.length,
+        dataPreview: encryptedData.substring(0, 50) + "...",
+      });
+
+      // AES 복호화
+      const bytes = CryptoJS.AES.decrypt(encryptedData, this.secretKey);
+      const result = bytes.toString(CryptoJS.enc.Utf8);
+
+      if (!result) {
+        throw new Error("복호화 결과가 비어있습니다");
+      }
+
+      console.log("✅ 복호화 성공");
+      return result;
+    } catch (error) {
+      console.error("❌ 복호화 실패:", error);
       throw new Error("복호화에 실패했습니다");
     }
   }
 
   // 암호화 (테스트용)
   encrypt(data: string): string {
-    return this.key.encrypt(data, "base64");
+    return CryptoJS.AES.encrypt(data, this.secretKey).toString();
   }
 }
 

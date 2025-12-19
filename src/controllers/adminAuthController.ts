@@ -3,11 +3,11 @@ import adminAuthService from "../services/adminAuthService";
 import cryptoService from "../services/cryptoService";
 
 class AdminAuthController {
-  // RSA 공개키 조회
-  async getPublicKey(_req: Request, res: Response): Promise<void> {
+  // AES 암호화 키 조회
+  async getEncryptionKey(_req: Request, res: Response): Promise<void> {
     res.json({
       success: true,
-      data: { publicKey: cryptoService.getPublicKey() },
+      data: { encryptionKey: cryptoService.getEncryptionKey() },
     });
   }
 
