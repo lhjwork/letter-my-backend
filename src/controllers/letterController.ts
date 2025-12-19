@@ -101,15 +101,25 @@ export class LetterController {
     }
   }
 
-  // ID로 편지 조회 (조회수 증가)
+  // ID로 편지 조회 (본인 글이 아닌 경우에만 조회수 증가)
   async getLetterById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const letter = await letterService.incrementViewCount(id);
+      const currentUserId = req.user?.userId;
+
+      // 먼저 편지 조회
+      const letter = await letterService.findById(id);
 
       if (!letter) {
         res.status(404).json({ success: false, message: "Letter not found" });
         return;
+      }
+
+      // 본인 글이 아닌 경우에만 조회수 증가
+      const isOwnLetter = letter.userId?.toString() === currentUserId;
+      if (!isOwnLetter) {
+        await letterService.incrementViewCount(id);
+        letter.viewCount += 1; // 응답에 반영
       }
 
       res.status(200).json({ success: true, data: letter });

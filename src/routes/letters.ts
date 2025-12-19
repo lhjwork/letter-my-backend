@@ -1,6 +1,6 @@
 import { Router } from "express";
 import letterController from "../controllers/letterController";
-import { authenticate } from "../middleware/auth";
+import { authenticate, optionalAuthenticate } from "../middleware/auth";
 import { createLetterValidation, updateLetterValidation, letterIdValidation } from "../middleware/letterValidation";
 import { body } from "express-validator";
 import { validate } from "../middleware/validation";
@@ -12,10 +12,7 @@ const createStoryValidation = [
   body("title").trim().notEmpty().withMessage("Title is required"),
   body("content").notEmpty().withMessage("Content is required"),
   body("authorName").optional().trim(),
-  body("category")
-    .optional()
-    .isIn(["가족", "사랑", "우정", "성장", "위로", "추억", "감사", "기타"])
-    .withMessage("Invalid category"),
+  body("category").optional().isIn(["가족", "사랑", "우정", "성장", "위로", "추억", "감사", "기타"]).withMessage("Invalid category"),
   validate,
 ];
 
@@ -64,10 +61,10 @@ router.get("/", letterController.getAllLetters);
 
 /**
  * @route   GET /api/letters/:id
- * @desc    ID로 편지 조회 (조회수 증가)
- * @access  Public
+ * @desc    ID로 편지 조회 (본인 글이 아닌 경우에만 조회수 증가)
+ * @access  Public (로그인 시 본인 글 조회수 제외)
  */
-router.get("/:id", letterIdValidation, letterController.getLetterById);
+router.get("/:id", optionalAuthenticate, letterIdValidation, letterController.getLetterById);
 
 /**
  * @route   PATCH /api/letters/:id
