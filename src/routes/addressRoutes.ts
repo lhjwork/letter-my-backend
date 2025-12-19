@@ -4,7 +4,7 @@ import { authenticate } from "../middleware/auth";
 import { validate } from "../middleware/validation";
 import { createAddressValidation, updateAddressValidation, addressIdValidation, recentAddressQueryValidation } from "../middleware/addressValidation";
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * @swagger
