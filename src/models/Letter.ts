@@ -22,6 +22,8 @@ export enum LetterCategory {
 export enum LetterStatus {
   CREATED = "created",
   PUBLISHED = "published",
+  HIDDEN = "hidden",
+  DELETED = "deleted",
 }
 
 // OG 이미지 타입
@@ -41,6 +43,9 @@ export interface ILetter extends Document {
   status: LetterStatus;
   viewCount: number;
   likeCount: number;
+  hiddenAt?: Date;
+  hiddenReason?: string;
+  deletedAt?: Date;
   ogPreviewMessage: string;
   ogBgColor: string;
   ogIllustration: string;
@@ -128,6 +133,9 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
     ogImageUrl: {
       type: String,
     },
+    hiddenAt: Date,
+    hiddenReason: String,
+    deletedAt: Date,
   },
   {
     timestamps: true,

@@ -7,6 +7,13 @@ export enum OAuthProvider {
   KAKAO = "kakao",
 }
 
+// User 상태 (Admin에서 관리)
+export enum UserStatus {
+  ACTIVE = "active",
+  BANNED = "banned",
+  DELETED = "deleted",
+}
+
 // OAuth Account 인터페이스
 export interface IOAuthAccount {
   provider: OAuthProvider;
@@ -45,6 +52,10 @@ export interface IUser extends Document {
   emailVerified?: Date;
   oauthAccounts: IOAuthAccount[];
   addresses: IAddress[];
+  status: UserStatus;
+  bannedAt?: Date;
+  bannedReason?: string;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt?: Date;
@@ -170,6 +181,14 @@ const UserSchema = new Schema<IUser, IUserModel>(
     lastLoginAt: {
       type: Date,
     },
+    status: {
+      type: String,
+      enum: Object.values(UserStatus),
+      default: UserStatus.ACTIVE,
+    },
+    bannedAt: Date,
+    bannedReason: String,
+    deletedAt: Date,
   },
   {
     timestamps: true,

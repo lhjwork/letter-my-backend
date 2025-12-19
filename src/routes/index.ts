@@ -5,6 +5,7 @@ import ogRoutes from "./og";
 import testRoutes from "./tests";
 import devAuthRoutes from "./devAuth";
 import addressRoutes from "./addressRoutes";
+import adminRoutes from "./adminRoutes";
 
 const router: Router = Router();
 
@@ -34,6 +35,9 @@ router.use("/tests", testRoutes);
 
 // Address routes (배송지 관리)
 router.use("/addresses", addressRoutes);
+
+// Admin routes (관리자)
+router.use("/admin", adminRoutes);
 
 // Fallback for undefined routes
 router.use((_req, res) => {

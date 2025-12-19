@@ -32,3 +32,6 @@ coverage/
 
 # misc
 *.log
+
+# RSA keys
+.keys/
