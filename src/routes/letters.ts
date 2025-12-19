@@ -1,5 +1,6 @@
 import { Router } from "express";
 import letterController from "../controllers/letterController";
+import likeController from "../controllers/likeController";
 import { authenticate, optionalAuthenticate } from "../middleware/auth";
 import { createLetterValidation, updateLetterValidation, letterIdValidation } from "../middleware/letterValidation";
 import { body } from "express-validator";
@@ -79,5 +80,26 @@ router.patch("/:id", authenticate, updateLetterValidation, letterController.upda
  * @access  Private
  */
 router.delete("/:id", authenticate, letterIdValidation, letterController.deleteLetter);
+
+/**
+ * @route   POST /api/letters/:id/like
+ * @desc    좋아요 추가
+ * @access  Private
+ */
+router.post("/:id/like", authenticate, letterIdValidation, likeController.addLike);
+
+/**
+ * @route   DELETE /api/letters/:id/like
+ * @desc    좋아요 취소
+ * @access  Private
+ */
+router.delete("/:id/like", authenticate, letterIdValidation, likeController.removeLike);
+
+/**
+ * @route   GET /api/letters/:id/like
+ * @desc    좋아요 상태 확인
+ * @access  Private
+ */
+router.get("/:id/like", authenticate, letterIdValidation, likeController.checkLikeStatus);
 
 export default router;

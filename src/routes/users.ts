@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import userController from "../controllers/userController";
+import likeController from "../controllers/likeController";
 import { authenticate } from "../middleware/auth";
 import { oauthLoginValidation, updateUserValidation, linkOAuthValidation, unlinkOAuthValidation, mongoIdValidation } from "../middleware/validation";
 
@@ -20,6 +21,13 @@ router.post("/oauth/login", oauthLoginValidation, userController.oauthLogin);
  * @access  Private
  */
 router.get("/me", authenticate, userController.getMe);
+
+/**
+ * @route   GET /api/users/me/likes
+ * @desc    내가 좋아요한 목록 조회
+ * @access  Private
+ */
+router.get("/me/likes", authenticate, likeController.getMyLikes);
 
 /**
  * @route   GET /api/users
