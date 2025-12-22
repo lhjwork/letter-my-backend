@@ -12,13 +12,59 @@ export class LetterService {
     return Letter.findByUserId(userId);
   }
 
+  // userId로 편지 목록 조회 (페이지네이션)
+  async findByUserIdWithPagination(
+    userId: string,
+    page: number = 1,
+    limit: number = 20
+  ): Promise<{
+    data: ILetter[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+    };
+  }> {
+    const skip = (page - 1) * limit;
+
+    // story와 letter 타입 모두 조회
+    const query = {
+      userId,
+      type: { $in: [LetterType.STORY, LetterType.LETTER] },
+    };
+
+    const [letters, total] = await Promise.all([
+      Letter.find(query)
+        .sort({ createdAt: -1 }) // 최신순 정렬
+        .skip(skip)
+        .limit(limit)
+        .select("-__v")
+        .lean(),
+      Letter.countDocuments(query),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: letters as ILetter[],
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    };
+  }
+
   // 모든 편지 조회 (페이지네이션)
   async findAll(page: number = 1, limit: number = 10): Promise<{ letters: ILetter[]; total: number; page: number; totalPages: number }> {
     const skip = (page - 1) * limit;
-    const [letters, total] = await Promise.all([
-      Letter.find().skip(skip).limit(limit).sort({ createdAt: -1 }),
-      Letter.countDocuments(),
-    ]);
+    const [letters, total] = await Promise.all([Letter.find().skip(skip).limit(limit).sort({ createdAt: -1 }), Letter.countDocuments()]);
     return { letters, total, page, totalPages: Math.ceil(total / limit) };
   }
 
@@ -49,14 +95,7 @@ export class LetterService {
   }
 
   // 사연 생성 (POST /api/letters/story)
-  async createStory(data: {
-    userId?: string;
-    title: string;
-    content: string;
-    authorName: string;
-    category?: LetterCategory;
-    ogPreviewMessage?: string;
-  }): Promise<ILetter> {
+  async createStory(data: { userId?: string; title: string; content: string; authorName: string; category?: LetterCategory; ogPreviewMessage?: string }): Promise<ILetter> {
     const letter = new Letter({
       type: LetterType.STORY,
       userId: data.userId,
@@ -71,13 +110,7 @@ export class LetterService {
   }
 
   // 사연 목록 조회 (페이지네이션, 검색, 정렬, 카테고리 필터)
-  async getStories(params: {
-    page: number;
-    limit: number;
-    search?: string;
-    sort?: "latest" | "oldest" | "popular";
-    category?: string;
-  }): Promise<{
+  async getStories(params: { page: number; limit: number; search?: string; sort?: "latest" | "oldest" | "popular"; category?: string }): Promise<{
     stories: ILetter[];
     pagination: {
       page: number;
@@ -100,11 +133,7 @@ export class LetterService {
 
     // 검색 조건
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { content: { $regex: search, $options: "i" } },
-        { authorName: { $regex: search, $options: "i" } },
-      ];
+      query.$or = [{ title: { $regex: search, $options: "i" } }, { content: { $regex: search, $options: "i" } }, { authorName: { $regex: search, $options: "i" } }];
     }
 
     // 정렬 조건
@@ -125,10 +154,7 @@ export class LetterService {
 
     const skip = (page - 1) * limit;
 
-    const [stories, total] = await Promise.all([
-      Letter.find(query).sort(sortOption).skip(skip).limit(limit).select("-__v").lean(),
-      Letter.countDocuments(query),
-    ]);
+    const [stories, total] = await Promise.all([Letter.find(query).sort(sortOption).skip(skip).limit(limit).select("-__v").lean(), Letter.countDocuments(query)]);
 
     const totalPages = Math.ceil(total / limit);
 
@@ -150,11 +176,7 @@ export class LetterService {
     total: number;
     categories: { category: string; count: number; percentage: string }[];
   }> {
-    const stats = await Letter.aggregate([
-      { $match: { type: LetterType.STORY } },
-      { $group: { _id: "$category", count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-    ]);
+    const stats = await Letter.aggregate([{ $match: { type: LetterType.STORY } }, { $group: { _id: "$category", count: { $sum: 1 } } }, { $sort: { count: -1 } }]);
 
     const total = await Letter.countDocuments({ type: LetterType.STORY });
 
@@ -198,11 +220,7 @@ export class LetterService {
 
   // OG 이미지 URL 업데이트 (자동 생성)
   async updateAutoOgImage(letterId: string, ogImageUrl: string): Promise<ILetter | null> {
-    return Letter.findByIdAndUpdate(
-      letterId,
-      { $set: { ogImageUrl, ogImageType: OgImageType.AUTO } },
-      { new: true }
-    );
+    return Letter.findByIdAndUpdate(letterId, { $set: { ogImageUrl, ogImageType: OgImageType.AUTO } }, { new: true });
   }
 
   // OG 이미지 커스텀 업데이트

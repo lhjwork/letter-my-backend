@@ -128,7 +128,7 @@ export class LetterController {
     }
   }
 
-  // 내 편지 목록 조회
+  // 내 편지 목록 조회 (페이지네이션 지원)
   async getMyLetters(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -136,11 +136,34 @@ export class LetterController {
         return;
       }
 
-      const letters = await letterService.findByUserId(req.user.userId);
-      res.status(200).json({ success: true, data: letters });
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+
+      // 파라미터 검증
+      if (page < 1 || limit < 1) {
+        res.status(400).json({
+          success: false,
+          message: "page와 limit은 1 이상의 값이어야 합니다.",
+        });
+        return;
+      }
+
+      // 페이지네이션이 요청된 경우
+      if (req.query.page || req.query.limit) {
+        const result = await letterService.findByUserIdWithPagination(req.user.userId, page, limit);
+        res.status(200).json({
+          success: true,
+          data: result.data,
+          pagination: result.pagination,
+        });
+      } else {
+        // 기존 호환성을 위해 파라미터가 없으면 전체 조회 (하위 호환성)
+        const letters = await letterService.findByUserId(req.user.userId);
+        res.status(200).json({ success: true, data: letters });
+      }
     } catch (error) {
       console.error("Error fetching user letters:", error);
-      res.status(500).json({ success: false, message: "서버 오류가 발생했습니다" });
+      res.status(500).json({ success: false, message: "편지 목록을 불러오는데 실패했습니다." });
     }
   }
 

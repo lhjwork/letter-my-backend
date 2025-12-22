@@ -151,6 +151,7 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
 // 복합 인덱스
 LetterSchema.index({ type: 1, createdAt: -1 });
 LetterSchema.index({ type: 1, category: 1, createdAt: -1 });
+LetterSchema.index({ userId: 1, createdAt: -1 }); // 내 편지 목록 조회 최적화
 
 // userId로 편지 찾기 (Static 메서드)
 LetterSchema.statics.findByUserId = function (userId: string): Promise<ILetter[]> {
