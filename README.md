@@ -70,7 +70,39 @@ pnpm build
 pnpm start
 ```
 
-## 📡 API 엔드포인트
+## � 유틸리티 스크립트
+
+### 데이터베이스 인덱스 생성
+
+성능 최적화를 위한 데이터베이스 인덱스를 생성합니다:
+
+```bash
+npx ts-node scripts/createIndexes.ts
+```
+
+생성되는 인덱스:
+
+- User 컬렉션: email, name, status, oauthAccounts
+- Letter 컬렉션: userId, status, createdAt, type, category
+- 복합 인덱스: userId + status + createdAt (사용자별 편지 조회 최적화)
+
+### Super Admin 생성
+
+최초 관리자 계정을 생성합니다:
+
+```bash
+npx ts-node scripts/createSuperAdmin.ts
+```
+
+### 카테고리 마이그레이션
+
+기존 데이터의 카테고리를 새로운 형식으로 마이그레이션합니다:
+
+```bash
+npx ts-node scripts/migrateCategories.ts
+```
+
+## �📡 API 엔드포인트
 
 ### 인증 API
 
@@ -86,7 +118,10 @@ pnpm start
 - `GET /api/users` - 모든 사용자 조회
 - `GET /api/users/:id` - 특정 사용자 조회
 
-자세한 API 문서는 [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)를 참고하세요.
+자세한 API 문서는 다음을 참고하세요:
+
+- [API_DOCUMENTATION.md](./docs/API_DOCUMENTATION.md) - 일반 사용자 API
+- [ADMIN_USER_API_DOCUMENTATION.md](./docs/ADMIN_USER_API_DOCUMENTATION.md) - 관리자 API
 
 ## 🔗 NextAuth.js 연동
 

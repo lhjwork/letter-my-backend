@@ -12,6 +12,7 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "migrate:from-cloud": "ts-node scripts/migrateFromCloud.ts",
     "admin:create": "ts-node scripts/createSuperAdmin.ts",
+    "db:indexes": "ts-node scripts/createIndexes.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

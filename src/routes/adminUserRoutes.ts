@@ -19,10 +19,19 @@ const paginationValidation = [
   validate,
 ];
 
-// 검색 검증 (수정)
+// 편지 목록 검증
+const letterListValidation = [
+  query("page").optional().isInt({ min: 1 }).withMessage("Page must be a positive integer"),
+  query("limit").optional().isInt({ min: 1, max: 100 }).withMessage("Limit must be between 1 and 100"),
+  query("status").optional().isIn(["created", "published", "hidden", "deleted", "all"]).withMessage("Status must be one of: created, published, hidden, deleted, all"),
+  validate,
+];
+
+// 검색 검증
 const searchValidation = [
   query("query").notEmpty().withMessage("Search term is required"),
   query("limit").optional().isInt({ min: 1, max: 50 }).withMessage("Limit must be between 1 and 50"),
+  query("status").optional().isIn(["active", "inactive", "deleted", "all"]).withMessage("Status must be one of: active, inactive, deleted, all"),
   validate,
 ];
 
@@ -76,10 +85,10 @@ router.get("/:userId/stats", requireRole("admin"), userIdValidation, adminUserCo
 /**
  * @route   GET /api/admin/users/:userId/letters
  * @desc    사용자 작성 편지 목록
- * @access  Admin
- * @query   page, limit
+ * @access  Admin (letters.read 권한 필요)
+ * @query   page, limit, status
  */
-router.get("/:userId/letters", requireRole("admin"), userIdValidation, paginationValidation, adminUserController.getUserLetters);
+router.get("/:userId/letters", requireRole("admin"), userIdValidation, letterListValidation, adminUserController.getUserLetters);
 
 /**
  * @route   PUT /api/admin/users/:userId/status

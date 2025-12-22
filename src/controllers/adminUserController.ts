@@ -3,7 +3,7 @@ import adminUserService, { UserListQuery } from "../services/adminUserService";
 import { createErrorResponse, ERROR_CODES, ERROR_STATUS_CODES } from "../utils/errorResponse";
 
 class AdminUserController {
-  // 사용자 목록 조회
+  // 사용자 목록 조회 (users.read 권한 필요)
   async getUserList(req: Request, res: Response): Promise<void> {
     try {
       const query: UserListQuery = {
@@ -31,11 +31,12 @@ class AdminUserController {
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "사용자 목록 조회에 실패했습니다";
-      res.status(500).json({ success: false, message });
+      const errorResponse = createErrorResponse(ERROR_CODES.INTERNAL_ERROR, message);
+      res.status(ERROR_STATUS_CODES[ERROR_CODES.INTERNAL_ERROR]).json(errorResponse);
     }
   }
 
-  // 사용자 검색 (status 필터링 추가)
+  // 사용자 검색 (users.read 권한 필요)
   async searchUsers(req: Request, res: Response): Promise<void> {
     try {
       const { query: searchTerm, limit, status } = req.query;
@@ -54,11 +55,12 @@ class AdminUserController {
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "사용자 검색에 실패했습니다";
-      res.status(500).json({ success: false, message });
+      const errorResponse = createErrorResponse(ERROR_CODES.INTERNAL_ERROR, message);
+      res.status(ERROR_STATUS_CODES[ERROR_CODES.INTERNAL_ERROR]).json(errorResponse);
     }
   }
 
-  // 사용자 상세 정보 조회
+  // 사용자 상세 정보 조회 (users.read 권한 필요)
   async getUserDetail(req: Request, res: Response): Promise<void> {
     try {
       const { userId } = req.params;
@@ -82,7 +84,7 @@ class AdminUserController {
     }
   }
 
-  // 사용자 통계 정보
+  // 사용자 통계 정보 (users.read 권한 필요)
   async getUserStats(req: Request, res: Response): Promise<void> {
     try {
       const { userId } = req.params;
@@ -95,11 +97,12 @@ class AdminUserController {
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "사용자 통계 조회에 실패했습니다";
-      res.status(500).json({ success: false, message });
+      const errorResponse = createErrorResponse(ERROR_CODES.INTERNAL_ERROR, message);
+      res.status(ERROR_STATUS_CODES[ERROR_CODES.INTERNAL_ERROR]).json(errorResponse);
     }
   }
 
-  // 사용자 작성 편지 목록 (status 필터링 추가)
+  // 사용자 작성 편지 목록 (letters.read 권한 필요)
   async getUserLetters(req: Request, res: Response): Promise<void> {
     try {
       const { userId } = req.params;
@@ -108,10 +111,8 @@ class AdminUserController {
       const status = req.query.status as string;
 
       if (page < 1 || limit < 1) {
-        res.status(400).json({
-          success: false,
-          message: "page와 limit은 1 이상의 값이어야 합니다.",
-        });
+        const errorResponse = createErrorResponse(ERROR_CODES.INVALID_PARAMETERS, "page와 limit은 1 이상의 값이어야 합니다.");
+        res.status(ERROR_STATUS_CODES[ERROR_CODES.INVALID_PARAMETERS]).json(errorResponse);
         return;
       }
 
@@ -124,31 +125,28 @@ class AdminUserController {
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "사용자 편지 목록 조회에 실패했습니다";
-      res.status(500).json({ success: false, message });
+      const errorResponse = createErrorResponse(ERROR_CODES.INTERNAL_ERROR, message);
+      res.status(ERROR_STATUS_CODES[ERROR_CODES.INTERNAL_ERROR]).json(errorResponse);
     }
   }
 
-  // 사용자 상태 변경
+  // 사용자 상태 변경 (users.write 권한 필요)
   async updateUserStatus(req: Request, res: Response): Promise<void> {
     try {
       const { userId } = req.params;
       const { status } = req.body;
 
       if (!["active", "inactive"].includes(status)) {
-        res.status(400).json({
-          success: false,
-          message: "상태는 'active' 또는 'inactive'여야 합니다.",
-        });
+        const errorResponse = createErrorResponse(ERROR_CODES.INVALID_STATUS, "상태는 'active' 또는 'inactive'여야 합니다.");
+        res.status(ERROR_STATUS_CODES[ERROR_CODES.INVALID_STATUS]).json(errorResponse);
         return;
       }
 
       const user = await adminUserService.updateUserStatus(userId, status);
 
       if (!user) {
-        res.status(404).json({
-          success: false,
-          message: "사용자를 찾을 수 없습니다.",
-        });
+        const errorResponse = createErrorResponse(ERROR_CODES.USER_NOT_FOUND);
+        res.status(ERROR_STATUS_CODES[ERROR_CODES.USER_NOT_FOUND]).json(errorResponse);
         return;
       }
 
@@ -159,11 +157,12 @@ class AdminUserController {
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "사용자 상태 변경에 실패했습니다";
-      res.status(500).json({ success: false, message });
+      const errorResponse = createErrorResponse(ERROR_CODES.INTERNAL_ERROR, message);
+      res.status(ERROR_STATUS_CODES[ERROR_CODES.INTERNAL_ERROR]).json(errorResponse);
     }
   }
 
-  // 사용자 삭제
+  // 사용자 삭제 (users.delete 권한 필요)
   async deleteUser(req: Request, res: Response): Promise<void> {
     try {
       const { userId } = req.params;
@@ -176,11 +175,12 @@ class AdminUserController {
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "사용자 삭제에 실패했습니다";
-      res.status(500).json({ success: false, message });
+      const errorResponse = createErrorResponse(ERROR_CODES.INTERNAL_ERROR, message);
+      res.status(ERROR_STATUS_CODES[ERROR_CODES.INTERNAL_ERROR]).json(errorResponse);
     }
   }
 
-  // 대시보드 통계
+  // 대시보드 통계 (users.read 권한 필요)
   async getDashboardStats(_req: Request, res: Response): Promise<void> {
     try {
       const stats = await adminUserService.getDashboardStats();
@@ -191,7 +191,8 @@ class AdminUserController {
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "대시보드 통계 조회에 실패했습니다";
-      res.status(500).json({ success: false, message });
+      const errorResponse = createErrorResponse(ERROR_CODES.INTERNAL_ERROR, message);
+      res.status(ERROR_STATUS_CODES[ERROR_CODES.INTERNAL_ERROR]).json(errorResponse);
     }
   }
 }

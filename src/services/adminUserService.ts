@@ -2,6 +2,17 @@ import User from "../models/User";
 import Letter from "../models/Letter";
 import mongoose from "mongoose";
 
+/**
+ * 데이터베이스 인덱스 요구사항:
+ * - users.email (검색용)
+ * - users.name (검색용)
+ * - users.status (상태별 필터링용)
+ * - letters.userId (사용자별 편지 조회용)
+ * - letters.status (상태별 필터링용)
+ * - letters.createdAt (정렬용)
+ * - letters.type (편지 타입별 필터링용)
+ */
+
 export interface UserListQuery {
   page: number;
   limit: number;
@@ -178,7 +189,15 @@ class AdminUserService {
     } as UserWithStats;
   }
 
-  // 사용자 통계 정보
+  /**
+   * 사용자 통계 정보 조회
+   * @param userId - 사용자 ID
+   * @returns 통계 정보
+   *
+   * 성능 최적화:
+   * - 병렬 처리로 통계 계산 및 사용자 정보 조회
+   * - aggregation pipeline으로 한 번에 모든 통계 계산
+   */
   async getUserStats(userId: string): Promise<UserStats> {
     const [letterStats, user] = await Promise.all([
       Letter.aggregate([
@@ -212,7 +231,19 @@ class AdminUserService {
     };
   }
 
-  // 사용자 작성 편지 목록 (status 필터링 추가)
+  /**
+   * 사용자 작성 편지 목록 조회
+   * @param userId - 사용자 ID
+   * @param page - 페이지 번호
+   * @param limit - 페이지당 항목 수
+   * @param status - 편지 상태 필터
+   * @returns 편지 목록 및 페이지네이션 정보
+   *
+   * 성능 최적화:
+   * - letters.userId 인덱스 필수
+   * - letters.status 인덱스 필수 (status 필터링 시)
+   * - letters.createdAt 인덱스 필수 (정렬용)
+   */
   async getUserLetters(userId: string, page: number = 1, limit: number = 20, status?: string) {
     const skip = (page - 1) * limit;
 

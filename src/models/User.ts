@@ -163,6 +163,7 @@ const UserSchema = new Schema<IUser, IUserModel>(
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
     image: {
       type: String,
