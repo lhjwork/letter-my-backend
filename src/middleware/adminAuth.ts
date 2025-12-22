@@ -77,3 +77,33 @@ export const requireSuperAdmin = (req: Request, res: Response, next: NextFunctio
 
   next();
 };
+
+// adminAuth 별칭 (adminAuthenticate와 동일)
+export const adminAuth = adminAuthenticate;
+
+// 역할 기반 권한 확인 미들웨어
+export const requireRole = (role: "admin" | "manager" | "super_admin") => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.admin) {
+      res.status(401).json({ success: false, message: "인증이 필요합니다" });
+      return;
+    }
+
+    // 역할 계층: super_admin > admin > manager
+    const roleHierarchy = {
+      manager: 1,
+      admin: 2,
+      super_admin: 3,
+    };
+
+    const requiredLevel = roleHierarchy[role];
+    const userLevel = roleHierarchy[req.admin.role as keyof typeof roleHierarchy];
+
+    if (userLevel < requiredLevel) {
+      res.status(403).json({ success: false, message: "권한이 부족합니다" });
+      return;
+    }
+
+    next();
+  };
+};

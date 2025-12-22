@@ -10,7 +10,7 @@ export enum OAuthProvider {
 // User 상태 (Admin에서 관리)
 export enum UserStatus {
   ACTIVE = "active",
-  BANNED = "banned",
+  INACTIVE = "inactive",
   DELETED = "deleted",
 }
 
@@ -53,8 +53,8 @@ export interface IUser extends Document {
   oauthAccounts: IOAuthAccount[];
   addresses: IAddress[];
   status: UserStatus;
-  bannedAt?: Date;
-  bannedReason?: string;
+  inactiveAt?: Date;
+  inactiveReason?: string;
   deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -185,10 +185,14 @@ const UserSchema = new Schema<IUser, IUserModel>(
       type: String,
       enum: Object.values(UserStatus),
       default: UserStatus.ACTIVE,
+      index: true,
     },
-    bannedAt: Date,
-    bannedReason: String,
-    deletedAt: Date,
+    inactiveAt: Date,
+    inactiveReason: String,
+    deletedAt: {
+      type: Date,
+      index: true,
+    },
   },
   {
     timestamps: true,
