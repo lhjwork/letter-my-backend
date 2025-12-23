@@ -15,19 +15,35 @@ app.use(helmet());
 
 // CORS configuration
 const allowedOrigins = [
+  // 개발 환경
   "http://localhost:3000", // 메인 프론트엔드
   "http://localhost:5173", // Admin 프론트엔드 (Vite)
   "http://localhost:5175", // Admin 프론트엔드 (Vite 대체 포트)
+
+  // 프로덕션 환경
+  "https://letter-community.vercel.app", // 메인 프론트엔드 프로덕션 도메인
 ];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // 개발 환경에서 origin이 없는 경우 (Postman 등) 허용
-      if (!origin || allowedOrigins.includes(origin)) {
+      console.log("🌐 CORS Origin 요청:", origin);
+
+      // 개발 환경에서 origin이 없는 경우 (Postman, 모바일 앱 등) 허용
+      if (!origin) {
+        console.log("✅ Origin 없음 - 허용 (Postman, 모바일 앱 등)");
+        callback(null, true);
+        return;
+      }
+
+      // 허용된 origin인지 확인
+      if (allowedOrigins.includes(origin)) {
+        console.log("✅ 허용된 Origin:", origin);
         callback(null, true);
       } else {
-        callback(new Error("CORS not allowed"));
+        console.log("❌ 차단된 Origin:", origin);
+        console.log("허용된 Origins:", allowedOrigins);
+        callback(new Error(`CORS not allowed for origin: ${origin}`));
       }
     },
     credentials: true,
