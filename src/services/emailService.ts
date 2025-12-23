@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 import { ILetter } from "../models/Letter";
 
 // 이메일 전송기 설정
-const transporter = nodemailer.createTransporter({
+const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT || "587"),
   secure: false, // true for 465, false for other ports
@@ -63,7 +63,7 @@ function generateEmailTemplate(letter: ILetter, letterUrl: string): string {
             ${letter.title}
           </h2>
           <p style="color: #6c757d; margin: 0; font-size: 16px; line-height: 1.6;">
-            ${letter.ogPreviewMessage || letter.content.slice(0, 100) + "..."}
+            ${letter.ogPreviewText || letter.content.slice(0, 100) + "..."}
           </p>
           <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e9ecef;">
             <p style="margin: 0; color: #868e96; font-size: 14px;">

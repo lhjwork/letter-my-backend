@@ -112,7 +112,7 @@ class LetterCreateService {
       content: letter.content,
       type: letter.type,
       senderId: letter.userId?._id,
-      senderName: letter.userId?.name || letter.authorName,
+      senderName: (letter.userId as any)?.name || letter.authorName,
       category: letter.category,
       ogTitle: letter.ogTitle,
       ogPreviewText: letter.ogPreviewText,

@@ -33,7 +33,7 @@ export class LetterService {
     // story와 letter 타입 모두 조회
     const query = {
       userId,
-      type: { $in: [LetterType.STORY, LetterType.LETTER] },
+      type: { $in: [LetterType.STORY, LetterType.FRIEND] },
     };
 
     const [letters, total] = await Promise.all([
@@ -80,7 +80,7 @@ export class LetterService {
     ogFontSize?: number;
   }): Promise<ILetter> {
     const letter = new Letter({
-      type: LetterType.LETTER,
+      type: LetterType.FRIEND,
       userId: data.userId,
       title: data.title,
       content: data.content,

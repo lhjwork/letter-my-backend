@@ -105,7 +105,7 @@ export class OgController {
         success: true,
         ogImageUrl: letter.ogImageUrl || null,
         ogImageType: letter.ogImageType,
-        ogPreviewMessage: letter.ogPreviewMessage,
+        ogPreviewMessage: letter.ogPreviewText,
       });
     } catch (error) {
       next(error);

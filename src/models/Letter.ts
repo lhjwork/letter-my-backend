@@ -181,6 +181,16 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
       },
       titleGeneratedAt: Date,
       titleGenerationModel: String,
+      generatedBy: {
+        type: String,
+        enum: ["frontend", "backend", "user"],
+      },
+      // 사연 카테고리 분류용
+      confidence: Number,
+      reason: String,
+      tags: [String],
+      classifiedAt: Date,
+      model: String,
     },
     hiddenAt: Date,
     hiddenReason: String,
