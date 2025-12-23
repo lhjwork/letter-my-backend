@@ -40,6 +40,13 @@ export interface IAIMetadata {
   titleGenerated: boolean;
   titleGeneratedAt?: Date;
   titleGenerationModel?: string;
+  generatedBy?: "frontend" | "backend" | "user";
+  // 사연 카테고리 분류용
+  confidence?: number;
+  reason?: string;
+  tags?: string[];
+  classifiedAt?: Date;
+  model?: string;
 }
 
 // Letter Document 인터페이스
