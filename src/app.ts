@@ -21,7 +21,8 @@ const allowedOrigins = [
   "http://localhost:5175", // Admin 프론트엔드 (Vite 대체 포트)
 
   // 프로덕션 환경
-  "https://letter-community.vercel.app", // 메인 프론트엔드 프로덕션 도메인
+  "https://letter-community.vercel.app", // 메인 임시 프론트엔드 프로덕션 도메인
+  "letter-admin.vercel.app", // 메인 임시 admin 도메인
 ];
 
 app.use(
