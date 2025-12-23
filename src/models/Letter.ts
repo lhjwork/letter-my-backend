@@ -3,7 +3,7 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 // Letter 타입
 export enum LetterType {
   STORY = "story",
-  LETTER = "letter",
+  FRIEND = "friend", // letter -> friend로 변경
 }
 
 // Letter 카테고리
@@ -22,6 +22,9 @@ export enum LetterCategory {
 export enum LetterStatus {
   CREATED = "created",
   PUBLISHED = "published",
+  SENT = "sent",
+  DELIVERED = "delivered",
+  READ = "read",
   HIDDEN = "hidden",
   DELETED = "deleted",
 }
@@ -30,6 +33,13 @@ export enum LetterStatus {
 export enum OgImageType {
   AUTO = "auto",
   CUSTOM = "custom",
+}
+
+// AI 메타데이터 인터페이스
+export interface IAIMetadata {
+  titleGenerated: boolean;
+  titleGeneratedAt?: Date;
+  titleGenerationModel?: string;
 }
 
 // Letter Document 인터페이스
@@ -43,15 +53,21 @@ export interface ILetter extends Document {
   status: LetterStatus;
   viewCount: number;
   likeCount: number;
+  // URL 공유 관련
+  isPublic: boolean;
+  shareableUrl: boolean;
   hiddenAt?: Date;
   hiddenReason?: string;
   deletedAt?: Date;
-  ogPreviewMessage: string;
+  ogTitle?: string;
+  ogPreviewText?: string;
   ogBgColor: string;
   ogIllustration: string;
   ogFontSize: number;
   ogImageType: OgImageType;
   ogImageUrl?: string;
+  // AI 생성 관련 메타데이터
+  aiMetadata: IAIMetadata;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,7 +83,7 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
     type: {
       type: String,
       enum: Object.values(LetterType),
-      default: LetterType.LETTER,
+      default: LetterType.FRIEND,
       index: true,
     },
     userId: {
@@ -79,10 +95,12 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
       type: String,
       required: true,
       trim: true,
+      maxlength: 100,
     },
     content: {
       type: String,
       required: true,
+      trim: true,
     },
     authorName: {
       type: String,
@@ -104,14 +122,29 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
     viewCount: {
       type: Number,
       default: 0,
+      index: true,
     },
     likeCount: {
       type: Number,
       default: 0,
     },
-    ogPreviewMessage: {
+    // URL 공유 관련
+    isPublic: {
+      type: Boolean,
+      default: false, // 일반 편지는 기본적으로 비공개
+      index: true,
+    },
+    shareableUrl: {
+      type: Boolean,
+      default: true,
+    },
+    ogTitle: {
       type: String,
-      default: "",
+      trim: true,
+    },
+    ogPreviewText: {
+      type: String,
+      trim: true,
     },
     ogBgColor: {
       type: String,
@@ -133,6 +166,15 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
     ogImageUrl: {
       type: String,
     },
+    // AI 생성 관련 메타데이터
+    aiMetadata: {
+      titleGenerated: {
+        type: Boolean,
+        default: false,
+      },
+      titleGeneratedAt: Date,
+      titleGenerationModel: String,
+    },
     hiddenAt: Date,
     hiddenReason: String,
     deletedAt: Date,
@@ -152,6 +194,8 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
 LetterSchema.index({ type: 1, createdAt: -1 });
 LetterSchema.index({ type: 1, category: 1, createdAt: -1 });
 LetterSchema.index({ userId: 1, createdAt: -1 }); // 내 편지 목록 조회 최적화
+LetterSchema.index({ type: 1, isPublic: 1, createdAt: -1 }); // 공개 편지 조회 최적화
+LetterSchema.index({ viewCount: -1 }); // 인기 편지 조회 최적화
 
 // userId로 편지 찾기 (Static 메서드)
 LetterSchema.statics.findByUserId = function (userId: string): Promise<ILetter[]> {

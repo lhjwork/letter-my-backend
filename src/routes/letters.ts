@@ -2,7 +2,7 @@ import { Router } from "express";
 import letterController from "../controllers/letterController";
 import likeController from "../controllers/likeController";
 import { authenticate, optionalAuthenticate } from "../middleware/auth";
-import { createLetterValidation, updateLetterValidation, letterIdValidation } from "../middleware/letterValidation";
+import { updateLetterValidation, letterIdValidation } from "../middleware/letterValidation";
 import { body } from "express-validator";
 import { validate } from "../middleware/validation";
 
@@ -16,6 +16,33 @@ const createStoryValidation = [
   body("category").optional().isIn(["가족", "사랑", "우정", "성장", "위로", "추억", "감사", "기타"]).withMessage("Invalid category"),
   validate,
 ];
+
+// 새로운 편지 생성 Validation
+const createLetterNewValidation = [
+  body("title").trim().isLength({ min: 1, max: 100 }).withMessage("제목은 1-100자 이내여야 합니다."),
+  body("content").trim().isLength({ min: 1, max: 10000 }).withMessage("내용은 1-10000자 이내여야 합니다."),
+  body("type").isIn(["story", "friend"]).withMessage("올바른 편지 타입을 선택해주세요."),
+  body("category").optional().trim(),
+  body("ogTitle").optional().trim(),
+  body("ogPreviewText").optional().trim(),
+  body("aiGenerated").optional().isBoolean(),
+  body("aiModel").optional().trim(),
+  validate,
+];
+
+/**
+ * @route   POST /api/letters/create
+ * @desc    편지 생성 (새로운 URL 공유 방식)
+ * @access  Private
+ */
+router.post("/create", authenticate, createLetterNewValidation, letterController.createLetterNew);
+
+/**
+ * @route   GET /api/letters/stats
+ * @desc    편지 생성 통계 조회
+ * @access  Private
+ */
+router.get("/stats", authenticate, letterController.getLetterStats);
 
 /**
  * @route   POST /api/letters/story
@@ -41,10 +68,10 @@ router.get("/categories/stats", letterController.getCategoryStats);
 
 /**
  * @route   POST /api/letters
- * @desc    편지 생성
+ * @desc    편지 생성 (기존 방식 - 하위 호환성)
  * @access  Private
  */
-router.post("/", authenticate, createLetterValidation, letterController.createLetter);
+router.post("/", authenticate, createLetterNewValidation, letterController.createLetterNew);
 
 /**
  * @route   GET /api/letters/my
@@ -61,11 +88,18 @@ router.get("/my", authenticate, letterController.getMyLetters);
 router.get("/", letterController.getAllLetters);
 
 /**
- * @route   GET /api/letters/:id
- * @desc    ID로 편지 조회 (본인 글이 아닌 경우에만 조회수 증가)
+ * @route   GET /api/letters/:letterId
+ * @desc    편지 조회 (새로운 URL 공유 방식)
  * @access  Public (로그인 시 본인 글 조회수 제외)
  */
-router.get("/:id", optionalAuthenticate, letterIdValidation, letterController.getLetterById);
+router.get("/:letterId", optionalAuthenticate, letterController.getLetterByIdNew);
+
+/**
+ * @route   GET /api/letters/legacy/:id
+ * @desc    ID로 편지 조회 (기존 방식 - 하위 호환성)
+ * @access  Public (로그인 시 본인 글 조회수 제외)
+ */
+router.get("/legacy/:id", optionalAuthenticate, letterIdValidation, letterController.getLetterById);
 
 /**
  * @route   PATCH /api/letters/:id

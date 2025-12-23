@@ -44,6 +44,12 @@ export interface IAddress {
   createdAt: Date;
 }
 
+// 편지 설정 인터페이스
+export interface ILetterSettings {
+  defaultReceiverEmail?: string;
+  enableEmailNotifications: boolean;
+}
+
 // User Document 인터페이스
 export interface IUser extends Document {
   email: string;
@@ -52,6 +58,7 @@ export interface IUser extends Document {
   emailVerified?: Date;
   oauthAccounts: IOAuthAccount[];
   addresses: IAddress[];
+  letterSettings: ILetterSettings;
   status: UserStatus;
   inactiveAt?: Date;
   inactiveReason?: string;
@@ -178,6 +185,22 @@ const UserSchema = new Schema<IUser, IUserModel>(
     addresses: {
       type: [AddressSchema],
       default: [],
+    },
+    letterSettings: {
+      defaultReceiverEmail: {
+        type: String,
+        validate: {
+          validator: function (email: string) {
+            if (!email) return true; // 선택적 필드
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+          },
+          message: "올바른 이메일 형식이 아닙니다.",
+        },
+      },
+      enableEmailNotifications: {
+        type: Boolean,
+        default: true,
+      },
     },
     lastLoginAt: {
       type: Date,

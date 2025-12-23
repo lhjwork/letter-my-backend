@@ -1,38 +1,108 @@
 import { Request, Response, NextFunction } from "express";
 import letterService from "../services/letterService";
+import letterCreateService from "../services/letterCreateService";
 import { LetterCategory } from "../models/Letter";
 
 // Letter Controller 클래스
 export class LetterController {
-  // 편지 생성
-  async createLetter(req: Request, res: Response, next: NextFunction): Promise<void> {
+  // 편지 생성 (새로운 URL 공유 방식)
+  async createLetterNew(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user) {
         res.status(401).json({ success: false, message: "Unauthorized" });
         return;
       }
 
-      const { title, content, authorName, ogPreviewMessage, ogBgColor, ogIllustration, ogFontSize } = req.body;
+      const { title, content, type, category, ogTitle, ogPreviewText, aiGenerated, aiModel } = req.body;
 
-      if (!title || !content || !authorName) {
-        res.status(400).json({ success: false, message: "Title, content, and authorName are required" });
+      if (!title || !content) {
+        res.status(400).json({
+          success: false,
+          message: "제목과 내용은 필수입니다.",
+        });
         return;
       }
 
-      const letter = await letterService.createLetter({
-        userId: req.user.userId,
+      if (!["story", "friend"].includes(type)) {
+        res.status(400).json({
+          success: false,
+          message: "올바른 편지 타입을 선택해주세요.",
+        });
+        return;
+      }
+
+      // 사용자 정보 조회
+      const User = require("../models/User").default;
+      const user = await User.findById(req.user.userId);
+      if (!user) {
+        res.status(404).json({ success: false, message: "사용자를 찾을 수 없습니다." });
+        return;
+      }
+
+      const result = await letterCreateService.createLetter(req.user.userId, user.name, {
         title,
         content,
-        authorName,
-        ogPreviewMessage,
-        ogBgColor,
-        ogIllustration,
-        ogFontSize,
+        type,
+        category,
+        ogTitle,
+        ogPreviewText,
+        aiGenerated,
+        aiModel,
       });
 
-      res.status(201).json({ success: true, data: letter, message: "Letter created successfully" });
-    } catch (error) {
-      next(error);
+      res.status(201).json({
+        success: true,
+        message: "편지가 성공적으로 생성되었습니다.",
+        data: result,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "편지 생성에 실패했습니다.";
+      res.status(500).json({ success: false, message });
+    }
+  }
+
+  // 편지 조회 (새로운 URL 공유 방식)
+  async getLetterByIdNew(req: Request, res: Response): Promise<void> {
+    try {
+      const { letterId } = req.params;
+      const viewerId = req.user?.userId;
+
+      const letter = await letterCreateService.getLetter(letterId, viewerId);
+
+      res.json({
+        success: true,
+        data: letter,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "편지 조회에 실패했습니다.";
+
+      if (message.includes("올바르지 않은") || message.includes("찾을 수 없습니다")) {
+        res.status(404).json({ success: false, message });
+      } else if (message.includes("권한이 없습니다")) {
+        res.status(403).json({ success: false, message });
+      } else {
+        res.status(500).json({ success: false, message });
+      }
+    }
+  }
+
+  // 편지 생성 통계 조회
+  async getLetterStats(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, message: "Unauthorized" });
+        return;
+      }
+
+      const stats = await letterCreateService.getLetterStats(req.user.userId);
+
+      res.json({
+        success: true,
+        data: stats,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "통계 조회에 실패했습니다.";
+      res.status(500).json({ success: false, message });
     }
   }
 
