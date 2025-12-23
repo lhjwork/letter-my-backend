@@ -15,9 +15,9 @@ export const validate = (req: Request, res: Response, next: NextFunction) => {
       message: mainMessage,
       errors: errors.array(),
       details: errors.array().map((err) => ({
-        field: err.param || err.path,
+        field: "path" in err ? err.path : "param" in err ? err.param : "unknown",
         message: err.msg,
-        value: err.value,
+        value: "value" in err ? err.value : undefined,
       })),
     });
     return;
