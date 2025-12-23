@@ -6,10 +6,19 @@ export const validate = (req: Request, res: Response, next: NextFunction) => {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
+    // 첫 번째 에러 메시지를 주 메시지로 사용
+    const firstError = errors.array()[0];
+    const mainMessage = firstError.msg || "Validation failed";
+
     res.status(400).json({
       success: false,
-      message: "Validation failed",
+      message: mainMessage,
       errors: errors.array(),
+      details: errors.array().map((err) => ({
+        field: err.param || err.path,
+        message: err.msg,
+        value: err.value,
+      })),
     });
     return;
   }

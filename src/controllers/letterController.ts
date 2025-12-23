@@ -7,37 +7,64 @@ import { LetterCategory } from "../models/Letter";
 export class LetterController {
   // 편지 생성 (새로운 URL 공유 방식)
   async createLetterNew(req: Request, res: Response): Promise<void> {
+    console.log("=== CREATE LETTER NEW ===");
+    console.log("Request body:", req.body);
+    console.log("Request user:", req.user);
+
     try {
       if (!req.user) {
-        res.status(401).json({ success: false, message: "Unauthorized" });
+        console.log("❌ No user in request");
+        res.status(401).json({ success: false, message: "로그인이 필요합니다." });
         return;
       }
 
       const { title, content, type, category, ogTitle, ogPreviewText, aiGenerated, aiModel } = req.body;
+      console.log("📝 Extracted fields:", { title, content, type, category });
 
+      // 기본 검증
       if (!title || !content) {
+        console.log("❌ Missing title or content");
         res.status(400).json({
           success: false,
           message: "제목과 내용은 필수입니다.",
+          details: {
+            title: !title ? "제목이 누락되었습니다." : null,
+            content: !content ? "내용이 누락되었습니다." : null,
+          },
         });
         return;
       }
 
       if (!["story", "friend"].includes(type)) {
+        console.log("❌ Invalid type:", type);
         res.status(400).json({
           success: false,
           message: "올바른 편지 타입을 선택해주세요.",
+          details: {
+            type: `'${type}'은(는) 유효하지 않은 타입입니다. 'story' 또는 'friend'를 선택해주세요.`,
+          },
         });
         return;
       }
 
       // 사용자 정보 조회
+      console.log("👤 Looking up user:", req.user.userId);
       const User = require("../models/User").default;
       const user = await User.findById(req.user.userId);
       if (!user) {
-        res.status(404).json({ success: false, message: "사용자를 찾을 수 없습니다." });
+        console.log("❌ User not found:", req.user.userId);
+        res.status(404).json({
+          success: false,
+          message: "사용자를 찾을 수 없습니다.",
+          details: {
+            userId: req.user.userId,
+          },
+        });
         return;
       }
+
+      console.log("✅ User found:", user.name);
+      console.log("📤 Calling letterCreateService...");
 
       const result = await letterCreateService.createLetter(req.user.userId, user.name, {
         title,
@@ -50,14 +77,48 @@ export class LetterController {
         aiModel,
       });
 
+      console.log("✅ Letter created successfully:", result);
+
       res.status(201).json({
         success: true,
         message: "편지가 성공적으로 생성되었습니다.",
         data: result,
       });
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "편지 생성에 실패했습니다.";
-      res.status(500).json({ success: false, message });
+      console.error("❌ 편지 생성 에러:", error);
+
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+
+        // 특정 에러 메시지에 따른 상태 코드 설정
+        if (error.message.includes("한도")) {
+          res.status(429).json({
+            success: false,
+            message: error.message,
+            errorType: "RATE_LIMIT_EXCEEDED",
+          });
+        } else if (error.message.includes("필수") || error.message.includes("유효하지")) {
+          res.status(400).json({
+            success: false,
+            message: error.message,
+            errorType: "VALIDATION_ERROR",
+          });
+        } else {
+          res.status(500).json({
+            success: false,
+            message: error.message,
+            errorType: "INTERNAL_ERROR",
+          });
+        }
+      } else {
+        console.error("Unknown error type:", typeof error);
+        res.status(500).json({
+          success: false,
+          message: "편지 생성에 실패했습니다.",
+          errorType: "UNKNOWN_ERROR",
+        });
+      }
     }
   }
 
@@ -67,6 +128,15 @@ export class LetterController {
       const { letterId } = req.params;
       const viewerId = req.user?.userId;
 
+      if (!letterId) {
+        res.status(400).json({
+          success: false,
+          message: "편지 ID가 필요합니다.",
+          errorType: "MISSING_PARAMETER",
+        });
+        return;
+      }
+
       const letter = await letterCreateService.getLetter(letterId, viewerId);
 
       res.json({
@@ -74,14 +144,42 @@ export class LetterController {
         data: letter,
       });
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "편지 조회에 실패했습니다.";
+      console.error("편지 조회 에러:", error);
 
-      if (message.includes("올바르지 않은") || message.includes("찾을 수 없습니다")) {
-        res.status(404).json({ success: false, message });
-      } else if (message.includes("권한이 없습니다")) {
-        res.status(403).json({ success: false, message });
+      if (error instanceof Error) {
+        const message = error.message;
+
+        if (message.includes("올바르지 않은") || message.includes("유효하지 않은")) {
+          res.status(400).json({
+            success: false,
+            message,
+            errorType: "INVALID_ID",
+          });
+        } else if (message.includes("찾을 수 없습니다")) {
+          res.status(404).json({
+            success: false,
+            message,
+            errorType: "NOT_FOUND",
+          });
+        } else if (message.includes("권한이 없습니다")) {
+          res.status(403).json({
+            success: false,
+            message,
+            errorType: "ACCESS_DENIED",
+          });
+        } else {
+          res.status(500).json({
+            success: false,
+            message,
+            errorType: "INTERNAL_ERROR",
+          });
+        }
       } else {
-        res.status(500).json({ success: false, message });
+        res.status(500).json({
+          success: false,
+          message: "편지 조회에 실패했습니다.",
+          errorType: "UNKNOWN_ERROR",
+        });
       }
     }
   }

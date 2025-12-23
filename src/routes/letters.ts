@@ -38,6 +38,28 @@ const createLetterNewValidation = [
 router.post("/create", authenticate, createLetterNewValidation, letterController.createLetterNew);
 
 /**
+ * @route   POST /api/letters/test-create
+ * @desc    편지 생성 테스트 (디버깅용)
+ * @access  Private
+ */
+router.post("/test-create", authenticate, (req, res) => {
+  console.log("=== TEST CREATE ENDPOINT ===");
+  console.log("Headers:", req.headers);
+  console.log("Body:", req.body);
+  console.log("User:", req.user);
+
+  res.json({
+    success: true,
+    message: "테스트 엔드포인트 작동 중",
+    data: {
+      receivedBody: req.body,
+      user: req.user,
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
+
+/**
  * @route   GET /api/letters/stats
  * @desc    편지 생성 통계 조회
  * @access  Private
