@@ -1,5 +1,6 @@
 import Letter, { LetterType, LetterStatus } from "../models/Letter";
 import mongoose from "mongoose";
+import { sanitizeHtmlContent, extractPlainText, generatePreviewText, isHtmlContent, textToHtml } from "../utils/htmlProcessor";
 
 export interface CreateLetterData {
   title: string;
@@ -35,12 +36,17 @@ class LetterCreateService {
     // 2. 일일 생성 제한 확인
     await this.checkLetterLimit(userId);
 
-    // 3. 편지 생성
+    // 3. HTML 콘텐츠 처리
+    const processedContent = this.processContent(data.content);
+
+    // 4. 편지 생성
     const letter = new Letter({
       type: data.type === "story" ? LetterType.STORY : LetterType.FRIEND,
       userId,
       title: data.title.trim(),
-      content: data.content.trim(),
+      content: processedContent.content,
+      contentType: processedContent.contentType,
+      plainContent: processedContent.plainContent,
       authorName: userName,
       category: data.category || "기타",
       status: LetterStatus.CREATED,
@@ -50,7 +56,7 @@ class LetterCreateService {
       viewCount: 0,
       // OG 메타데이터
       ogTitle: data.ogTitle || data.title.trim(),
-      ogPreviewText: data.ogPreviewText || data.content.slice(0, 100) + "...",
+      ogPreviewText: data.ogPreviewText || processedContent.previewText,
       // AI 메타데이터
       aiMetadata: {
         titleGenerated: data.aiGenerated || false,
@@ -61,7 +67,7 @@ class LetterCreateService {
 
     await letter.save();
 
-    // 4. 편지 URL 생성
+    // 5. 편지 URL 생성
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     const letterUrl = `${frontendUrl}/letter/${letter._id}`;
 
@@ -198,6 +204,47 @@ class LetterCreateService {
     }
 
     throw new Error("이 편지에 접근할 권한이 없습니다.");
+  }
+
+  /**
+   * HTML 콘텐츠 처리
+   * @param content - 원본 콘텐츠
+   * @returns 처리된 콘텐츠 정보
+   */
+  private processContent(content: string): {
+    content: string;
+    contentType: "text" | "html";
+    plainContent: string;
+    previewText: string;
+  } {
+    // HTML 콘텐츠인지 확인
+    const isHtml = isHtmlContent(content);
+
+    let processedContent: string;
+    let contentType: "text" | "html";
+    let plainContent: string;
+
+    if (isHtml) {
+      // HTML 콘텐츠 보안 처리
+      processedContent = sanitizeHtmlContent(content);
+      contentType = "html";
+      plainContent = extractPlainText(processedContent);
+    } else {
+      // 일반 텍스트를 HTML로 변환 (줄바꿈 처리)
+      processedContent = textToHtml(content.trim());
+      contentType = "html";
+      plainContent = content.trim();
+    }
+
+    // 미리보기 텍스트 생성
+    const previewText = generatePreviewText(processedContent);
+
+    return {
+      content: processedContent,
+      contentType,
+      plainContent,
+      previewText,
+    };
   }
 
   /**

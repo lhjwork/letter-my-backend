@@ -55,6 +55,8 @@ export interface ILetter extends Document {
   userId?: mongoose.Types.ObjectId;
   title: string;
   content: string;
+  contentType: "text" | "html";
+  plainContent?: string;
   authorName: string;
   category: LetterCategory;
   status: LetterStatus;
@@ -107,6 +109,15 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
     content: {
       type: String,
       required: true,
+      trim: true,
+    },
+    contentType: {
+      type: String,
+      enum: ["text", "html"],
+      default: "html",
+    },
+    plainContent: {
+      type: String,
       trim: true,
     },
     authorName: {

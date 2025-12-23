@@ -11,6 +11,7 @@
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "migrate:from-cloud": "ts-node scripts/migrateFromCloud.ts",
+    "migrate:content-type": "ts-node scripts/migrateContentType.ts",
     "admin:create": "ts-node scripts/createSuperAdmin.ts",
     "db:indexes": "ts-node scripts/createIndexes.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -42,6 +43,7 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "cheerio": "^1.1.2",
     "cors": "^2.8.5",
     "crypto-js": "^4.2.0",
     "dotenv": "^17.2.3",
@@ -49,6 +51,7 @@
     "express-async-errors": "^3.1.1",
     "express-validator": "^7.3.1",
     "helmet": "^8.1.0",
+    "isomorphic-dompurify": "^2.34.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.0.0",
     "swagger-jsdoc": "^6.2.8",

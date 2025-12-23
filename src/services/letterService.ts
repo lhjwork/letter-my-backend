@@ -1,4 +1,5 @@
 import Letter, { ILetter, OgImageType, LetterType, LetterCategory } from "../models/Letter";
+import { sanitizeHtmlContent, extractPlainText, generatePreviewText, isHtmlContent, textToHtml } from "../utils/htmlProcessor";
 
 // Letter Service 클래스
 export class LetterService {
@@ -96,15 +97,21 @@ export class LetterService {
 
   // 사연 생성 (POST /api/letters/story)
   async createStory(data: { userId?: string; title: string; content: string; authorName: string; category?: LetterCategory; ogPreviewMessage?: string }): Promise<ILetter> {
+    // HTML 콘텐츠 처리
+    const processedContent = this.processContent(data.content);
+
     const letter = new Letter({
       type: LetterType.STORY,
       userId: data.userId,
       title: data.title,
-      content: data.content,
+      content: processedContent.content,
+      contentType: processedContent.contentType,
+      plainContent: processedContent.plainContent,
       authorName: data.authorName,
       category: data.category || LetterCategory.OTHER,
-      ogPreviewMessage: data.ogPreviewMessage || data.content.substring(0, 60),
+      ogPreviewMessage: data.ogPreviewMessage || processedContent.previewText,
       ogImageType: OgImageType.AUTO,
+      isPublic: true, // 사연은 공개
     });
     return letter.save();
   }
@@ -131,9 +138,13 @@ export class LetterService {
       query.category = category;
     }
 
-    // 검색 조건
+    // 검색 조건 - plainContent 필드 사용으로 HTML 태그 제외하고 검색
     if (search) {
-      query.$or = [{ title: { $regex: search, $options: "i" } }, { content: { $regex: search, $options: "i" } }, { authorName: { $regex: search, $options: "i" } }];
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { plainContent: { $regex: search, $options: "i" } }, // HTML이 아닌 일반 텍스트에서 검색
+        { authorName: { $regex: search, $options: "i" } },
+      ];
     }
 
     // 정렬 조건
@@ -241,3 +252,44 @@ export class LetterService {
 
 // Service 인스턴스 생성 및 내보내기
 export default new LetterService();
+
+  /**
+   * HTML 콘텐츠 처리
+   * @param content - 원본 콘텐츠
+   * @returns 처리된 콘텐츠 정보
+   */
+  private processContent(content: string): {
+    content: string;
+    contentType: "text" | "html";
+    plainContent: string;
+    previewText: string;
+  } {
+    // HTML 콘텐츠인지 확인
+    const isHtml = isHtmlContent(content);
+    
+    let processedContent: string;
+    let contentType: "text" | "html";
+    let plainContent: string;
+
+    if (isHtml) {
+      // HTML 콘텐츠 보안 처리
+      processedContent = sanitizeHtmlContent(content);
+      contentType = "html";
+      plainContent = extractPlainText(processedContent);
+    } else {
+      // 일반 텍스트를 HTML로 변환 (줄바꿈 처리)
+      processedContent = textToHtml(content.trim());
+      contentType = "html";
+      plainContent = content.trim();
+    }
+
+    // 미리보기 텍스트 생성
+    const previewText = generatePreviewText(processedContent);
+
+    return {
+      content: processedContent,
+      contentType,
+      plainContent,
+      previewText,
+    };
+  }

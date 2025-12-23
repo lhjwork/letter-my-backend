@@ -3,6 +3,7 @@ import letterController from "../controllers/letterController";
 import likeController from "../controllers/likeController";
 import { authenticate, optionalAuthenticate } from "../middleware/auth";
 import { updateLetterValidation, letterIdValidation } from "../middleware/letterValidation";
+import { contentSizeLimit, validateHtmlContent } from "../middleware/contentValidation";
 import { body } from "express-validator";
 import { validate } from "../middleware/validation";
 
@@ -20,7 +21,7 @@ const createStoryValidation = [
 // 새로운 편지 생성 Validation
 const createLetterNewValidation = [
   body("title").trim().isLength({ min: 1, max: 100 }).withMessage("제목은 1-100자 이내여야 합니다."),
-  body("content").trim().isLength({ min: 1, max: 10000 }).withMessage("내용은 1-10000자 이내여야 합니다."),
+  body("content").trim().isLength({ min: 1, max: 50000 }).withMessage("내용은 1-50000자 이내여야 합니다."),
   body("type").isIn(["story", "friend"]).withMessage("올바른 편지 타입을 선택해주세요."),
   body("category").optional().trim(),
   body("ogTitle").optional().trim(),
@@ -35,7 +36,7 @@ const createLetterNewValidation = [
  * @desc    편지 생성 (새로운 URL 공유 방식)
  * @access  Private
  */
-router.post("/create", authenticate, createLetterNewValidation, letterController.createLetterNew);
+router.post("/create", authenticate, contentSizeLimit(50000), validateHtmlContent, createLetterNewValidation, letterController.createLetterNew);
 
 /**
  * @route   POST /api/letters/test-create
@@ -71,7 +72,7 @@ router.get("/stats", authenticate, letterController.getLetterStats);
  * @desc    사연 등록
  * @access  Public
  */
-router.post("/story", createStoryValidation, letterController.createStory);
+router.post("/story", contentSizeLimit(50000), validateHtmlContent, createStoryValidation, letterController.createStory);
 
 /**
  * @route   GET /api/letters/stories
@@ -93,7 +94,7 @@ router.get("/categories/stats", letterController.getCategoryStats);
  * @desc    편지 생성 (기존 방식 - 하위 호환성)
  * @access  Private
  */
-router.post("/", authenticate, createLetterNewValidation, letterController.createLetterNew);
+router.post("/", authenticate, contentSizeLimit(50000), validateHtmlContent, createLetterNewValidation, letterController.createLetterNew);
 
 /**
  * @route   GET /api/letters/my
