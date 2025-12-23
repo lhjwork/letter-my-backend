@@ -22,7 +22,7 @@ const allowedOrigins = [
 
   // 프로덕션 환경
   "https://letter-community.vercel.app", // 메인 임시 프론트엔드 프로덕션 도메인
-  "letter-admin.vercel.app", // 메인 임시 admin 도메인
+  "https://letter-admin.vercel.app", // 메인 임시 admin 도메인
 ];
 
 app.use(
