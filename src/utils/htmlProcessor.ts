@@ -1,38 +1,82 @@
 import * as cheerio from "cheerio";
-import DOMPurify from "isomorphic-dompurify";
 
 /**
  * HTML 콘텐츠를 안전하게 정제하는 함수
  */
 export function sanitizeHtmlContent(htmlContent: string): string {
-  // 허용할 HTML 태그와 속성 정의
+  // cheerio를 사용하여 HTML 파싱
+  const $ = cheerio.load(htmlContent);
+
+  // 허용할 HTML 태그 정의
   const allowedTags = ["p", "br", "strong", "em", "u", "span", "ul", "ol", "li", "blockquote", "mark", "h1", "h2", "h3", "h4", "h5", "h6"];
 
-  const allowedAttributes = {
-    span: ["style"], // 색상 등 인라인 스타일 허용
-    p: ["style"],
-    strong: ["style"],
-    em: ["style"],
-    u: ["style"],
-    mark: ["style"],
-    ul: ["style"],
-    ol: ["style"],
-    li: ["style"],
-    blockquote: ["style"],
-    br: ["style"],
-    h1: ["style"],
-    h2: ["style"],
-    h3: ["style"],
-    h4: ["style"],
-    h5: ["style"],
-    h6: ["style"],
-  };
+  // 허용할 속성 정의
+  const allowedAttributes = ["style"];
 
-  return DOMPurify.sanitize(htmlContent, {
-    ALLOWED_TAGS: allowedTags,
-    ALLOWED_ATTR: Object.values(allowedAttributes).flat(),
-    ALLOW_DATA_ATTR: false,
+  // 모든 요소를 순회하면서 정제
+  $("*").each((_, element) => {
+    // any 타입으로 처리하여 타입 에러 회피
+    const el = element as any;
+    const tagName = el.tagName?.toLowerCase();
+
+    // 허용되지 않은 태그 제거
+    if (!tagName || !allowedTags.includes(tagName)) {
+      $(element).remove();
+      return;
+    }
+
+    // 속성 정제
+    const attributes = el.attribs || {};
+    Object.keys(attributes).forEach((attr) => {
+      if (!allowedAttributes.includes(attr)) {
+        $(element).removeAttr(attr);
+      } else if (attr === "style") {
+        // 스타일 속성 정제 (기본적인 CSS만 허용)
+        const style = attributes[attr];
+        const sanitizedStyle = sanitizeStyleAttribute(style);
+        $(element).attr("style", sanitizedStyle);
+      }
+    });
   });
+
+  // 스크립트 태그 완전 제거
+  $("script").remove();
+  $("iframe").remove();
+  $("object").remove();
+  $("embed").remove();
+
+  return $.html();
+}
+
+/**
+ * CSS 스타일 속성 정제
+ */
+function sanitizeStyleAttribute(style: string): string {
+  if (!style) return "";
+
+  // 허용할 CSS 속성들
+  const allowedProperties = ["color", "background-color", "font-size", "font-weight", "font-style", "text-decoration", "text-align", "margin", "padding", "border"];
+
+  // 위험한 CSS 값들 제거
+  const dangerousValues = ["javascript:", "expression(", "url(", "@import"];
+
+  const rules = style.split(";").filter((rule) => {
+    const [property, value] = rule.split(":").map((s) => s.trim());
+
+    if (!property || !value) return false;
+
+    // 허용된 속성인지 확인
+    const isAllowedProperty = allowedProperties.some((allowed) => property.toLowerCase().includes(allowed));
+
+    if (!isAllowedProperty) return false;
+
+    // 위험한 값이 포함되어 있는지 확인
+    const hasDangerousValue = dangerousValues.some((dangerous) => value.toLowerCase().includes(dangerous));
+
+    return !hasDangerousValue;
+  });
+
+  return rules.join("; ");
 }
 
 /**
