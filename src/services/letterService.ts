@@ -248,10 +248,6 @@ export class LetterService {
     const letter = await Letter.findById(letterId).select("ogImageUrl");
     return letter?.ogImageUrl || null;
   }
-}
-
-// Service 인스턴스 생성 및 내보내기
-export default new LetterService();
 
   /**
    * HTML 콘텐츠 처리
@@ -266,7 +262,7 @@ export default new LetterService();
   } {
     // HTML 콘텐츠인지 확인
     const isHtml = isHtmlContent(content);
-    
+
     let processedContent: string;
     let contentType: "text" | "html";
     let plainContent: string;
@@ -293,3 +289,7 @@ export default new LetterService();
       previewText,
     };
   }
+}
+
+// Service 인스턴스 생성 및 내보내기
+export default new LetterService();
