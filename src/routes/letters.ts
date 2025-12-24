@@ -1,6 +1,7 @@
 import { Router } from "express";
 import letterController from "../controllers/letterController";
 import likeController from "../controllers/likeController";
+import physicalLetterController from "../controllers/physicalLetterController";
 import { authenticate, optionalAuthenticate } from "../middleware/auth";
 import { updateLetterValidation, letterIdValidation } from "../middleware/letterValidation";
 import { contentSizeLimit, validateHtmlContent } from "../middleware/contentValidation";
@@ -15,6 +16,20 @@ const createStoryValidation = [
   body("content").notEmpty().withMessage("Content is required"),
   body("authorName").optional().trim(),
   body("category").optional().isIn(["가족", "사랑", "우정", "성장", "위로", "추억", "감사", "기타"]).withMessage("Invalid category"),
+  validate,
+];
+
+// 실물 편지 신청 Validation
+const physicalLetterRequestValidation = [
+  body("address.name").trim().isLength({ min: 2, max: 50 }).withMessage("받는 분 성함은 2-50자 이내여야 합니다."),
+  body("address.phone")
+    .matches(/^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/)
+    .withMessage("올바른 휴대폰 번호 형식이 아닙니다."),
+  body("address.zipCode")
+    .matches(/^[0-9]{5}$/)
+    .withMessage("우편번호는 5자리 숫자여야 합니다."),
+  body("address.address1").trim().isLength({ min: 5, max: 200 }).withMessage("주소는 5-200자 이내여야 합니다."),
+  body("address.address2").optional().trim().isLength({ max: 200 }).withMessage("상세주소는 200자 이내여야 합니다."),
   validate,
 ];
 
@@ -158,5 +173,19 @@ router.delete("/:id/like", authenticate, letterIdValidation, likeController.remo
  * @access  Private
  */
 router.get("/:id/like", authenticate, letterIdValidation, likeController.checkLikeStatus);
+
+/**
+ * @route   POST /api/letters/:letterId/physical-request
+ * @desc    실물 편지 신청
+ * @access  Public
+ */
+router.post("/:letterId/physical-request", physicalLetterRequestValidation, physicalLetterController.requestPhysicalLetter);
+
+/**
+ * @route   GET /api/letters/:letterId/physical-status
+ * @desc    실물 편지 상태 조회
+ * @access  Public
+ */
+router.get("/:letterId/physical-status", physicalLetterController.getPhysicalLetterStatus);
 
 export default router;

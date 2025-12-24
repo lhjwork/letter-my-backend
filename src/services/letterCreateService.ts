@@ -127,6 +127,10 @@ class LetterCreateService {
       likeCount: letter.likeCount,
       aiMetadata: letter.aiMetadata,
       isPublic: letter.isPublic,
+      // 실물 편지 정보 추가
+      physicalRequested: letter.physicalRequested || false,
+      physicalStatus: letter.physicalStatus || "none",
+      physicalRequestDate: letter.physicalRequestDate,
     };
   }
 

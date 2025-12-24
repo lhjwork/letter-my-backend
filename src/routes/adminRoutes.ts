@@ -4,6 +4,7 @@ import { PERMISSIONS } from "../models/Admin";
 import adminAuthController from "../controllers/adminAuthController";
 import adminController from "../controllers/adminController";
 import adminUserRoutes from "./adminUserRoutes";
+import physicalLetterController from "../controllers/physicalLetterController";
 
 const router: Router = Router();
 
@@ -38,6 +39,10 @@ router.get("/letters/:id", adminAuthenticate, requirePermission(PERMISSIONS.LETT
 router.put("/letters/:id", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_WRITE), adminController.updateLetter);
 router.put("/letters/:id/status", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_WRITE), adminController.updateLetterStatus);
 router.delete("/letters/:id", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_DELETE), adminController.deleteLetter);
+
+// ===== 실물 편지 관리 =====
+router.get("/physical-requests", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_READ), physicalLetterController.getPhysicalLetterRequests);
+router.patch("/physical-requests/:letterId", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_WRITE), physicalLetterController.updatePhysicalLetterStatus);
 
 // ===== 새로운 사용자 관리 (상세 기능) =====
 router.use("/users", adminUserRoutes);

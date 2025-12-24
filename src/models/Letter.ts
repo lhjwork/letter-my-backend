@@ -29,6 +29,27 @@ export enum LetterStatus {
   DELETED = "deleted",
 }
 
+// 실물 편지 상태
+export enum PhysicalLetterStatus {
+  NONE = "none",
+  REQUESTED = "requested",
+  PROCESSING = "processing",
+  WRITING = "writing",
+  SENT = "sent",
+  DELIVERED = "delivered",
+  CANCELLED = "cancelled",
+}
+
+// 배송 주소 인터페이스
+export interface IShippingAddress {
+  name: string;
+  phone: string;
+  zipCode: string;
+  address1: string;
+  address2?: string;
+  requestedAt: Date;
+}
+
 // OG 이미지 타입
 export enum OgImageType {
   AUTO = "auto",
@@ -75,6 +96,12 @@ export interface ILetter extends Document {
   ogFontSize: number;
   ogImageType: OgImageType;
   ogImageUrl?: string;
+  // 실물 편지 관련
+  physicalRequested: boolean;
+  physicalRequestDate?: Date;
+  physicalStatus: PhysicalLetterStatus;
+  shippingAddress?: IShippingAddress;
+  physicalNotes?: string;
   // AI 생성 관련 메타데이터
   aiMetadata: IAIMetadata;
   createdAt: Date;
@@ -182,6 +209,30 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
       default: OgImageType.AUTO,
     },
     ogImageUrl: {
+      type: String,
+    },
+    // 실물 편지 관련
+    physicalRequested: {
+      type: Boolean,
+      default: false,
+    },
+    physicalRequestDate: {
+      type: Date,
+    },
+    physicalStatus: {
+      type: String,
+      enum: Object.values(PhysicalLetterStatus),
+      default: PhysicalLetterStatus.NONE,
+    },
+    shippingAddress: {
+      name: { type: String },
+      phone: { type: String },
+      zipCode: { type: String },
+      address1: { type: String },
+      address2: { type: String },
+      requestedAt: { type: Date },
+    },
+    physicalNotes: {
       type: String,
     },
     // AI 생성 관련 메타데이터
