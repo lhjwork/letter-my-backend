@@ -43,6 +43,13 @@ async function testAuthorApprovalSystem() {
     console.log("✅ 신청 성공:", requestResponse.data);
     const requestId = requestResponse.data.data.requestId;
 
+    // 비용이 0원(완전 무료)인지 확인
+    if (requestResponse.data.data.cost === 0) {
+      console.log("✅ 비용 확인: 완전 무료 버전 (0원)");
+    } else {
+      console.log("⚠️ 예상과 다른 비용:", requestResponse.data.data.cost);
+    }
+
     // 4. 공개 신청 현황 조회
     console.log("\n4️⃣ 공개 신청 현황 조회...");
     const publicResponse = await axios.get(`${BASE_URL}/api/letters/${testLetterId}/physical-requests/public`);

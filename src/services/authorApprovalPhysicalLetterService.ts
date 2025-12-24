@@ -37,20 +37,11 @@ class AuthorApprovalPhysicalLetterService {
   }
 
   /**
-   * 배송비 계산 (우편번호 기반)
+   * 배송비 계산 (현재는 무료)
    */
-  private calculateShippingCost(zipCode: string): number {
-    // 기본 배송비 3000원, 제주/도서산간 추가 500원
-    const jejuCodes = ["63", "64"]; // 제주도 우편번호 시작
-    const islandCodes = ["59", "58", "57"]; // 도서산간 지역 예시
-
-    const prefix = zipCode.substring(0, 2);
-
-    if (jejuCodes.includes(prefix) || islandCodes.includes(prefix)) {
-      return 3500;
-    }
-
-    return 3000;
+  private calculateShippingCost(_zipCode: string): number {
+    // 현재는 배송비 무료
+    return 0;
   }
 
   /**
@@ -119,9 +110,9 @@ class AuthorApprovalPhysicalLetterService {
       throw new Error(validationError);
     }
 
-    // 비용 계산
+    // 비용 계산 (현재는 무료 버전)
     const shippingCost = this.calculateShippingCost(requestData.address.zipCode);
-    const letterCost = 2000;
+    const letterCost = 0; // 현재 무료 버전
     const totalCost = shippingCost + letterCost;
 
     // 요청자 정보 생성
