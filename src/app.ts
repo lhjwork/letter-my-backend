@@ -1,6 +1,7 @@
 import express, { Application } from "express";
 import cors from "cors";
 import helmet from "helmet";
+import session from "express-session";
 import swaggerUi from "swagger-ui-express";
 import path from "path";
 import { specs } from "./config/swagger";
@@ -56,6 +57,20 @@ app.use(
 // Body parsing middleware
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Session configuration for author approval system
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "letter-author-approval-secret-key",
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  })
+);
 
 // Static files (OG 이미지 서빙)
 app.use("/og-custom", express.static(path.join(process.cwd(), "public", "og-custom")));

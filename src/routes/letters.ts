@@ -2,6 +2,7 @@ import { Router } from "express";
 import letterController from "../controllers/letterController";
 import likeController from "../controllers/likeController";
 import physicalLetterController from "../controllers/physicalLetterController";
+import authorApprovalPhysicalLetterController from "../controllers/authorApprovalPhysicalLetterController";
 import { authenticate, optionalAuthenticate } from "../middleware/auth";
 import { updateLetterValidation, letterIdValidation } from "../middleware/letterValidation";
 import { contentSizeLimit, validateHtmlContent } from "../middleware/contentValidation";
@@ -187,5 +188,76 @@ router.post("/:letterId/physical-request", physicalLetterRequestValidation, phys
  * @access  Public
  */
 router.get("/:letterId/physical-status", physicalLetterController.getPhysicalLetterStatus);
+
+// ==================== 작성자 승인 시스템 라우트 ====================
+
+/**
+ * @route   POST /api/letters/:letterId/physical-requests
+ * @desc    실물 편지 신청 (작성자 승인 시스템)
+ * @access  Public
+ */
+router.post("/:letterId/physical-requests", physicalLetterRequestValidation, authorApprovalPhysicalLetterController.requestPhysicalLetter);
+
+/**
+ * @route   GET /api/letters/:letterId/physical-requests/author
+ * @desc    편지 작성자용 신청 목록 조회
+ * @access  Private (작성자만)
+ */
+router.get("/:letterId/physical-requests/author", authenticate, authorApprovalPhysicalLetterController.getAuthorRequests);
+
+/**
+ * @route   PATCH /api/letters/:letterId/physical-requests/:requestId/approval
+ * @desc    편지 작성자용 신청 승인/거절
+ * @access  Private (작성자만)
+ */
+router.patch(
+  "/:letterId/physical-requests/:requestId/approval",
+  authenticate,
+  [
+    body("action").isIn(["approve", "reject"]).withMessage("action은 approve 또는 reject이어야 합니다."),
+    body("rejectionReason").optional().trim().isLength({ max: 500 }).withMessage("거절 사유는 500자 이내여야 합니다."),
+    validate,
+  ],
+  authorApprovalPhysicalLetterController.processApproval
+);
+
+/**
+ * @route   GET /api/letters/:letterId/physical-requests/public
+ * @desc    편지별 공개 신청 현황 조회
+ * @access  Public
+ */
+router.get("/:letterId/physical-requests/public", authorApprovalPhysicalLetterController.getPublicRequests);
+
+/**
+ * @route   PATCH /api/letters/:letterId/settings
+ * @desc    편지 설정 업데이트 (작성자 승인 시스템 설정)
+ * @access  Private (작성자만)
+ */
+router.patch(
+  "/:letterId/settings",
+  authenticate,
+  [
+    body("authorSettings.allowPhysicalRequests").optional().isBoolean().withMessage("allowPhysicalRequests는 boolean이어야 합니다."),
+    body("authorSettings.autoApprove").optional().isBoolean().withMessage("autoApprove는 boolean이어야 합니다."),
+    body("authorSettings.maxRequestsPerPerson").optional().isInt({ min: 1, max: 20 }).withMessage("maxRequestsPerPerson은 1-20 사이의 숫자여야 합니다."),
+    body("authorSettings.requireApprovalMessage").optional().trim().isLength({ max: 1000 }).withMessage("requireApprovalMessage는 1000자 이내여야 합니다."),
+    validate,
+  ],
+  authorApprovalPhysicalLetterController.updateLetterSettings
+);
+
+/**
+ * @route   GET /api/letters/:letterId/request-limit-check
+ * @desc    스팸 방지를 위한 요청 제한 체크
+ * @access  Public
+ */
+router.get("/:letterId/request-limit-check", authorApprovalPhysicalLetterController.checkRequestLimit);
+
+/**
+ * @route   GET /api/physical-requests/:requestId/status
+ * @desc    개별 신청 상태 조회 (신청자용)
+ * @access  Public (세션 기반)
+ */
+router.get("/physical-requests/:requestId/status", authorApprovalPhysicalLetterController.getRequestStatus);
 
 export default router;

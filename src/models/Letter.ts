@@ -70,6 +70,23 @@ export interface IAIMetadata {
   model?: string;
 }
 
+// 작성자 설정 인터페이스
+export interface IAuthorSettings {
+  allowPhysicalRequests: boolean;
+  autoApprove: boolean;
+  maxRequestsPerPerson: number;
+  requireApprovalMessage?: string;
+}
+
+// 실물 편지 통계 인터페이스
+export interface IPhysicalLetterStats {
+  totalRequests: number;
+  pendingRequests: number;
+  approvedRequests: number;
+  rejectedRequests: number;
+  completedRequests: number;
+}
+
 // Letter Document 인터페이스
 export interface ILetter extends Document {
   type: LetterType;
@@ -102,6 +119,9 @@ export interface ILetter extends Document {
   physicalStatus: PhysicalLetterStatus;
   shippingAddress?: IShippingAddress;
   physicalNotes?: string;
+  // 작성자 승인 시스템 관련
+  physicalLetterStats: IPhysicalLetterStats;
+  authorSettings: IAuthorSettings;
   // AI 생성 관련 메타데이터
   aiMetadata: IAIMetadata;
   createdAt: Date;
@@ -234,6 +254,21 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
     },
     physicalNotes: {
       type: String,
+    },
+    // 실물 편지 통계
+    physicalLetterStats: {
+      totalRequests: { type: Number, default: 0 },
+      pendingRequests: { type: Number, default: 0 },
+      approvedRequests: { type: Number, default: 0 },
+      rejectedRequests: { type: Number, default: 0 },
+      completedRequests: { type: Number, default: 0 },
+    },
+    // 작성자 설정
+    authorSettings: {
+      allowPhysicalRequests: { type: Boolean, default: true },
+      autoApprove: { type: Boolean, default: false },
+      maxRequestsPerPerson: { type: Number, default: 5 },
+      requireApprovalMessage: { type: String },
     },
     // AI 생성 관련 메타데이터
     aiMetadata: {
