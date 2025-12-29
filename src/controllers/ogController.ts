@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import letterService from "../services/letterService";
 import path from "path";
 import fs from "fs/promises";
-import { sendSuccess, sendCreated, sendBadRequest, sendNotFound, sendServerError } from "../utils/response";
+import { sendSuccess, sendBadRequest, sendNotFound } from "../utils/response";
 
 // OG Controller 클래스
 export class OgController {
@@ -90,7 +90,6 @@ export class OgController {
       sendSuccess(res, {
         ogImageUrl: letter.ogImageUrl || null,
         ogImageType: letter.ogImageType,
-        ogPreviewMessage: letter.ogPreviewMessage,
       }, "OG 이미지 정보를 조회했습니다");
     } catch (error) {
       next(error);

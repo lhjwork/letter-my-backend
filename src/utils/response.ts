@@ -15,15 +15,20 @@ export interface ApiResponse<T = any> {
   meta?: {
     timestamp: string;
     requestId?: string;
-    pagination?: {
-      page: number;
-      limit: number;
-      total: number;
-      totalPages: number;
-      hasNextPage: boolean;
-      hasPrevPage: boolean;
-    };
+    pagination?: PaginationMeta;
   };
+}
+
+/**
+ * Pagination 타입
+ */
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNextPage?: boolean;
+  hasPrevPage?: boolean;
 }
 
 /**
@@ -34,7 +39,7 @@ export function sendSuccess<T>(
   data?: T,
   message?: string,
   statusCode: number = 200,
-  pagination?: ApiResponse["meta"]["pagination"]
+  pagination?: PaginationMeta
 ): Response {
   const response: ApiResponse<T> = {
     success: true,
