@@ -8,6 +8,7 @@ class AdminAuthController {
     res.json({
       success: true,
       data: { encryptionKey: cryptoService.getEncryptionKey() },
+      meta: { timestamp: new Date().toISOString() },
     });
   }
 
@@ -17,7 +18,7 @@ class AdminAuthController {
       const { username, password, encrypted } = req.body;
 
       if (!username || !password) {
-        res.status(400).json({ success: false, message: "아이디와 비밀번호를 입력해주세요" });
+        res.status(400).json({ success: false, message: "아이디와 비밀번호를 입력해주세요", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
@@ -27,7 +28,7 @@ class AdminAuthController {
         try {
           decryptedPassword = cryptoService.decrypt(password);
         } catch {
-          res.status(400).json({ success: false, message: "비밀번호 복호화에 실패했습니다" });
+          res.status(400).json({ success: false, message: "비밀번호 복호화에 실패했습니다", meta: { timestamp: new Date().toISOString() } });
           return;
         }
       }
@@ -38,21 +39,22 @@ class AdminAuthController {
         success: true,
         data: { admin, token },
         message: "로그인 성공",
+        meta: { timestamp: new Date().toISOString() },
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "로그인에 실패했습니다";
-      res.status(401).json({ success: false, message });
+      res.status(401).json({ success: false, message, meta: { timestamp: new Date().toISOString() } });
     }
   }
 
   // 로그아웃
   async logout(_req: Request, res: Response): Promise<void> {
-    res.json({ success: true, message: "로그아웃 성공" });
+    res.json({ success: true, message: "로그아웃 성공", meta: { timestamp: new Date().toISOString() } });
   }
 
   // 내 정보 조회
   async getMe(req: Request, res: Response): Promise<void> {
-    res.json({ success: true, data: req.admin });
+    res.json({ success: true, data: req.admin, meta: { timestamp: new Date().toISOString() } });
   }
 
   // 비밀번호 변경
@@ -61,7 +63,7 @@ class AdminAuthController {
       const { currentPassword, newPassword, encrypted } = req.body;
 
       if (!currentPassword || !newPassword) {
-        res.status(400).json({ success: false, message: "현재 비밀번호와 새 비밀번호를 입력해주세요" });
+        res.status(400).json({ success: false, message: "현재 비밀번호와 새 비밀번호를 입력해주세요", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
@@ -74,22 +76,22 @@ class AdminAuthController {
           decryptedCurrentPassword = cryptoService.decrypt(currentPassword);
           decryptedNewPassword = cryptoService.decrypt(newPassword);
         } catch {
-          res.status(400).json({ success: false, message: "비밀번호 복호화에 실패했습니다" });
+          res.status(400).json({ success: false, message: "비밀번호 복호화에 실패했습니다", meta: { timestamp: new Date().toISOString() } });
           return;
         }
       }
 
       if (decryptedNewPassword.length < 4) {
-        res.status(400).json({ success: false, message: "비밀번호는 4자 이상이어야 합니다" });
+        res.status(400).json({ success: false, message: "비밀번호는 4자 이상이어야 합니다", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
       await adminAuthService.changePassword(req.admin!._id.toString(), decryptedCurrentPassword, decryptedNewPassword);
 
-      res.json({ success: true, message: "비밀번호가 변경되었습니다" });
+      res.json({ success: true, message: "비밀번호가 변경되었습니다", meta: { timestamp: new Date().toISOString() } });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "비밀번호 변경에 실패했습니다";
-      res.status(400).json({ success: false, message });
+      res.status(400).json({ success: false, message, meta: { timestamp: new Date().toISOString() } });
     }
   }
 }

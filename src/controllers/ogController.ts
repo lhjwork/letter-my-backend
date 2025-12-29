@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import letterService from "../services/letterService";
 import path from "path";
 import fs from "fs/promises";
+import { sendSuccess, sendCreated, sendBadRequest, sendNotFound, sendServerError } from "../utils/response";
 
 // OG Controller 클래스
 export class OgController {
@@ -11,26 +12,22 @@ export class OgController {
       const { letterId, ogPreviewMessage } = req.body;
 
       if (!letterId) {
-        res.status(400).json({ message: "letterId is required" });
+        sendBadRequest(res, "letterId는 필수입니다");
         return;
       }
 
-      // Letter 존재 확인
       const letter = await letterService.findById(letterId);
       if (!letter) {
-        res.status(404).json({ message: "Letter not found" });
+        sendNotFound(res, "편지를 찾을 수 없습니다");
         return;
       }
 
-      // 파일 업로드 처리
       let ogImageUrl: string;
 
       if (req.body.file) {
-        // base64 이미지 처리
         const base64Data = req.body.file.replace(/^data:image\/\w+;base64,/, "");
         const buffer = Buffer.from(base64Data, "base64");
 
-        // 저장 경로 설정
         const uploadDir = path.join(process.cwd(), "public", "og-custom");
         await fs.mkdir(uploadDir, { recursive: true });
 
@@ -39,22 +36,16 @@ export class OgController {
 
         await fs.writeFile(filepath, buffer);
 
-        // URL 생성 (환경변수에서 BASE_URL 가져오기)
         const baseUrl = process.env.BASE_URL || "http://localhost:3000";
         ogImageUrl = `${baseUrl}/og-custom/${filename}`;
       } else {
-        res.status(400).json({ message: "Image file is required" });
+        sendBadRequest(res, "이미지 파일이 필요합니다");
         return;
       }
 
-      // Letter 업데이트
       const updatedLetter = await letterService.updateCustomOgImage(letterId, ogImageUrl, ogPreviewMessage);
 
-      res.status(200).json({
-        success: true,
-        ogImageUrl,
-        data: updatedLetter,
-      });
+      sendSuccess(res, { ogImageUrl, letter: updatedLetter }, "OG 이미지가 업로드되었습니다");
     } catch (error) {
       next(error);
     }
@@ -66,24 +57,19 @@ export class OgController {
       const { letterId, ogImageUrl } = req.body;
 
       if (!letterId || !ogImageUrl) {
-        res.status(400).json({ message: "letterId and ogImageUrl are required" });
+        sendBadRequest(res, "letterId와 ogImageUrl은 필수입니다");
         return;
       }
 
-      // Letter 존재 확인
       const letter = await letterService.findById(letterId);
       if (!letter) {
-        res.status(404).json({ message: "Letter not found" });
+        sendNotFound(res, "편지를 찾을 수 없습니다");
         return;
       }
 
-      // Letter 업데이트
       const updatedLetter = await letterService.updateAutoOgImage(letterId, ogImageUrl);
 
-      res.status(200).json({
-        success: true,
-        data: updatedLetter,
-      });
+      sendSuccess(res, updatedLetter, "OG 이미지 URL이 저장되었습니다");
     } catch (error) {
       next(error);
     }
@@ -97,16 +83,15 @@ export class OgController {
       const letter = await letterService.findById(letterId);
 
       if (!letter) {
-        res.status(404).json({ message: "Letter not found" });
+        sendNotFound(res, "편지를 찾을 수 없습니다");
         return;
       }
 
-      res.status(200).json({
-        success: true,
+      sendSuccess(res, {
         ogImageUrl: letter.ogImageUrl || null,
         ogImageType: letter.ogImageType,
-        ogPreviewMessage: letter.ogPreviewText,
-      });
+        ogPreviewMessage: letter.ogPreviewMessage,
+      }, "OG 이미지 정보를 조회했습니다");
     } catch (error) {
       next(error);
     }

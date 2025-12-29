@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import likeService from "../services/likeService";
+import { sendSuccess, sendCreated, sendUnauthorized, sendNotFound, sendBadRequest, sendServerError } from "../utils/response";
 
 class LikeController {
   // 좋아요 추가
@@ -9,30 +10,23 @@ class LikeController {
       const { id: letterId } = req.params;
 
       if (!userId) {
-        res.status(401).json({ success: false, message: "Unauthorized" });
+        sendUnauthorized(res, "로그인이 필요합니다");
         return;
       }
 
       const result = await likeService.addLike(userId, letterId);
 
-      res.status(201).json({
-        success: true,
-        message: "좋아요를 눌렀습니다",
-        data: {
-          isLiked: true,
-          likeCount: result.likeCount,
-        },
-      });
+      sendCreated(res, { isLiked: true, likeCount: result.likeCount }, "좋아요를 눌렀습니다");
     } catch (error: any) {
       if (error.message === "Letter not found") {
-        res.status(404).json({ success: false, message: "편지를 찾을 수 없습니다" });
+        sendNotFound(res, "편지를 찾을 수 없습니다");
         return;
       }
       if (error.message === "Already liked") {
-        res.status(409).json({ success: false, message: "이미 좋아요를 눌렀습니다" });
+        sendBadRequest(res, "이미 좋아요를 눌렀습니다");
         return;
       }
-      res.status(500).json({ success: false, message: "서버 오류가 발생했습니다" });
+      sendServerError(res, "서버 오류가 발생했습니다");
     }
   }
 
@@ -43,26 +37,19 @@ class LikeController {
       const { id: letterId } = req.params;
 
       if (!userId) {
-        res.status(401).json({ success: false, message: "Unauthorized" });
+        sendUnauthorized(res, "로그인이 필요합니다");
         return;
       }
 
       const result = await likeService.removeLike(userId, letterId);
 
-      res.status(200).json({
-        success: true,
-        message: "좋아요를 취소했습니다",
-        data: {
-          isLiked: false,
-          likeCount: result.likeCount,
-        },
-      });
+      sendSuccess(res, { isLiked: false, likeCount: result.likeCount }, "좋아요를 취소했습니다");
     } catch (error: any) {
       if (error.message === "Like not found") {
-        res.status(404).json({ success: false, message: "좋아요 기록을 찾을 수 없습니다" });
+        sendNotFound(res, "좋아요 기록을 찾을 수 없습니다");
         return;
       }
-      res.status(500).json({ success: false, message: "서버 오류가 발생했습니다" });
+      sendServerError(res, "서버 오류가 발생했습니다");
     }
   }
 
@@ -73,18 +60,15 @@ class LikeController {
       const { id: letterId } = req.params;
 
       if (!userId) {
-        res.status(401).json({ success: false, message: "Unauthorized" });
+        sendUnauthorized(res, "로그인이 필요합니다");
         return;
       }
 
       const result = await likeService.checkLikeStatus(userId, letterId);
 
-      res.status(200).json({
-        success: true,
-        data: result,
-      });
+      sendSuccess(res, result, "좋아요 상태를 조회했습니다");
     } catch (error) {
-      res.status(500).json({ success: false, message: "서버 오류가 발생했습니다" });
+      sendServerError(res, "서버 오류가 발생했습니다");
     }
   }
 
@@ -96,19 +80,15 @@ class LikeController {
       const limit = parseInt(req.query.limit as string) || 20;
 
       if (!userId) {
-        res.status(401).json({ success: false, message: "Unauthorized" });
+        sendUnauthorized(res, "로그인이 필요합니다");
         return;
       }
 
       const result = await likeService.getMyLikes(userId, page, limit);
 
-      res.status(200).json({
-        success: true,
-        data: result.likes,
-        pagination: result.pagination,
-      });
+      sendSuccess(res, result.likes, "좋아요 목록을 조회했습니다", 200, result.pagination);
     } catch (error) {
-      res.status(500).json({ success: false, message: "서버 오류가 발생했습니다" });
+      sendServerError(res, "서버 오류가 발생했습니다");
     }
   }
 }

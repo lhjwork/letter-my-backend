@@ -14,7 +14,7 @@ export class LetterController {
     try {
       if (!req.user) {
         console.log("❌ No user in request");
-        res.status(401).json({ success: false, message: "로그인이 필요합니다." });
+        res.status(401).json({ success: false, message: "로그인이 필요합니다.", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
@@ -31,6 +31,7 @@ export class LetterController {
             title: !title ? "제목이 누락되었습니다." : null,
             content: !content ? "내용이 누락되었습니다." : null,
           },
+          meta: { timestamp: new Date().toISOString() },
         });
         return;
       }
@@ -43,6 +44,7 @@ export class LetterController {
           details: {
             type: `'${type}'은(는) 유효하지 않은 타입입니다. 'story' 또는 'friend'를 선택해주세요.`,
           },
+          meta: { timestamp: new Date().toISOString() },
         });
         return;
       }
@@ -59,6 +61,7 @@ export class LetterController {
           details: {
             userId: req.user.userId,
           },
+          meta: { timestamp: new Date().toISOString() },
         });
         return;
       }
@@ -83,6 +86,7 @@ export class LetterController {
         success: true,
         message: "편지가 성공적으로 생성되었습니다.",
         data: result,
+        meta: { timestamp: new Date().toISOString() },
       });
     } catch (error: unknown) {
       console.error("❌ 편지 생성 에러:", error);
@@ -97,18 +101,21 @@ export class LetterController {
             success: false,
             message: error.message,
             errorType: "RATE_LIMIT_EXCEEDED",
+            meta: { timestamp: new Date().toISOString() },
           });
         } else if (error.message.includes("필수") || error.message.includes("유효하지")) {
           res.status(400).json({
             success: false,
             message: error.message,
             errorType: "VALIDATION_ERROR",
+            meta: { timestamp: new Date().toISOString() },
           });
         } else {
           res.status(500).json({
             success: false,
             message: error.message,
             errorType: "INTERNAL_ERROR",
+            meta: { timestamp: new Date().toISOString() },
           });
         }
       } else {
@@ -117,6 +124,7 @@ export class LetterController {
           success: false,
           message: "편지 생성에 실패했습니다.",
           errorType: "UNKNOWN_ERROR",
+          meta: { timestamp: new Date().toISOString() },
         });
       }
     }
@@ -133,6 +141,7 @@ export class LetterController {
           success: false,
           message: "편지 ID가 필요합니다.",
           errorType: "MISSING_PARAMETER",
+          meta: { timestamp: new Date().toISOString() },
         });
         return;
       }
@@ -142,6 +151,7 @@ export class LetterController {
       res.json({
         success: true,
         data: letter,
+        meta: { timestamp: new Date().toISOString() },
       });
     } catch (error: unknown) {
       console.error("편지 조회 에러:", error);
@@ -154,24 +164,28 @@ export class LetterController {
             success: false,
             message,
             errorType: "INVALID_ID",
+            meta: { timestamp: new Date().toISOString() },
           });
         } else if (message.includes("찾을 수 없습니다")) {
           res.status(404).json({
             success: false,
             message,
             errorType: "NOT_FOUND",
+            meta: { timestamp: new Date().toISOString() },
           });
         } else if (message.includes("권한이 없습니다")) {
           res.status(403).json({
             success: false,
             message,
             errorType: "ACCESS_DENIED",
+            meta: { timestamp: new Date().toISOString() },
           });
         } else {
           res.status(500).json({
             success: false,
             message,
             errorType: "INTERNAL_ERROR",
+            meta: { timestamp: new Date().toISOString() },
           });
         }
       } else {
@@ -179,6 +193,7 @@ export class LetterController {
           success: false,
           message: "편지 조회에 실패했습니다.",
           errorType: "UNKNOWN_ERROR",
+          meta: { timestamp: new Date().toISOString() },
         });
       }
     }
@@ -188,7 +203,7 @@ export class LetterController {
   async getLetterStats(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user) {
-        res.status(401).json({ success: false, message: "Unauthorized" });
+        res.status(401).json({ success: false, message: "로그인이 필요합니다.", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
@@ -197,10 +212,11 @@ export class LetterController {
       res.json({
         success: true,
         data: stats,
+        meta: { timestamp: new Date().toISOString() },
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "통계 조회에 실패했습니다.";
-      res.status(500).json({ success: false, message });
+      res.status(500).json({ success: false, message, meta: { timestamp: new Date().toISOString() } });
     }
   }
 
@@ -210,7 +226,7 @@ export class LetterController {
       const { title, content, authorName, category, ogPreviewMessage } = req.body;
 
       if (!title || !content) {
-        res.status(400).json({ success: false, message: "Title and content are required" });
+        res.status(400).json({ success: false, message: "제목과 내용은 필수입니다.", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
@@ -223,7 +239,7 @@ export class LetterController {
         ogPreviewMessage,
       });
 
-      res.status(201).json({ success: true, data: letter, message: "Story created successfully" });
+      res.status(201).json({ success: true, data: letter, message: "사연이 성공적으로 생성되었습니다.", meta: { timestamp: new Date().toISOString() } });
     } catch (error) {
       next(error);
     }
@@ -239,7 +255,7 @@ export class LetterController {
       const category = (req.query.category as string) || "";
 
       if (page < 1 || limit < 1) {
-        res.status(400).json({ success: false, message: "Invalid page or limit parameter" });
+        res.status(400).json({ success: false, message: "page와 limit은 1 이상의 값이어야 합니다.", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
@@ -251,10 +267,10 @@ export class LetterController {
         category: category || undefined,
       });
 
-      res.status(200).json({ success: true, data: result.stories, pagination: result.pagination });
+      res.status(200).json({ success: true, data: result.stories, pagination: result.pagination, meta: { timestamp: new Date().toISOString() } });
     } catch (error) {
       console.error("Error fetching stories:", error);
-      res.status(500).json({ success: false, message: "사연 목록을 불러오는데 실패했습니다" });
+      res.status(500).json({ success: false, message: "사연 목록을 불러오는데 실패했습니다", meta: { timestamp: new Date().toISOString() } });
     }
   }
 
@@ -262,10 +278,10 @@ export class LetterController {
   async getCategoryStats(_req: Request, res: Response): Promise<void> {
     try {
       const stats = await letterService.getCategoryStats();
-      res.status(200).json({ success: true, data: stats });
+      res.status(200).json({ success: true, data: stats, meta: { timestamp: new Date().toISOString() } });
     } catch (error) {
       console.error("Error fetching category stats:", error);
-      res.status(500).json({ success: false, message: "통계 조회에 실패했습니다" });
+      res.status(500).json({ success: false, message: "통계 조회에 실패했습니다", meta: { timestamp: new Date().toISOString() } });
     }
   }
 
@@ -279,7 +295,7 @@ export class LetterController {
       const letter = await letterService.findById(id);
 
       if (!letter) {
-        res.status(404).json({ success: false, message: "Letter not found" });
+        res.status(404).json({ success: false, message: "편지를 찾을 수 없습니다.", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
@@ -290,7 +306,7 @@ export class LetterController {
         letter.viewCount += 1; // 응답에 반영
       }
 
-      res.status(200).json({ success: true, data: letter });
+      res.status(200).json({ success: true, data: letter, meta: { timestamp: new Date().toISOString() } });
     } catch (error) {
       next(error);
     }
@@ -300,7 +316,7 @@ export class LetterController {
   async getMyLetters(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user) {
-        res.status(401).json({ success: false, message: "Unauthorized" });
+        res.status(401).json({ success: false, message: "로그인이 필요합니다.", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
@@ -312,6 +328,7 @@ export class LetterController {
         res.status(400).json({
           success: false,
           message: "page와 limit은 1 이상의 값이어야 합니다.",
+          meta: { timestamp: new Date().toISOString() },
         });
         return;
       }
@@ -323,15 +340,16 @@ export class LetterController {
           success: true,
           data: result.data,
           pagination: result.pagination,
+          meta: { timestamp: new Date().toISOString() },
         });
       } else {
         // 기존 호환성을 위해 파라미터가 없으면 전체 조회 (하위 호환성)
         const letters = await letterService.findByUserId(req.user.userId);
-        res.status(200).json({ success: true, data: letters });
+        res.status(200).json({ success: true, data: letters, meta: { timestamp: new Date().toISOString() } });
       }
     } catch (error) {
       console.error("Error fetching user letters:", error);
-      res.status(500).json({ success: false, message: "편지 목록을 불러오는데 실패했습니다." });
+      res.status(500).json({ success: false, message: "편지 목록을 불러오는데 실패했습니다.", meta: { timestamp: new Date().toISOString() } });
     }
   }
 
@@ -341,7 +359,7 @@ export class LetterController {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const result = await letterService.findAll(page, limit);
-      res.status(200).json({ success: true, data: result });
+      res.status(200).json({ success: true, data: result, meta: { timestamp: new Date().toISOString() } });
     } catch (error) {
       next(error);
     }
@@ -351,7 +369,7 @@ export class LetterController {
   async updateLetter(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) {
-        res.status(401).json({ success: false, message: "Unauthorized" });
+        res.status(401).json({ success: false, message: "로그인이 필요합니다.", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
@@ -360,12 +378,12 @@ export class LetterController {
 
       const existingLetter = await letterService.findById(id);
       if (!existingLetter) {
-        res.status(404).json({ success: false, message: "편지를 찾을 수 없습니다" });
+        res.status(404).json({ success: false, message: "편지를 찾을 수 없습니다.", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
       if (existingLetter.userId?.toString() !== req.user.userId) {
-        res.status(403).json({ success: false, message: "이 편지를 수정할 권한이 없습니다" });
+        res.status(403).json({ success: false, message: "이 편지를 수정할 권한이 없습니다.", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
@@ -380,7 +398,7 @@ export class LetterController {
         ogFontSize,
       });
 
-      res.status(200).json({ success: true, data: letter, message: "Letter updated successfully" });
+      res.status(200).json({ success: true, data: letter, message: "편지가 성공적으로 수정되었습니다.", meta: { timestamp: new Date().toISOString() } });
     } catch (error) {
       next(error);
     }
@@ -390,7 +408,7 @@ export class LetterController {
   async deleteLetter(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user) {
-        res.status(401).json({ success: false, message: "Unauthorized" });
+        res.status(401).json({ success: false, message: "로그인이 필요합니다.", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
@@ -398,20 +416,20 @@ export class LetterController {
 
       const existingLetter = await letterService.findById(id);
       if (!existingLetter) {
-        res.status(404).json({ success: false, message: "편지를 찾을 수 없습니다" });
+        res.status(404).json({ success: false, message: "편지를 찾을 수 없습니다.", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
       if (existingLetter.userId?.toString() !== req.user.userId) {
-        res.status(403).json({ success: false, message: "이 편지를 삭제할 권한이 없습니다" });
+        res.status(403).json({ success: false, message: "이 편지를 삭제할 권한이 없습니다.", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
       await letterService.deleteLetter(id);
-      res.status(200).json({ success: true, message: "편지가 삭제되었습니다", data: { _id: id } });
+      res.status(200).json({ success: true, message: "편지가 삭제되었습니다", data: { _id: id }, meta: { timestamp: new Date().toISOString() } });
     } catch (error) {
       console.error("Error deleting letter:", error);
-      res.status(500).json({ success: false, message: "편지 삭제에 실패했습니다" });
+      res.status(500).json({ success: false, message: "편지 삭제에 실패했습니다", meta: { timestamp: new Date().toISOString() } });
     }
   }
 }

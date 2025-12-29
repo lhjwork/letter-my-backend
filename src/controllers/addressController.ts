@@ -12,6 +12,7 @@ export const getAddresses = async (req: Request, res: Response): Promise<void> =
     res.status(404).json({
       success: false,
       message: "사용자를 찾을 수 없습니다.",
+      meta: { timestamp: new Date().toISOString() },
     });
     return;
   }
@@ -26,6 +27,7 @@ export const getAddresses = async (req: Request, res: Response): Promise<void> =
   res.json({
     success: true,
     data: sortedAddresses,
+    meta: { timestamp: new Date().toISOString() },
   });
 };
 
@@ -40,6 +42,7 @@ export const getRecentAddresses = async (req: Request, res: Response): Promise<v
     res.status(404).json({
       success: false,
       message: "사용자를 찾을 수 없습니다.",
+      meta: { timestamp: new Date().toISOString() },
     });
     return;
   }
@@ -57,6 +60,7 @@ export const getRecentAddresses = async (req: Request, res: Response): Promise<v
   res.json({
     success: true,
     data: recentAddresses,
+    meta: { timestamp: new Date().toISOString() },
   });
 };
 
@@ -71,6 +75,7 @@ export const getAddressById = async (req: Request, res: Response): Promise<void>
     res.status(404).json({
       success: false,
       message: "사용자를 찾을 수 없습니다.",
+      meta: { timestamp: new Date().toISOString() },
     });
     return;
   }
@@ -81,6 +86,7 @@ export const getAddressById = async (req: Request, res: Response): Promise<void>
     res.status(404).json({
       success: false,
       message: "배송지를 찾을 수 없습니다.",
+      meta: { timestamp: new Date().toISOString() },
     });
     return;
   }
@@ -88,6 +94,7 @@ export const getAddressById = async (req: Request, res: Response): Promise<void>
   res.json({
     success: true,
     data: address,
+    meta: { timestamp: new Date().toISOString() },
   });
 };
 
@@ -102,6 +109,7 @@ export const createAddress = async (req: Request, res: Response): Promise<void> 
     res.status(404).json({
       success: false,
       message: "사용자를 찾을 수 없습니다.",
+      meta: { timestamp: new Date().toISOString() },
     });
     return;
   }
@@ -133,6 +141,7 @@ export const createAddress = async (req: Request, res: Response): Promise<void> 
     success: true,
     message: "배송지가 추가되었습니다.",
     data: newAddress,
+    meta: { timestamp: new Date().toISOString() },
   });
 };
 
@@ -148,6 +157,7 @@ export const updateAddress = async (req: Request, res: Response): Promise<void> 
     res.status(404).json({
       success: false,
       message: "사용자를 찾을 수 없습니다.",
+      meta: { timestamp: new Date().toISOString() },
     });
     return;
   }
@@ -158,6 +168,7 @@ export const updateAddress = async (req: Request, res: Response): Promise<void> 
     res.status(404).json({
       success: false,
       message: "배송지를 찾을 수 없습니다.",
+      meta: { timestamp: new Date().toISOString() },
     });
     return;
   }
@@ -188,6 +199,7 @@ export const updateAddress = async (req: Request, res: Response): Promise<void> 
     success: true,
     message: "배송지가 수정되었습니다.",
     data: user.addresses[addressIndex],
+    meta: { timestamp: new Date().toISOString() },
   });
 };
 
@@ -202,6 +214,7 @@ export const deleteAddress = async (req: Request, res: Response): Promise<void> 
     res.status(404).json({
       success: false,
       message: "사용자를 찾을 수 없습니다.",
+      meta: { timestamp: new Date().toISOString() },
     });
     return;
   }
@@ -212,6 +225,7 @@ export const deleteAddress = async (req: Request, res: Response): Promise<void> 
     res.status(404).json({
       success: false,
       message: "배송지를 찾을 수 없습니다.",
+      meta: { timestamp: new Date().toISOString() },
     });
     return;
   }
@@ -222,6 +236,7 @@ export const deleteAddress = async (req: Request, res: Response): Promise<void> 
   res.json({
     success: true,
     message: "배송지가 삭제되었습니다.",
+    meta: { timestamp: new Date().toISOString() },
   });
 };
 
@@ -236,6 +251,7 @@ export const setDefaultAddress = async (req: Request, res: Response): Promise<vo
     res.status(404).json({
       success: false,
       message: "사용자를 찾을 수 없습니다.",
+      meta: { timestamp: new Date().toISOString() },
     });
     return;
   }
@@ -246,6 +262,7 @@ export const setDefaultAddress = async (req: Request, res: Response): Promise<vo
     res.status(404).json({
       success: false,
       message: "배송지를 찾을 수 없습니다.",
+      meta: { timestamp: new Date().toISOString() },
     });
     return;
   }
@@ -261,6 +278,7 @@ export const setDefaultAddress = async (req: Request, res: Response): Promise<vo
     success: true,
     message: "기본 배송지로 설정되었습니다.",
     data: user.addresses[addressIndex],
+    meta: { timestamp: new Date().toISOString() },
   });
 };
 
