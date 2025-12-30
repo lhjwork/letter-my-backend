@@ -11,6 +11,14 @@ export interface CreateLetterData {
   ogPreviewText?: string;
   aiGenerated?: boolean;
   aiModel?: string;
+  recipientAddresses?: Array<{
+    name: string;
+    phone: string;
+    zipCode: string;
+    address1: string;
+    address2?: string;
+    memo?: string;
+  }>;
 }
 
 export interface CreateLetterResult {
@@ -54,6 +62,12 @@ class LetterCreateService {
       isPublic: data.type === "story", // 사연은 공개, 편지는 비공개
       shareableUrl: true,
       viewCount: 0,
+      // 수신자 주소 목록
+      recipientAddresses:
+        data.recipientAddresses?.map((addr) => ({
+          ...addr,
+          addedAt: new Date(),
+        })) || [],
       // OG 메타데이터
       ogTitle: data.ogTitle || data.title.trim(),
       ogPreviewText: data.ogPreviewText || processedContent.previewText,
@@ -111,6 +125,54 @@ class LetterCreateService {
       letter.viewCount += 1; // 응답에 반영
     }
 
+    // 새로운 시스템에서 실물 편지 정보 조회
+    let physicalLetterInfo = {
+      physicalRequested: false,
+      physicalStatus: "none" as "none" | "requested" | "approved" | "rejected",
+      physicalRequestDate: undefined as Date | undefined,
+      totalRequests: 0,
+    };
+
+    try {
+      console.log(`🔍 [DEBUG] Checking physical requests for letterId: ${letterId}`);
+
+      // Letter의 recipientAddresses에서 실물 편지 신청 정보 조회
+      const physicalRequests = letter.recipientAddresses.filter((addr: any) => addr.isPhysicalRequested);
+
+      console.log(`📊 [DEBUG] Found ${physicalRequests?.length || 0} physical requests for letter ${letterId}`);
+      console.log(
+        `📋 [DEBUG] Physical requests data:`,
+        physicalRequests?.map((req: any) => ({
+          requestId: req.requestId,
+          name: req.name,
+          status: req.physicalStatus,
+          requestedAt: req.physicalRequestDate,
+          sessionId: req.sessionId,
+        }))
+      );
+
+      if (physicalRequests && physicalRequests.length > 0) {
+        physicalLetterInfo.physicalRequested = true;
+        physicalLetterInfo.totalRequests = physicalRequests.length;
+
+        // 가장 최근 신청의 날짜를 사용
+        const latestRequest = physicalRequests.sort((a: any, b: any) => new Date(b.physicalRequestDate).getTime() - new Date(a.physicalRequestDate).getTime())[0];
+
+        physicalLetterInfo.physicalRequestDate = latestRequest.physicalRequestDate;
+
+        // 상태 결정 (승인된 것이 있으면 approved, 아니면 requested)
+        const hasApproved = physicalRequests.some((req: any) => req.physicalStatus === "approved");
+        physicalLetterInfo.physicalStatus = hasApproved ? "approved" : "requested";
+
+        console.log(`✅ [DEBUG] Final physical info for letter ${letterId}:`, physicalLetterInfo);
+      } else {
+        console.log(`❌ [DEBUG] No physical requests found for letter ${letterId}`);
+      }
+    } catch (error) {
+      console.error("❌ [DEBUG] 실물 편지 정보 조회 실패:", error);
+      // 에러가 발생해도 편지 조회는 계속 진행
+    }
+
     // 응답 데이터 구성
     return {
       _id: letter._id,
@@ -127,10 +189,19 @@ class LetterCreateService {
       likeCount: letter.likeCount,
       aiMetadata: letter.aiMetadata,
       isPublic: letter.isPublic,
-      // 실물 편지 정보 추가
-      physicalRequested: letter.physicalRequested || false,
-      physicalStatus: letter.physicalStatus || "none",
-      physicalRequestDate: letter.physicalRequestDate,
+      // 새로운 시스템에서 가져온 실물 편지 정보 (기존 Letter 모델 필드 무시)
+      physicalRequested: physicalLetterInfo.physicalRequested,
+      physicalStatus: physicalLetterInfo.physicalStatus,
+      physicalRequestDate: physicalLetterInfo.physicalRequestDate,
+      totalPhysicalRequests: physicalLetterInfo.totalRequests,
+      // 디버깅용 정보
+      _debug: {
+        letterId: letter._id.toString(),
+        originalPhysicalRequested: letter.physicalRequested,
+        originalPhysicalStatus: letter.physicalStatus,
+        newPhysicalRequested: physicalLetterInfo.physicalRequested,
+        newPhysicalStatus: physicalLetterInfo.physicalStatus,
+      },
     };
   }
 
@@ -221,8 +292,11 @@ class LetterCreateService {
     plainContent: string;
     previewText: string;
   } {
+    console.log("🔍 Processing content:", { originalContent: content, length: content.length });
+
     // HTML 콘텐츠인지 확인
     const isHtml = isHtmlContent(content);
+    console.log("📝 Is HTML content:", isHtml);
 
     let processedContent: string;
     let contentType: "text" | "html";
@@ -231,24 +305,31 @@ class LetterCreateService {
     if (isHtml) {
       // HTML 콘텐츠 보안 처리
       processedContent = sanitizeHtmlContent(content);
+      console.log("🧹 Sanitized content:", { processedContent, length: processedContent.length });
       contentType = "html";
       plainContent = extractPlainText(processedContent);
+      console.log("📄 Plain text:", { plainContent, length: plainContent.length });
     } else {
       // 일반 텍스트를 HTML로 변환 (줄바꿈 처리)
       processedContent = textToHtml(content.trim());
+      console.log("🔄 Text to HTML:", { processedContent, length: processedContent.length });
       contentType = "html";
       plainContent = content.trim();
     }
 
     // 미리보기 텍스트 생성
     const previewText = generatePreviewText(processedContent);
+    console.log("👀 Preview text:", previewText);
 
-    return {
+    const result = {
       content: processedContent,
       contentType,
       plainContent,
       previewText,
     };
+
+    console.log("✅ Final processed content:", result);
+    return result;
   }
 
   /**

@@ -1,8 +1,7 @@
 import { Router } from "express";
 import letterController from "../controllers/letterController";
 import likeController from "../controllers/likeController";
-import physicalLetterController from "../controllers/physicalLetterController";
-import authorApprovalPhysicalLetterController from "../controllers/authorApprovalPhysicalLetterController";
+import recipientLetterController from "../controllers/recipientLetterController";
 import { authenticate, optionalAuthenticate } from "../middleware/auth";
 import { updateLetterValidation, letterIdValidation } from "../middleware/letterValidation";
 import { contentSizeLimit, validateHtmlContent } from "../middleware/contentValidation";
@@ -44,6 +43,20 @@ const createLetterNewValidation = [
   body("ogPreviewText").optional().trim(),
   body("aiGenerated").optional().isBoolean(),
   body("aiModel").optional().trim(),
+  // recipientAddresses 검증
+  body("recipientAddresses").optional().isArray().withMessage("수신자 주소는 배열이어야 합니다."),
+  body("recipientAddresses.*.name").optional().trim().isLength({ min: 2, max: 50 }).withMessage("받는 분 성함은 2-50자 이내여야 합니다."),
+  body("recipientAddresses.*.phone")
+    .optional()
+    .matches(/^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/)
+    .withMessage("올바른 휴대폰 번호 형식이 아닙니다."),
+  body("recipientAddresses.*.zipCode")
+    .optional()
+    .matches(/^[0-9]{5}$/)
+    .withMessage("우편번호는 5자리 숫자여야 합니다."),
+  body("recipientAddresses.*.address1").optional().trim().isLength({ min: 5, max: 200 }).withMessage("주소는 5-200자 이내여야 합니다."),
+  body("recipientAddresses.*.address2").optional().trim().isLength({ max: 200 }).withMessage("상세주소는 200자 이내여야 합니다."),
+  body("recipientAddresses.*.memo").optional().trim().isLength({ max: 500 }).withMessage("메모는 500자 이내여야 합니다."),
   validate,
 ];
 
@@ -177,37 +190,23 @@ router.get("/:id/like", authenticate, letterIdValidation, likeController.checkLi
 
 /**
  * @route   POST /api/letters/:letterId/physical-request
- * @desc    실물 편지 신청
+ * @desc    실물 편지 신청 (Letter의 recipientAddresses 사용)
  * @access  Public
  */
-router.post("/:letterId/physical-request", physicalLetterRequestValidation, physicalLetterController.requestPhysicalLetter);
+router.post("/:letterId/physical-request", physicalLetterRequestValidation, recipientLetterController.requestPhysicalLetter);
 
 /**
  * @route   GET /api/letters/:letterId/physical-status
- * @desc    실물 편지 상태 조회
+ * @desc    실물 편지 상태 조회 (Letter의 recipientAddresses 사용)
  * @access  Public
  */
-router.get("/:letterId/physical-status", physicalLetterController.getPhysicalLetterStatus);
+router.get("/:letterId/physical-status", recipientLetterController.getPhysicalRequests);
 
-// ==================== 작성자 승인 시스템 라우트 ====================
-
-/**
- * @route   POST /api/letters/:letterId/physical-requests
- * @desc    실물 편지 신청 (작성자 승인 시스템)
- * @access  Public
- */
-router.post("/:letterId/physical-requests", physicalLetterRequestValidation, authorApprovalPhysicalLetterController.requestPhysicalLetter);
-
-/**
- * @route   GET /api/letters/:letterId/physical-requests/author
- * @desc    편지 작성자용 신청 목록 조회
- * @access  Private (작성자만)
- */
-router.get("/:letterId/physical-requests/author", authenticate, authorApprovalPhysicalLetterController.getAuthorRequests);
+// ==================== 작성자 승인 시스템 라우트 (Letter 기반) ====================
 
 /**
  * @route   PATCH /api/letters/:letterId/physical-requests/:requestId/approval
- * @desc    편지 작성자용 신청 승인/거절
+ * @desc    편지 작성자용 신청 승인/거절 (Letter의 recipientAddresses 사용)
  * @access  Private (작성자만)
  */
 router.patch(
@@ -218,46 +217,85 @@ router.patch(
     body("rejectionReason").optional().trim().isLength({ max: 500 }).withMessage("거절 사유는 500자 이내여야 합니다."),
     validate,
   ],
-  authorApprovalPhysicalLetterController.processApproval
+  recipientLetterController.processApproval
 );
 
 /**
- * @route   GET /api/letters/:letterId/physical-requests/public
- * @desc    편지별 공개 신청 현황 조회
- * @access  Public
- */
-router.get("/:letterId/physical-requests/public", authorApprovalPhysicalLetterController.getPublicRequests);
-
-/**
- * @route   PATCH /api/letters/:letterId/settings
- * @desc    편지 설정 업데이트 (작성자 승인 시스템 설정)
- * @access  Private (작성자만)
- */
-router.patch(
-  "/:letterId/settings",
-  authenticate,
-  [
-    body("authorSettings.allowPhysicalRequests").optional().isBoolean().withMessage("allowPhysicalRequests는 boolean이어야 합니다."),
-    body("authorSettings.autoApprove").optional().isBoolean().withMessage("autoApprove는 boolean이어야 합니다."),
-    body("authorSettings.maxRequestsPerPerson").optional().isInt({ min: 1, max: 20 }).withMessage("maxRequestsPerPerson은 1-20 사이의 숫자여야 합니다."),
-    body("authorSettings.requireApprovalMessage").optional().trim().isLength({ max: 1000 }).withMessage("requireApprovalMessage는 1000자 이내여야 합니다."),
-    validate,
-  ],
-  authorApprovalPhysicalLetterController.updateLetterSettings
-);
-
-/**
- * @route   GET /api/letters/:letterId/request-limit-check
- * @desc    스팸 방지를 위한 요청 제한 체크
- * @access  Public
- */
-router.get("/:letterId/request-limit-check", authorApprovalPhysicalLetterController.checkRequestLimit);
-
-/**
- * @route   GET /api/physical-requests/:requestId/status
- * @desc    개별 신청 상태 조회 (신청자용)
+ * @route   GET /api/letters/physical-requests/:requestId/status
+ * @desc    개별 신청 상태 조회 (세션 기반)
  * @access  Public (세션 기반)
  */
-router.get("/physical-requests/:requestId/status", authorApprovalPhysicalLetterController.getRequestStatus);
+router.get("/physical-requests/:requestId/status", recipientLetterController.getRequestStatus);
+
+/**
+ * @route   GET /api/letters/physical-requests/:requestId/status
+ * @desc    개별 신청 상태 조회 (세션 기반)
+ * @access  Public (세션 기반)
+ */
+router.get("/physical-requests/:requestId/status", recipientLetterController.getRequestStatus);
+
+// ==================== 수신자 주소 관리 라우트 ====================
+
+/**
+ * @route   POST /api/letters/:id/recipient-addresses
+ * @desc    편지에 수신자 주소 추가
+ * @access  Private (작성자만)
+ */
+router.post(
+  "/:id/recipient-addresses",
+  authenticate,
+  [
+    body("name").trim().isLength({ min: 2, max: 50 }).withMessage("받는 분 성함은 2-50자 이내여야 합니다."),
+    body("phone")
+      .matches(/^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/)
+      .withMessage("올바른 휴대폰 번호 형식이 아닙니다."),
+    body("zipCode")
+      .matches(/^[0-9]{5}$/)
+      .withMessage("우편번호는 5자리 숫자여야 합니다."),
+    body("address1").trim().isLength({ min: 5, max: 200 }).withMessage("주소는 5-200자 이내여야 합니다."),
+    body("address2").optional().trim().isLength({ max: 200 }).withMessage("상세주소는 200자 이내여야 합니다."),
+    body("memo").optional().trim().isLength({ max: 500 }).withMessage("메모는 500자 이내여야 합니다."),
+    validate,
+  ],
+  letterController.addRecipientAddress
+);
+
+/**
+ * @route   GET /api/letters/:id/recipient-addresses
+ * @desc    편지의 수신자 주소 목록 조회
+ * @access  Private (작성자만)
+ */
+router.get("/:id/recipient-addresses", authenticate, letterController.getRecipientAddresses);
+
+/**
+ * @route   PUT /api/letters/:id/recipient-addresses/:addressId
+ * @desc    편지의 수신자 주소 수정
+ * @access  Private (작성자만)
+ */
+router.put(
+  "/:id/recipient-addresses/:addressId",
+  authenticate,
+  [
+    body("name").trim().isLength({ min: 2, max: 50 }).withMessage("받는 분 성함은 2-50자 이내여야 합니다."),
+    body("phone")
+      .matches(/^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/)
+      .withMessage("올바른 휴대폰 번호 형식이 아닙니다."),
+    body("zipCode")
+      .matches(/^[0-9]{5}$/)
+      .withMessage("우편번호는 5자리 숫자여야 합니다."),
+    body("address1").trim().isLength({ min: 5, max: 200 }).withMessage("주소는 5-200자 이내여야 합니다."),
+    body("address2").optional().trim().isLength({ max: 200 }).withMessage("상세주소는 200자 이내여야 합니다."),
+    body("memo").optional().trim().isLength({ max: 500 }).withMessage("메모는 500자 이내여야 합니다."),
+    validate,
+  ],
+  letterController.updateRecipientAddress
+);
+
+/**
+ * @route   DELETE /api/letters/:id/recipient-addresses/:addressId
+ * @desc    편지의 수신자 주소 삭제
+ * @access  Private (작성자만)
+ */
+router.delete("/:id/recipient-addresses/:addressId", authenticate, letterController.deleteRecipientAddress);
 
 export default router;

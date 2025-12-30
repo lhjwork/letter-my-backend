@@ -50,6 +50,25 @@ export interface IShippingAddress {
   requestedAt: Date;
 }
 
+// 수신자 주소 인터페이스
+export interface IRecipientAddress {
+  name: string;
+  phone: string;
+  zipCode: string;
+  address1: string;
+  address2?: string;
+  memo?: string;
+  addedAt: Date;
+  // 실물 편지 신청 관련 필드 추가
+  isPhysicalRequested?: boolean;
+  physicalRequestDate?: Date;
+  physicalStatus?: "none" | "requested" | "approved" | "rejected" | "writing" | "sent" | "delivered";
+  sessionId?: string;
+  userAgent?: string;
+  ipAddress?: string;
+  requestId?: string; // 고유 신청 ID
+}
+
 // OG 이미지 타입
 export enum OgImageType {
   AUTO = "auto",
@@ -118,6 +137,7 @@ export interface ILetter extends Document {
   physicalRequestDate?: Date;
   physicalStatus: PhysicalLetterStatus;
   shippingAddress?: IShippingAddress;
+  recipientAddresses: IRecipientAddress[];
   physicalNotes?: string;
   // 작성자 승인 시스템 관련
   physicalLetterStats: IPhysicalLetterStats;
@@ -252,6 +272,29 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
       address2: { type: String },
       requestedAt: { type: Date },
     },
+    recipientAddresses: [
+      {
+        name: { type: String, required: true },
+        phone: { type: String, required: true },
+        zipCode: { type: String, required: true },
+        address1: { type: String, required: true },
+        address2: { type: String },
+        memo: { type: String },
+        addedAt: { type: Date, default: Date.now },
+        // 실물 편지 신청 관련 필드
+        isPhysicalRequested: { type: Boolean, default: false },
+        physicalRequestDate: { type: Date },
+        physicalStatus: {
+          type: String,
+          enum: ["none", "requested", "approved", "rejected", "writing", "sent", "delivered"],
+          default: "none",
+        },
+        sessionId: { type: String },
+        userAgent: { type: String },
+        ipAddress: { type: String },
+        requestId: { type: String, unique: true, sparse: true }, // 고유 신청 ID
+      },
+    ],
     physicalNotes: {
       type: String,
     },

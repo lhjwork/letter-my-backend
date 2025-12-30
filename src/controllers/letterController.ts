@@ -18,8 +18,8 @@ export class LetterController {
         return;
       }
 
-      const { title, content, type, category, ogTitle, ogPreviewText, aiGenerated, aiModel } = req.body;
-      console.log("📝 Extracted fields:", { title, content, type, category });
+      const { title, content, type, category, ogTitle, ogPreviewText, aiGenerated, aiModel, recipientAddresses } = req.body;
+      console.log("📝 Extracted fields:", { title, content, type, category, recipientAddresses });
 
       // 기본 검증
       if (!title || !content) {
@@ -78,6 +78,7 @@ export class LetterController {
         ogPreviewText,
         aiGenerated,
         aiModel,
+        recipientAddresses,
       });
 
       console.log("✅ Letter created successfully:", result);
@@ -430,6 +431,188 @@ export class LetterController {
     } catch (error) {
       console.error("Error deleting letter:", error);
       res.status(500).json({ success: false, message: "편지 삭제에 실패했습니다", meta: { timestamp: new Date().toISOString() } });
+    }
+  }
+
+  // ==================== 수신자 주소 관리 메서드 ====================
+
+  // 수신자 주소 추가
+  async addRecipientAddress(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, message: "로그인이 필요합니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      const { id } = req.params;
+      const { name, phone, zipCode, address1, address2, memo } = req.body;
+
+      const Letter = require("../models/Letter").default;
+      const letter = await Letter.findById(id);
+
+      if (!letter) {
+        res.status(404).json({ success: false, message: "편지를 찾을 수 없습니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      if (letter.userId?.toString() !== req.user.userId) {
+        res.status(403).json({ success: false, message: "이 편지를 수정할 권한이 없습니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      const newAddress = {
+        name,
+        phone,
+        zipCode,
+        address1,
+        address2,
+        memo,
+        addedAt: new Date(),
+      };
+
+      letter.recipientAddresses.push(newAddress);
+      await letter.save();
+
+      res.status(201).json({
+        success: true,
+        message: "수신자 주소가 추가되었습니다.",
+        data: newAddress,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      console.error("Error adding recipient address:", error);
+      res.status(500).json({ success: false, message: "수신자 주소 추가에 실패했습니다.", meta: { timestamp: new Date().toISOString() } });
+    }
+  }
+
+  // 수신자 주소 목록 조회
+  async getRecipientAddresses(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, message: "로그인이 필요합니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      const { id } = req.params;
+
+      const Letter = require("../models/Letter").default;
+      const letter = await Letter.findById(id);
+
+      if (!letter) {
+        res.status(404).json({ success: false, message: "편지를 찾을 수 없습니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      if (letter.userId?.toString() !== req.user.userId) {
+        res.status(403).json({ success: false, message: "이 편지의 수신자 주소를 조회할 권한이 없습니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: letter.recipientAddresses,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      console.error("Error getting recipient addresses:", error);
+      res.status(500).json({ success: false, message: "수신자 주소 조회에 실패했습니다.", meta: { timestamp: new Date().toISOString() } });
+    }
+  }
+
+  // 수신자 주소 수정
+  async updateRecipientAddress(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, message: "로그인이 필요합니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      const { id, addressId } = req.params;
+      const { name, phone, zipCode, address1, address2, memo } = req.body;
+
+      const Letter = require("../models/Letter").default;
+      const letter = await Letter.findById(id);
+
+      if (!letter) {
+        res.status(404).json({ success: false, message: "편지를 찾을 수 없습니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      if (letter.userId?.toString() !== req.user.userId) {
+        res.status(403).json({ success: false, message: "이 편지를 수정할 권한이 없습니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      const addressIndex = letter.recipientAddresses.findIndex((addr: any) => addr._id.toString() === addressId);
+      if (addressIndex === -1) {
+        res.status(404).json({ success: false, message: "수신자 주소를 찾을 수 없습니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      letter.recipientAddresses[addressIndex] = {
+        ...letter.recipientAddresses[addressIndex],
+        name,
+        phone,
+        zipCode,
+        address1,
+        address2,
+        memo,
+      };
+
+      await letter.save();
+
+      res.status(200).json({
+        success: true,
+        message: "수신자 주소가 수정되었습니다.",
+        data: letter.recipientAddresses[addressIndex],
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      console.error("Error updating recipient address:", error);
+      res.status(500).json({ success: false, message: "수신자 주소 수정에 실패했습니다.", meta: { timestamp: new Date().toISOString() } });
+    }
+  }
+
+  // 수신자 주소 삭제
+  async deleteRecipientAddress(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, message: "로그인이 필요합니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      const { id, addressId } = req.params;
+
+      const Letter = require("../models/Letter").default;
+      const letter = await Letter.findById(id);
+
+      if (!letter) {
+        res.status(404).json({ success: false, message: "편지를 찾을 수 없습니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      if (letter.userId?.toString() !== req.user.userId) {
+        res.status(403).json({ success: false, message: "이 편지를 수정할 권한이 없습니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      const addressIndex = letter.recipientAddresses.findIndex((addr: any) => addr._id.toString() === addressId);
+      if (addressIndex === -1) {
+        res.status(404).json({ success: false, message: "수신자 주소를 찾을 수 없습니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      letter.recipientAddresses.splice(addressIndex, 1);
+      await letter.save();
+
+      res.status(200).json({
+        success: true,
+        message: "수신자 주소가 삭제되었습니다.",
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      console.error("Error deleting recipient address:", error);
+      res.status(500).json({ success: false, message: "수신자 주소 삭제에 실패했습니다.", meta: { timestamp: new Date().toISOString() } });
     }
   }
 }

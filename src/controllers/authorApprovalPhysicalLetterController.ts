@@ -11,6 +11,9 @@ class AuthorApprovalPhysicalLetterController {
       const { letterId } = req.params;
       const requestData: IPhysicalRequestData = req.body;
 
+      console.log(`🔍 [DEBUG] Physical letter request for letterId: ${letterId}`);
+      console.log(`📋 [DEBUG] Request data:`, requestData);
+
       // 세션 ID 생성 또는 가져오기
       let sessionId = (req.session as any)?.id;
       if (!sessionId) {
@@ -20,11 +23,15 @@ class AuthorApprovalPhysicalLetterController {
         }
       }
 
+      console.log(`🔑 [DEBUG] Session ID: ${sessionId}`);
+
       // 요청자 정보 수집
       const userAgent = req.get("User-Agent") || "";
       const ipAddress = req.ip || req.connection.remoteAddress || "";
 
       const result = await authorApprovalPhysicalLetterService.requestPhysicalLetter(letterId, sessionId, userAgent, ipAddress, requestData);
+
+      console.log(`✅ [DEBUG] Physical letter request result:`, result);
 
       res.status(201).json({
         success: true,
@@ -32,7 +39,7 @@ class AuthorApprovalPhysicalLetterController {
         data: result,
       });
     } catch (error: any) {
-      console.error("실물 편지 신청 실패:", error);
+      console.error("❌ [DEBUG] 실물 편지 신청 실패:", error);
       res.status(400).json({
         success: false,
         error: error.message || "실물 편지 신청에 실패했습니다.",

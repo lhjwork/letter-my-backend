@@ -4,80 +4,62 @@ import * as cheerio from "cheerio";
  * HTML 콘텐츠를 안전하게 정제하는 함수
  */
 export function sanitizeHtmlContent(htmlContent: string): string {
-  // cheerio를 사용하여 HTML 파싱
-  const $ = cheerio.load(htmlContent);
+  console.log("🧹 Sanitizing HTML content:", { input: htmlContent, length: htmlContent.length });
 
-  // 허용할 HTML 태그 정의
-  const allowedTags = ["p", "br", "strong", "em", "u", "span", "ul", "ol", "li", "blockquote", "mark", "h1", "h2", "h3", "h4", "h5", "h6"];
+  if (!htmlContent || htmlContent.trim() === "") {
+    console.log("❌ Empty content provided to sanitizeHtmlContent");
+    return "";
+  }
 
-  // 허용할 속성 정의
-  const allowedAttributes = ["style"];
+  try {
+    // 임시로 간단한 처리: 위험한 태그만 제거하고 나머지는 그대로 유지
+    let sanitized = htmlContent
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
+      .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, "")
+      .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, "")
+      .replace(/javascript:/gi, "")
+      .replace(/on\w+\s*=/gi, ""); // onclick, onload 등 이벤트 핸들러 제거
 
-  // 모든 요소를 순회하면서 정제
-  $("*").each((_, element) => {
-    // any 타입으로 처리하여 타입 에러 회피
-    const el = element as any;
-    const tagName = el.tagName?.toLowerCase();
-
-    // 허용되지 않은 태그 제거
-    if (!tagName || !allowedTags.includes(tagName)) {
-      $(element).remove();
-      return;
-    }
-
-    // 속성 정제
-    const attributes = el.attribs || {};
-    Object.keys(attributes).forEach((attr) => {
-      if (!allowedAttributes.includes(attr)) {
-        $(element).removeAttr(attr);
-      } else if (attr === "style") {
-        // 스타일 속성 정제 (기본적인 CSS만 허용)
-        const style = attributes[attr];
-        const sanitizedStyle = sanitizeStyleAttribute(style);
-        $(element).attr("style", sanitizedStyle);
-      }
-    });
-  });
-
-  // 스크립트 태그 완전 제거
-  $("script").remove();
-  $("iframe").remove();
-  $("object").remove();
-  $("embed").remove();
-
-  return $.html();
+    console.log("✅ Sanitized result (simple):", { result: sanitized, length: sanitized.length });
+    return sanitized;
+  } catch (error) {
+    console.error("❌ Error in sanitizeHtmlContent:", error);
+    // 에러 발생 시 원본 반환
+    return htmlContent;
+  }
 }
 
 /**
- * CSS 스타일 속성 정제
+ * CSS 스타일 속성 정제 (현재 사용하지 않음)
  */
-function sanitizeStyleAttribute(style: string): string {
-  if (!style) return "";
+// function sanitizeStyleAttribute(style: string): string {
+//   if (!style) return "";
 
-  // 허용할 CSS 속성들
-  const allowedProperties = ["color", "background-color", "font-size", "font-weight", "font-style", "text-decoration", "text-align", "margin", "padding", "border"];
+//   // 허용할 CSS 속성들
+//   const allowedProperties = ["color", "background-color", "font-size", "font-weight", "font-style", "text-decoration", "text-align", "margin", "padding", "border"];
 
-  // 위험한 CSS 값들 제거
-  const dangerousValues = ["javascript:", "expression(", "url(", "@import"];
+//   // 위험한 CSS 값들 제거
+//   const dangerousValues = ["javascript:", "expression(", "url(", "@import"];
 
-  const rules = style.split(";").filter((rule) => {
-    const [property, value] = rule.split(":").map((s) => s.trim());
+//   const rules = style.split(";").filter((rule) => {
+//     const [property, value] = rule.split(":").map((s) => s.trim());
 
-    if (!property || !value) return false;
+//     if (!property || !value) return false;
 
-    // 허용된 속성인지 확인
-    const isAllowedProperty = allowedProperties.some((allowed) => property.toLowerCase().includes(allowed));
+//     // 허용된 속성인지 확인
+//     const isAllowedProperty = allowedProperties.some((allowed) => property.toLowerCase().includes(allowed));
 
-    if (!isAllowedProperty) return false;
+//     if (!isAllowedProperty) return false;
 
-    // 위험한 값이 포함되어 있는지 확인
-    const hasDangerousValue = dangerousValues.some((dangerous) => value.toLowerCase().includes(dangerous));
+//     // 위험한 값이 포함되어 있는지 확인
+//     const hasDangerousValue = dangerousValues.some((dangerous) => value.toLowerCase().includes(dangerous));
 
-    return !hasDangerousValue;
-  });
+//     return !hasDangerousValue;
+//   });
 
-  return rules.join("; ");
-}
+//   return rules.join("; ");
+// }
 
 /**
  * HTML에서 일반 텍스트 추출
