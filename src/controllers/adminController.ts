@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import adminService from "../services/adminService";
+import recipientLetterService from "../services/recipientLetterService";
 
 class AdminController {
   // ===== 관리자 관리 =====

@@ -159,6 +159,60 @@ class RecipientLetterService {
   }
 
   /**
+   * 작성자용 수신자 목록 조회 (권한 확인 포함)
+   */
+  async getAuthorRecipients(letterId: string, authorId: string) {
+    console.log(`🔍 [DEBUG] Getting author recipients for letterId: ${letterId}, authorId: ${authorId}`);
+
+    if (!mongoose.Types.ObjectId.isValid(letterId)) {
+      throw new Error("올바르지 않은 편지 ID입니다.");
+    }
+
+    const letter = await Letter.findById(letterId).lean();
+    if (!letter) {
+      throw new Error("편지를 찾을 수 없습니다.");
+    }
+
+    // 작성자 권한 확인
+    if (letter.userId?.toString() !== authorId) {
+      throw new Error("이 편지의 작성자만 수신자 목록을 조회할 수 있습니다.");
+    }
+
+    // 실물 편지 신청된 주소들만 필터링
+    const physicalRequests = letter.recipientAddresses.filter((addr: any) => addr.isPhysicalRequested);
+
+    console.log(`📊 [DEBUG] Found ${physicalRequests.length} recipients for author ${authorId}`);
+
+    return {
+      letterId,
+      letterTitle: letter.title,
+      authorName: letter.authorName,
+      totalRequests: physicalRequests.length,
+      recipients: physicalRequests.map((req: any) => ({
+        requestId: req.requestId,
+        name: req.name,
+        phone: req.phone,
+        zipCode: req.zipCode,
+        address1: req.address1,
+        address2: req.address2,
+        fullAddress: `(${req.zipCode}) ${req.address1} ${req.address2}`.trim(),
+        status: req.physicalStatus,
+        requestedAt: req.physicalRequestDate,
+        memo: req.memo,
+        sessionId: req.sessionId?.substring(0, 8) + "...", // 보안을 위해 일부만 표시
+      })),
+      stats: {
+        total: letter.physicalLetterStats.totalRequests,
+        pending: letter.physicalLetterStats.pendingRequests,
+        approved: letter.physicalLetterStats.approvedRequests,
+        rejected: letter.physicalLetterStats.rejectedRequests,
+        completed: letter.physicalLetterStats.completedRequests,
+      },
+      authorSettings: letter.authorSettings,
+    };
+  }
+
+  /**
    * 작성자용 신청 승인/거절
    */
   async processApproval(letterId: string, requestId: string, authorId: string, action: "approve" | "reject", rejectionReason?: string) {
@@ -218,39 +272,52 @@ class RecipientLetterService {
   }
 
   /**
-   * 개별 신청 상태 조회 (세션 기반)
+   * 개별 신청 상태 조회 (requestId 기반 - 세션 불필요)
    */
-  async getRequestStatus(requestId: string, sessionId: string) {
-    console.log(`🔍 [DEBUG] Getting request status for ${requestId} with session ${sessionId}`);
+  async getRequestStatusByRequestId(requestId: string) {
+    console.log(`🔍 [DEBUG] Getting request status by requestId: ${requestId}`);
 
     const letter = await Letter.findOne({
       "recipientAddresses.requestId": requestId,
     }).lean();
 
     if (!letter) {
-      throw new Error("신청을 찾을 수 없습니다.");
+      throw new Error("REQUEST_NOT_FOUND");
     }
 
     const request = letter.recipientAddresses.find((addr: any) => addr.requestId === requestId);
 
     if (!request) {
-      throw new Error("신청을 찾을 수 없습니다.");
+      throw new Error("REQUEST_NOT_FOUND");
     }
 
-    // 세션 확인 (보안)
-    if (request.sessionId !== sessionId) {
-      throw new Error("접근 권한이 없습니다.");
-    }
+    console.log(`✅ [DEBUG] Found request: ${request.name} - ${request.physicalStatus}`);
 
     return {
       requestId,
       letterId: letter._id.toString(),
+      letterTitle: letter.ogTitle || letter.title,
+      letterAuthor: letter.authorName,
       status: request.physicalStatus,
       requestedAt: request.physicalRequestDate,
       recipientInfo: {
         name: request.name,
         phone: request.phone,
         address: `(${request.zipCode}) ${request.address1} ${request.address2}`.trim(),
+      },
+      statusHistory: {
+        requested: request.physicalRequestDate,
+        approved:
+          request.physicalStatus === "approved" || request.physicalStatus === "writing" || request.physicalStatus === "sent" || request.physicalStatus === "delivered"
+            ? request.physicalRequestDate
+            : null,
+        writing: request.physicalStatus === "writing" || request.physicalStatus === "sent" || request.physicalStatus === "delivered" ? request.physicalRequestDate : null,
+        sent: request.physicalStatus === "sent" || request.physicalStatus === "delivered" ? request.physicalRequestDate : null,
+        delivered: request.physicalStatus === "delivered" ? request.physicalRequestDate : null,
+      },
+      trackingInfo: {
+        canTrack: request.physicalStatus ? ["sent", "delivered"].includes(request.physicalStatus) : false,
+        estimatedDelivery: request.physicalStatus === "sent" && request.physicalRequestDate ? this.calculateEstimatedDelivery(request.physicalRequestDate) : null,
       },
     };
   }
@@ -275,6 +342,241 @@ class RecipientLetterService {
    */
   generateSessionId(): string {
     return this.generateUniqueId();
+  }
+
+  /**
+   * 배송 예상일 계산 (발송일로부터 2-3일 후)
+   */
+  private calculateEstimatedDelivery(sentDate: Date): string {
+    const delivery = new Date(sentDate);
+    delivery.setDate(delivery.getDate() + 3); // 3일 후
+    return delivery.toISOString().split("T")[0]; // YYYY-MM-DD 형식
+  }
+
+  /**
+   * 편지별 간단한 실물 편지 상태 조회 (사용자 기반)
+   */
+  async getSimplePhysicalStatus(letterId: string, userId: string) {
+    console.log(`🔍 [DEBUG] Getting simple physical status - letterId: ${letterId}, userId: ${userId}`);
+
+    if (!mongoose.Types.ObjectId.isValid(letterId)) {
+      throw new Error("올바르지 않은 편지 ID입니다.");
+    }
+
+    const letter = await Letter.findById(letterId).lean();
+    if (!letter) {
+      throw new Error("LETTER_NOT_FOUND");
+    }
+
+    console.log(`📋 [DEBUG] Letter found: ${letter.title} by ${letter.authorName}`);
+
+    // 현재 사용자의 실물 편지 신청 내역 조회
+    const userRequests = letter.recipientAddresses.filter((addr: any) => addr.isPhysicalRequested && addr.sessionId && this.isUserRequest(addr, userId));
+
+    console.log(`📊 [DEBUG] Found ${userRequests.length} requests for user ${userId}`);
+
+    // 신청 내역이 없는 경우
+    if (userRequests.length === 0) {
+      return {
+        letterId: letter._id.toString(),
+        letterTitle: letter.ogTitle || letter.title,
+        hasRequest: false,
+        currentStatus: null,
+      };
+    }
+
+    // 상태 우선순위 정의 (가장 진행된 상태 찾기)
+    const STATUS_PRIORITY = {
+      delivered: 6,
+      sent: 5,
+      writing: 4,
+      approved: 3,
+      requested: 2,
+      rejected: 1,
+      none: 0,
+    };
+
+    // 가장 진행된 상태 찾기
+    const highestStatusRequest = userRequests.reduce((highest: any, current: any) => {
+      const currentPriority = STATUS_PRIORITY[current.physicalStatus as keyof typeof STATUS_PRIORITY] || 0;
+      const highestPriority = STATUS_PRIORITY[highest.physicalStatus as keyof typeof STATUS_PRIORITY] || 0;
+      return currentPriority > highestPriority ? current : highest;
+    });
+
+    // 상태 라벨 및 메시지 생성
+    const statusInfo = this.getStatusInfo(highestStatusRequest.physicalStatus || "none");
+
+    console.log(`✅ [DEBUG] Highest status for user: ${highestStatusRequest.physicalStatus}`);
+
+    return {
+      letterId: letter._id.toString(),
+      letterTitle: letter.ogTitle || letter.title,
+      hasRequest: true,
+      currentStatus: {
+        status: highestStatusRequest.physicalStatus,
+        statusLabel: statusInfo.label,
+        statusMessage: statusInfo.message,
+        lastUpdated: highestStatusRequest.physicalRequestDate,
+        estimatedDelivery:
+          highestStatusRequest.physicalStatus === "sent" && highestStatusRequest.physicalRequestDate ? this.calculateEstimatedDelivery(highestStatusRequest.physicalRequestDate) : null,
+      },
+    };
+  }
+
+  /**
+   * 사용자 요청 여부 확인 (세션 기반 임시 로직)
+   * TODO: 향후 사용자 ID 기반으로 개선 필요
+   */
+  private isUserRequest(_request: any, _userId: string): boolean {
+    // 현재는 세션 기반이므로 임시로 모든 요청을 해당 사용자 것으로 간주
+    // 실제로는 사용자 ID나 다른 식별자로 매칭해야 함
+    return true;
+  }
+
+  /**
+   * 상태별 라벨 및 메시지 반환
+   */
+  private getStatusInfo(status: string): { label: string; message: string } {
+    const statusMap = {
+      none: {
+        label: "상태 없음",
+        message: "아직 상태가 설정되지 않았습니다.",
+      },
+      requested: {
+        label: "승인 대기중",
+        message: "편지 작성자의 승인을 기다리고 있습니다.",
+      },
+      approved: {
+        label: "승인 완료",
+        message: "신청이 승인되었습니다. 곧 편지 작성을 시작합니다.",
+      },
+      rejected: {
+        label: "승인 거절",
+        message: "신청이 거절되었습니다.",
+      },
+      writing: {
+        label: "작성 중",
+        message: "편지를 손으로 작성하고 있습니다.",
+      },
+      sent: {
+        label: "발송 완료",
+        message: "편지가 발송되었습니다. 곧 도착할 예정입니다.",
+      },
+      delivered: {
+        label: "배송 완료",
+        message: "편지가 성공적으로 배송되었습니다.",
+      },
+    };
+
+    return (
+      statusMap[status as keyof typeof statusMap] || {
+        label: "알 수 없음",
+        message: "상태를 확인할 수 없습니다.",
+      }
+    );
+  }
+
+  /**
+   * 사용자별 실물 편지 상태 조회 (권한 확인 포함)
+   */
+  async getPhysicalStatusForUser(letterId: string, sessionId: string) {
+    console.log(`🔍 [DEBUG] Getting physical status for user - letterId: ${letterId}, sessionId: ${sessionId}`);
+
+    if (!mongoose.Types.ObjectId.isValid(letterId)) {
+      throw new Error("올바르지 않은 편지 ID입니다.");
+    }
+
+    const letter = await Letter.findById(letterId).lean();
+    if (!letter) {
+      throw new Error("LETTER_NOT_FOUND");
+    }
+
+    console.log(`📋 [DEBUG] Letter found: ${letter.title} by ${letter.authorName}`);
+    console.log(`📊 [DEBUG] Total recipientAddresses: ${letter.recipientAddresses.length}`);
+
+    // 모든 recipientAddresses 로그 출력
+    letter.recipientAddresses.forEach((addr: any, index: number) => {
+      console.log(`📍 [DEBUG] Address ${index + 1}:`);
+      console.log(`   - Name: ${addr.name}`);
+      console.log(`   - Phone: ${addr.phone}`);
+      console.log(`   - isPhysicalRequested: ${addr.isPhysicalRequested}`);
+      console.log(`   - physicalStatus: ${addr.physicalStatus}`);
+      console.log(`   - sessionId: ${addr.sessionId}`);
+      console.log(`   - requestId: ${addr.requestId}`);
+    });
+
+    // 해당 세션의 실물 편지 신청 내역 조회
+    const userRequests = letter.recipientAddresses.filter((addr: any) => addr.sessionId === sessionId && addr.isPhysicalRequested);
+
+    // 임시: 세션 ID가 매칭되지 않는 경우 가장 최근 신청을 반환 (개발/테스트용)
+    if (userRequests.length === 0 && process.env.NODE_ENV === "development") {
+      console.log(`⚠️ [DEBUG] No session match found, using latest request for development`);
+      const allPhysicalRequests = letter.recipientAddresses.filter((addr: any) => addr.isPhysicalRequested);
+      if (allPhysicalRequests.length > 0) {
+        // 가장 최근 신청을 사용
+        const latestRequest = allPhysicalRequests.sort((a: any, b: any) => new Date(b.physicalRequestDate).getTime() - new Date(a.physicalRequestDate).getTime())[0];
+        userRequests.push(latestRequest);
+        console.log(`🔄 [DEBUG] Using latest request with sessionId: ${latestRequest.sessionId}`);
+      }
+    }
+
+    console.log(`📊 [DEBUG] Found ${userRequests.length} requests for session ${sessionId}`);
+    console.log(`🔑 [DEBUG] Looking for sessionId: "${sessionId}"`);
+
+    // 세션 ID 매칭 상세 로그
+    letter.recipientAddresses.forEach((addr: any, index: number) => {
+      if (addr.isPhysicalRequested) {
+        console.log(`🔍 [DEBUG] Physical request ${index + 1}: sessionId "${addr.sessionId}" === "${sessionId}" ? ${addr.sessionId === sessionId}`);
+      }
+    });
+
+    // 신청 내역이 없으면 403 에러
+    if (userRequests.length === 0) {
+      throw new Error("NO_PHYSICAL_REQUESTS");
+    }
+
+    // 상태 우선순위 정의
+    const STATUS_PRIORITY = {
+      delivered: 6,
+      sent: 5,
+      writing: 4,
+      approved: 3,
+      requested: 2,
+      rejected: 1,
+      none: 0,
+    };
+
+    // 가장 진행된 상태 찾기
+    const highestStatusRequest = userRequests.reduce((highest: any, current: any) => {
+      const currentPriority = STATUS_PRIORITY[current.physicalStatus as keyof typeof STATUS_PRIORITY] || 0;
+      const highestPriority = STATUS_PRIORITY[highest.physicalStatus as keyof typeof STATUS_PRIORITY] || 0;
+      return currentPriority > highestPriority ? current : highest;
+    });
+
+    console.log(`✅ [DEBUG] Highest status for user: ${highestStatusRequest.physicalStatus}`);
+
+    return {
+      letterId: letter._id.toString(),
+      letterTitle: letter.ogTitle || letter.title,
+      totalUserRequests: userRequests.length,
+      deliveryStatus: {
+        status: highestStatusRequest.physicalStatus,
+        sentDate: highestStatusRequest.physicalStatus === "sent" || highestStatusRequest.physicalStatus === "delivered" ? highestStatusRequest.physicalRequestDate : null,
+        trackingNumber: null, // 향후 확장 가능
+      },
+      userRequests: userRequests.map((req: any) => ({
+        requestId: req.requestId,
+        status: req.physicalStatus,
+        requestedAt: req.physicalRequestDate,
+        approvedAt: req.physicalStatus === "approved" || req.physicalStatus === "writing" || req.physicalStatus === "sent" || req.physicalStatus === "delivered" ? req.physicalRequestDate : null,
+        writingStartedAt: req.physicalStatus === "writing" || req.physicalStatus === "sent" || req.physicalStatus === "delivered" ? req.physicalRequestDate : null,
+        sentDate: req.physicalStatus === "sent" || req.physicalStatus === "delivered" ? req.physicalRequestDate : null,
+        recipientInfo: {
+          name: req.name,
+          address: `(${req.zipCode}) ${req.address1} ${req.address2}`.trim(),
+        },
+      })),
+    };
   }
 }
 

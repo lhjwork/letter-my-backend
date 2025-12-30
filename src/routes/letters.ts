@@ -202,6 +202,27 @@ router.post("/:letterId/physical-request", physicalLetterRequestValidation, reci
  */
 router.get("/:letterId/physical-status", recipientLetterController.getPhysicalRequests);
 
+/**
+ * @route   GET /api/letters/:letterId/physical-status/simple
+ * @desc    편지별 간단한 실물 편지 상태 조회 (사용자 기반)
+ * @access  Private (로그인 필요)
+ */
+router.get("/:letterId/physical-status/simple", authenticate, recipientLetterController.getSimplePhysicalStatus);
+
+/**
+ * @route   GET /api/letters/:letterId/physical-status/user
+ * @desc    사용자별 실물 편지 발송 상태 조회 (세션 기반)
+ * @access  Public (세션 필요)
+ */
+router.get("/:letterId/physical-status/user", recipientLetterController.getPhysicalStatusForUser);
+
+/**
+ * @route   GET /api/letters/:letterId/recipients
+ * @desc    작성자용 수신자 목록 조회 (편지 작성자만 접근 가능)
+ * @access  Private (작성자만)
+ */
+router.get("/:letterId/recipients", authenticate, recipientLetterController.getAuthorRecipients);
+
 // ==================== 작성자 승인 시스템 라우트 (Letter 기반) ====================
 
 /**
@@ -222,17 +243,10 @@ router.patch(
 
 /**
  * @route   GET /api/letters/physical-requests/:requestId/status
- * @desc    개별 신청 상태 조회 (세션 기반)
- * @access  Public (세션 기반)
+ * @desc    개별 신청 상태 조회 (requestId 기반 - 세션 불필요)
+ * @access  Public
  */
-router.get("/physical-requests/:requestId/status", recipientLetterController.getRequestStatus);
-
-/**
- * @route   GET /api/letters/physical-requests/:requestId/status
- * @desc    개별 신청 상태 조회 (세션 기반)
- * @access  Public (세션 기반)
- */
-router.get("/physical-requests/:requestId/status", recipientLetterController.getRequestStatus);
+router.get("/physical-requests/:requestId/status", recipientLetterController.getRequestStatusByRequestId);
 
 // ==================== 수신자 주소 관리 라우트 ====================
 
