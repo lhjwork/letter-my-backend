@@ -124,25 +124,102 @@ class PhysicalLetterService {
   }
 
   /**
-   * 관리자용 실물 편지 목록 조회
+   * 관리자용 실물 편지 목록 조회 (새로운 recipientAddresses 구조 지원)
    * @param status - 상태 필터
    * @param page - 페이지 번호
    * @param limit - 페이지당 항목 수
    * @returns 신청 목록
    */
   async getPhysicalLetterRequests(status?: string, page: number = 1, limit: number = 20) {
-    const filter: any = { physicalRequested: true };
-
-    if (status && status !== "all") {
-      filter.physicalStatus = status;
-    }
-
     const skip = (page - 1) * limit;
 
-    const [letters, total] = await Promise.all([
-      Letter.find(filter).select("title physicalStatus physicalRequestDate shippingAddress physicalNotes createdAt").sort({ physicalRequestDate: -1 }).skip(skip).limit(limit).lean(),
-      Letter.countDocuments(filter),
-    ]);
+    // 새로운 구조: recipientAddresses에서 실물 편지 신청 조회
+    const pipeline: any[] = [
+      // 1. recipientAddresses 배열을 개별 문서로 분해
+      { $unwind: "$recipientAddresses" },
+
+      // 2. 실물 편지 신청만 필터링
+      { $match: { "recipientAddresses.isPhysicalRequested": true } },
+
+      // 3. 상태 필터 적용
+      ...(status && status !== "all" ? [{ $match: { "recipientAddresses.physicalStatus": status } }] : []),
+
+      // 4. 필요한 필드만 선택하여 응답 구조 생성
+      {
+        $project: {
+          _id: "$_id",
+          title: "$title",
+          authorName: "$authorName",
+          physicalStatus: "$recipientAddresses.physicalStatus",
+          physicalRequestDate: "$recipientAddresses.physicalRequestDate",
+          createdAt: "$createdAt",
+          updatedAt: "$updatedAt",
+          // 수신자 정보
+          recipientName: "$recipientAddresses.name",
+          recipientPhone: "$recipientAddresses.phone",
+          shippingAddress: {
+            name: "$recipientAddresses.name",
+            phone: "$recipientAddresses.phone",
+            zipCode: "$recipientAddresses.zipCode",
+            address1: "$recipientAddresses.address1",
+            address2: "$recipientAddresses.address2",
+            requestedAt: "$recipientAddresses.physicalRequestDate",
+          },
+          physicalNotes: "$recipientAddresses.memo",
+          requestId: "$recipientAddresses.requestId",
+        },
+      },
+
+      // 5. 정렬 (최신 신청 순)
+      { $sort: { physicalRequestDate: -1 } },
+    ];
+
+    // 총 개수 계산을 위한 파이프라인
+    const countPipeline = [...pipeline, { $count: "total" }];
+
+    // 페이지네이션 적용
+    const dataPipeline = [...pipeline, { $skip: skip }, { $limit: limit }];
+
+    const [letters, countResult] = await Promise.all([Letter.aggregate(dataPipeline), Letter.aggregate(countPipeline)]);
+
+    const total = countResult[0]?.total || 0;
+
+    console.log(`📊 [DEBUG] Found ${letters.length} physical requests (total: ${total})`);
+
+    // 기존 구조와의 호환성을 위해 기존 필드도 확인
+    if (letters.length === 0) {
+      console.log(`🔍 [DEBUG] No requests found in new structure, checking legacy structure...`);
+
+      // 기존 구조 조회 (하위 호환성)
+      const legacyFilter: any = { physicalRequested: true };
+      if (status && status !== "all") {
+        legacyFilter.physicalStatus = status;
+      }
+
+      const [legacyLetters, legacyTotal] = await Promise.all([
+        Letter.find(legacyFilter)
+          .select("title authorName physicalStatus physicalRequestDate shippingAddress physicalNotes createdAt")
+          .sort({ physicalRequestDate: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        Letter.countDocuments(legacyFilter),
+      ]);
+
+      console.log(`📊 [DEBUG] Found ${legacyLetters.length} legacy physical requests`);
+
+      return {
+        data: legacyLetters,
+        pagination: {
+          page,
+          limit,
+          total: legacyTotal,
+          totalPages: Math.ceil(legacyTotal / limit),
+          hasNextPage: page < Math.ceil(legacyTotal / limit),
+          hasPrevPage: page > 1,
+        },
+      };
+    }
 
     return {
       data: letters,
@@ -158,7 +235,7 @@ class PhysicalLetterService {
   }
 
   /**
-   * 관리자용 실물 편지 상태 업데이트
+   * 관리자용 실물 편지 상태 업데이트 (새로운 recipientAddresses 구조 지원)
    * @param letterId - 편지 ID
    * @param status - 새로운 상태
    * @param notes - 관리자 메모
@@ -174,25 +251,106 @@ class PhysicalLetterService {
       throw new Error(`올바르지 않은 상태값입니다. 가능한 값: ${validStatuses.join(", ")}`);
     }
 
-    const updatedLetter = await Letter.findByIdAndUpdate(
-      letterId,
-      {
-        physicalStatus: status,
-        physicalNotes: notes || "",
-        updatedAt: new Date(),
-      },
-      { new: true }
-    );
-
-    if (!updatedLetter) {
+    const letter = await Letter.findById(letterId);
+    if (!letter) {
       throw new Error("편지를 찾을 수 없습니다.");
     }
 
-    return {
-      letterId: updatedLetter._id.toString(),
-      status: updatedLetter.physicalStatus,
-      notes: updatedLetter.physicalNotes,
+    // 새로운 recipientAddresses 구조 확인 및 업데이트
+    const physicalRequests = letter.recipientAddresses.filter((addr: any) => addr.isPhysicalRequested);
+
+    if (physicalRequests.length > 0) {
+      // 새로운 구조: recipientAddresses 내의 모든 실물 편지 신청 상태 업데이트
+      letter.recipientAddresses.forEach((addr: any) => {
+        if (addr.isPhysicalRequested) {
+          addr.physicalStatus = status;
+          if (notes) {
+            addr.adminNotes = notes;
+          }
+        }
+      });
+
+      // 통계 업데이트
+      this.updateLetterStats(letter, status);
+
+      await letter.save();
+
+      console.log(`✅ [DEBUG] Updated recipientAddresses status to ${status} for letter ${letterId}`);
+
+      return {
+        letterId: letter._id.toString(),
+        status: status,
+        notes: notes || "",
+        updatedCount: physicalRequests.length,
+      };
+    } else {
+      // 기존 구조: 기존 방식으로 업데이트
+      const updatedLetter = await Letter.findByIdAndUpdate(
+        letterId,
+        {
+          physicalStatus: status,
+          physicalNotes: notes || "",
+          updatedAt: new Date(),
+        },
+        { new: true }
+      );
+
+      console.log(`✅ [DEBUG] Updated legacy physicalStatus to ${status} for letter ${letterId}`);
+
+      return {
+        letterId: updatedLetter!._id.toString(),
+        status: updatedLetter!.physicalStatus,
+        notes: updatedLetter!.physicalNotes,
+        updatedCount: 1,
+      };
+    }
+  }
+
+  /**
+   * Letter 통계 업데이트 헬퍼 메서드
+   */
+  private updateLetterStats(letter: any, _newStatus: string) {
+    // 기존 통계 초기화
+    letter.physicalLetterStats = letter.physicalLetterStats || {
+      totalRequests: 0,
+      pendingRequests: 0,
+      approvedRequests: 0,
+      rejectedRequests: 0,
+      completedRequests: 0,
     };
+
+    // 통계 재계산
+    const stats = {
+      totalRequests: 0,
+      pendingRequests: 0,
+      approvedRequests: 0,
+      rejectedRequests: 0,
+      completedRequests: 0,
+    };
+
+    letter.recipientAddresses.forEach((addr: any) => {
+      if (addr.isPhysicalRequested) {
+        stats.totalRequests++;
+        switch (addr.physicalStatus) {
+          case "requested":
+            stats.pendingRequests++;
+            break;
+          case "approved":
+          case "writing":
+            stats.approvedRequests++;
+            break;
+          case "rejected":
+            stats.rejectedRequests++;
+            break;
+          case "sent":
+          case "delivered":
+            stats.completedRequests++;
+            break;
+        }
+      }
+    });
+
+    letter.physicalLetterStats = stats;
   }
 
   /**
