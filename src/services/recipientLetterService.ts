@@ -16,6 +16,8 @@ export interface IPhysicalRequestResult {
   recipientInfo: IRecipientAddress;
   needsApproval: boolean;
   status: string;
+  isDuplicate?: boolean;
+  duplicateOf?: string;
 }
 
 class RecipientLetterService {
@@ -23,22 +25,110 @@ class RecipientLetterService {
    * 고유 ID 생성 (UUID 대신 간단한 방식 사용)
    */
   private generateUniqueId(): string {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
+  }
+
+  /**
+   * 세션 ID 생성
+   */
+  generateSessionId(): string {
+    return Date.now().toString(36) + Math.random().toString(36).substring(2, 15);
+  }
+
+  /**
+   * 신청 상태 조회 (letterId와 requestId로)
+   */
+  async getPhysicalRequestStatus(letterId: string, requestId: string) {
+    console.log(`🔍 [DEBUG] Getting physical request status - letterId: ${letterId}, requestId: ${requestId}`);
+
+    if (!mongoose.Types.ObjectId.isValid(letterId)) {
+      throw new Error("유효하지 않은 편지 ID입니다.");
+    }
+
+    if (!requestId) {
+      throw new Error("유효하지 않은 신청 ID입니다.");
+    }
+
+    // 편지와 신청 정보 조회
+    const letter = await Letter.findOne({
+      _id: letterId,
+      "recipientAddresses.requestId": requestId,
+      "recipientAddresses.isPhysicalRequested": true,
+    }).lean();
+
+    if (!letter) {
+      throw new Error("신청을 찾을 수 없습니다.");
+    }
+
+    // 해당 신청 찾기
+    const request = letter.recipientAddresses.find((addr: any) => addr.requestId === requestId);
+
+    if (!request) {
+      throw new Error("신청을 찾을 수 없습니다.");
+    }
+
+    console.log(`✅ [DEBUG] Found request: ${request.name} - ${request.physicalStatus}`);
+
+    // 상태 이력 구성
+    const statusHistory: any = {
+      requested: request.physicalRequestDate,
+    };
+
+    // 각 상태별 타임스탬프 추가 (현재는 모두 physicalRequestDate 사용, 향후 개별 필드 추가 가능)
+    if (request.physicalStatus === "approved" || request.physicalStatus === "writing" || request.physicalStatus === "sent" || request.physicalStatus === "delivered") {
+      statusHistory.approved = request.physicalRequestDate;
+    }
+    if (request.physicalStatus === "writing" || request.physicalStatus === "sent" || request.physicalStatus === "delivered") {
+      statusHistory.writing = request.physicalRequestDate;
+    }
+    if (request.physicalStatus === "sent" || request.physicalStatus === "delivered") {
+      statusHistory.sent = request.physicalRequestDate;
+    }
+    if (request.physicalStatus === "delivered") {
+      statusHistory.delivered = request.physicalRequestDate;
+    }
+
+    // 배송 예상일 계산
+    let estimatedDelivery = null;
+    if ((request.physicalStatus === "sent" || request.physicalStatus === "delivered") && request.physicalRequestDate) {
+      estimatedDelivery = this.calculateEstimatedDelivery(request.physicalRequestDate);
+    }
+
+    return {
+      requestId: request.requestId,
+      letterId: letter._id.toString(),
+      letterTitle: letter.title || letter.ogTitle || "편지",
+      status: request.physicalStatus,
+      recipientInfo: {
+        name: request.name,
+        address: `${request.address1}${request.address2 ? ` ${request.address2}` : ""}`.trim(),
+      },
+      statusHistory: {
+        requested: statusHistory.requested,
+        approved: statusHistory.approved || null,
+        writing: statusHistory.writing || null,
+        sent: statusHistory.sent || null,
+        delivered: statusHistory.delivered || null,
+      },
+      trackingInfo: {
+        canTrack: request.physicalStatus !== "requested",
+        estimatedDelivery,
+      },
+    };
   }
   /**
-   * 실물 편지 신청 (Letter의 recipientAddresses에 저장)
+   * 실물 편지 신청 (로그인 없이 가능)
    */
-  async requestPhysicalLetter(letterId: string, sessionId: string, userAgent: string, ipAddress: string, requestData: IPhysicalRequestData): Promise<IPhysicalRequestResult> {
+  async requestPhysicalLetter(letterId: string, sessionId: string, userAgent: string, ipAddress: string, requestData: IPhysicalRequestData, userId?: string): Promise<IPhysicalRequestResult> {
     console.log(`🔍 [DEBUG] Physical letter request for letterId: ${letterId}`);
     console.log(`📋 [DEBUG] Request data:`, requestData);
-    console.log(`🔑 [DEBUG] Session ID: ${sessionId}`);
+    console.log(`🔑 [DEBUG] Session ID: ${sessionId}, User ID: ${userId}`);
 
     // 입력 데이터 검증
     if (!requestData) {
       throw new Error("요청 데이터가 없습니다.");
     }
 
-    // address 객체로 감싸져 있는 경우 처리
     const addressData = (requestData as any).address || requestData;
     const { name, phone, zipCode, address1, address2, memo } = addressData;
 
@@ -69,15 +159,47 @@ class RecipientLetterService {
       throw new Error("편지를 찾을 수 없습니다.");
     }
 
-    // 동일 세션에서 이미 신청했는지 확인
-    const existingRequest = letter.recipientAddresses.find((addr: any) => addr.sessionId === sessionId && addr.isPhysicalRequested);
+    // 중복 확인
+    const { isDuplicate, duplicateOf } = await this.checkDuplicate(letterId, phone, sessionId, userId);
 
-    if (existingRequest) {
-      throw new Error("이미 이 편지에 대해 실물 편지를 신청하셨습니다.");
+    if (isDuplicate) {
+      console.log(`⚠️ [DEBUG] Duplicate request detected: ${duplicateOf}`);
+
+      // 중복 신청이지만 요청 ID는 반환 (사용자가 상태 조회 가능하도록)
+      return {
+        requestId: duplicateOf!,
+        letterId: letter._id.toString(),
+        recipientInfo: {
+          name: name.trim(),
+          phone: this.normalizePhoneNumber(phone),
+          zipCode: zipCode.trim(),
+          address1: address1.trim(),
+          address2: address2?.trim() || "",
+          memo: memo?.trim() || "",
+          addedAt: new Date(),
+          isPhysicalRequested: true,
+          physicalRequestDate: new Date(),
+          physicalStatus: "requested",
+          sessionId,
+          userAgent,
+          ipAddress: this.hashIP(ipAddress),
+          requestId: duplicateOf!,
+          isDuplicate: true,
+          duplicateOf,
+        } as any,
+        needsApproval: !letter.authorSettings.autoApprove,
+        status: "requested",
+        isDuplicate: true,
+        duplicateOf,
+      };
     }
 
     // 고유 요청 ID 생성
     const requestId = this.generateUniqueId();
+
+    // 신청자 타입 결정
+    const requesterType = userId ? "authenticated" : "anonymous";
+    const requesterId = userId || sessionId;
 
     // 새로운 수신자 주소 및 실물 편지 신청 정보 생성
     const newRecipientAddress: Partial<IRecipientAddress> = {
@@ -96,6 +218,10 @@ class RecipientLetterService {
       userAgent,
       ipAddress: this.hashIP(ipAddress),
       requestId,
+      // 신청자 정보
+      requesterId,
+      requesterType: requesterType as any,
+      isDuplicate: false,
     };
 
     // Letter에 수신자 주소 추가
@@ -119,6 +245,7 @@ class RecipientLetterService {
       recipientInfo: newRecipientAddress as IRecipientAddress,
       needsApproval: !letter.authorSettings.autoApprove,
       status: newRecipientAddress.physicalStatus!,
+      isDuplicate: false,
     };
   }
 
@@ -338,10 +465,82 @@ class RecipientLetterService {
   }
 
   /**
-   * 세션 ID 생성
+   * 중복 신청 확인
    */
-  generateSessionId(): string {
-    return this.generateUniqueId();
+  private async checkDuplicate(letterId: string, phone: string, sessionId?: string, userId?: string): Promise<{ isDuplicate: boolean; duplicateOf?: string }> {
+    console.log(`🔍 [DEBUG] Checking duplicate - letterId: ${letterId}, phone: ${phone}`);
+
+    // 1. 같은 편지에 같은 전화번호로 신청한 기록 확인
+    const normalizedPhone = this.normalizePhoneNumber(phone);
+    const existingByPhone = await Letter.findOne({
+      _id: letterId,
+      "recipientAddresses.phone": normalizedPhone,
+      "recipientAddresses.isPhysicalRequested": true,
+      "recipientAddresses.physicalStatus": { $ne: "rejected" },
+    }).lean();
+
+    if (existingByPhone) {
+      const duplicate = existingByPhone.recipientAddresses.find((addr: any) => addr.phone === normalizedPhone && addr.isPhysicalRequested);
+
+      if (duplicate) {
+        console.log(`⚠️ [DEBUG] Duplicate found by phone: ${duplicate.requestId}`);
+        return {
+          isDuplicate: true,
+          duplicateOf: duplicate.requestId,
+        };
+      }
+    }
+
+    // 2. 로그인 사용자인 경우 userId로도 확인
+    if (userId) {
+      const existingByUserId = await Letter.findOne({
+        _id: letterId,
+        "recipientAddresses.requesterId": userId,
+        "recipientAddresses.requesterType": "authenticated",
+        "recipientAddresses.isPhysicalRequested": true,
+        "recipientAddresses.physicalStatus": { $ne: "rejected" },
+      }).lean();
+
+      if (existingByUserId) {
+        const duplicate = existingByUserId.recipientAddresses.find((addr: any) => addr.requesterId === userId && addr.requesterType === "authenticated");
+
+        if (duplicate) {
+          console.log(`⚠️ [DEBUG] Duplicate found by userId: ${duplicate.requestId}`);
+          return {
+            isDuplicate: true,
+            duplicateOf: duplicate.requestId,
+          };
+        }
+      }
+    }
+
+    // 3. 익명 사용자인 경우 sessionId로도 확인
+    if (sessionId) {
+      const existingBySessionId = await Letter.findOne({
+        _id: letterId,
+        "recipientAddresses.requesterId": sessionId,
+        "recipientAddresses.requesterType": "anonymous",
+        "recipientAddresses.isPhysicalRequested": true,
+        "recipientAddresses.physicalStatus": { $ne: "rejected" },
+      }).lean();
+
+      if (existingBySessionId) {
+        const duplicate = existingBySessionId.recipientAddresses.find((addr: any) => addr.requesterId === sessionId && addr.requesterType === "anonymous");
+
+        if (duplicate) {
+          console.log(`⚠️ [DEBUG] Duplicate found by sessionId: ${duplicate.requestId}`);
+          return {
+            isDuplicate: true,
+            duplicateOf: duplicate.requestId,
+          };
+        }
+      }
+    }
+
+    console.log(`✅ [DEBUG] No duplicate found`);
+    return {
+      isDuplicate: false,
+    };
   }
 
   /**

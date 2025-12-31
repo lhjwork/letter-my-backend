@@ -17,6 +17,7 @@ app.use(helmet());
 // CORS configuration
 const allowedOrigins = [
   // 개발 환경
+  "http://localhost:3001", // 메인 프론트엔드
   "http://localhost:3000", // 메인 프론트엔드
   "http://localhost:5173", // Admin 프론트엔드 (Vite)
   "http://localhost:5175", // Admin 프론트엔드 (Vite 대체 포트)

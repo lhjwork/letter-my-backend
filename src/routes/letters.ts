@@ -189,11 +189,25 @@ router.delete("/:id/like", authenticate, letterIdValidation, likeController.remo
 router.get("/:id/like", authenticate, letterIdValidation, likeController.checkLikeStatus);
 
 /**
+ * @route   GET /api/letters/physical-requests/:requestId/status
+ * @desc    개별 신청 상태 조회 (requestId 기반 - 세션 불필요)
+ * @access  Public
+ */
+router.get("/physical-requests/:requestId/status", recipientLetterController.getRequestStatusByRequestId);
+
+/**
  * @route   POST /api/letters/:letterId/physical-request
- * @desc    실물 편지 신청 (Letter의 recipientAddresses 사용)
+ * @desc    실물 편지 신청 (로그인 없이 가능)
  * @access  Public
  */
 router.post("/:letterId/physical-request", physicalLetterRequestValidation, recipientLetterController.requestPhysicalLetter);
+
+/**
+ * @route   GET /api/letters/:letterId/physical-request/:requestId
+ * @desc    신청 상태 조회 (letterId와 requestId로)
+ * @access  Public
+ */
+router.get("/:letterId/physical-request/:requestId", recipientLetterController.getPhysicalRequestStatus);
 
 /**
  * @route   GET /api/letters/:letterId/physical-status
@@ -223,8 +237,6 @@ router.get("/:letterId/physical-status/user", recipientLetterController.getPhysi
  */
 router.get("/:letterId/recipients", authenticate, recipientLetterController.getAuthorRecipients);
 
-// ==================== 작성자 승인 시스템 라우트 (Letter 기반) ====================
-
 /**
  * @route   PATCH /api/letters/:letterId/physical-requests/:requestId/approval
  * @desc    편지 작성자용 신청 승인/거절 (Letter의 recipientAddresses 사용)
@@ -240,13 +252,6 @@ router.patch(
   ],
   recipientLetterController.processApproval
 );
-
-/**
- * @route   GET /api/letters/physical-requests/:requestId/status
- * @desc    개별 신청 상태 조회 (requestId 기반 - 세션 불필요)
- * @access  Public
- */
-router.get("/physical-requests/:requestId/status", recipientLetterController.getRequestStatusByRequestId);
 
 // ==================== 수신자 주소 관리 라우트 ====================
 

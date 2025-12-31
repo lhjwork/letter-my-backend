@@ -59,7 +59,7 @@ export interface IRecipientAddress {
   address2?: string;
   memo?: string;
   addedAt: Date;
-  // 실물 편지 신청 관련 필드 추가
+  // 실물 편지 신청 관련 필드
   isPhysicalRequested?: boolean;
   physicalRequestDate?: Date;
   physicalStatus?: "none" | "requested" | "approved" | "rejected" | "writing" | "sent" | "delivered";
@@ -67,6 +67,12 @@ export interface IRecipientAddress {
   userAgent?: string;
   ipAddress?: string;
   requestId?: string; // 고유 신청 ID
+  // 신청자 정보 (로그인 여부 상관없이)
+  requesterId?: string; // userId (로그인 사용자) 또는 sessionId (익명 사용자)
+  requesterType?: "authenticated" | "anonymous"; // 신청자 타입
+  // 중복 확인용
+  isDuplicate?: boolean; // 중복 신청 여부
+  duplicateOf?: string; // 원본 requestId (중복인 경우)
 }
 
 // OG 이미지 타입
@@ -293,6 +299,16 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
         userAgent: { type: String },
         ipAddress: { type: String },
         requestId: { type: String, unique: true, sparse: true }, // 고유 신청 ID
+        // 신청자 정보
+        requesterId: { type: String }, // userId 또는 sessionId
+        requesterType: {
+          type: String,
+          enum: ["authenticated", "anonymous"],
+          default: "anonymous",
+        },
+        // 중복 확인용
+        isDuplicate: { type: Boolean, default: false },
+        duplicateOf: { type: String }, // 원본 requestId
       },
     ],
     physicalNotes: {

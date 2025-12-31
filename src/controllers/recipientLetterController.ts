@@ -3,7 +3,7 @@ import recipientLetterService, { IPhysicalRequestData } from "../services/recipi
 
 class RecipientLetterController {
   /**
-   * 실물 편지 신청
+   * 실물 편지 신청 (로그인 없이 가능)
    * POST /api/letters/:letterId/physical-request
    */
   async requestPhysicalLetter(req: Request, res: Response): Promise<void> {
@@ -29,16 +29,25 @@ class RecipientLetterController {
       const userAgent = req.get("User-Agent") || "";
       const ipAddress = req.ip || req.connection.remoteAddress || "";
 
-      const result = await recipientLetterService.requestPhysicalLetter(letterId, sessionId, userAgent, ipAddress, requestData);
+      // 로그인 사용자 ID (있으면)
+      const userId = (req as any).user?.userId;
+
+      const result = await recipientLetterService.requestPhysicalLetter(letterId, sessionId, userAgent, ipAddress, requestData, userId);
 
       console.log(`✅ [DEBUG] Physical letter request result:`, result);
 
+      // 중복 신청인 경우 다른 메시지
+      const message = result.isDuplicate
+        ? "이미 이 편지에 대해 신청하셨습니다. 기존 신청 상태를 확인해주세요."
+        : result.needsApproval
+          ? "실물 편지 신청이 완료되었습니다. 편지 작성자의 승인을 기다려주세요."
+          : "실물 편지 신청이 자동 승인되었습니다.";
+
       res.status(201).json({
         success: true,
-        message: result.needsApproval ? "실물 편지 신청이 완료되었습니다. 편지 작성자의 승인을 기다려주세요." : "실물 편지 신청이 자동 승인되었습니다.",
+        message,
         data: {
           ...result,
-          // 프론트엔드에서 상태 조회에 사용할 수 있도록 requestId 명시적으로 포함
           trackingInfo: {
             requestId: result.requestId,
             statusCheckUrl: `/api/letters/physical-requests/${result.requestId}/status`,
@@ -175,6 +184,47 @@ class RecipientLetterController {
           success: false,
           error: "신청을 찾을 수 없습니다. 요청 ID를 확인해주세요.",
           code: "REQUEST_NOT_FOUND",
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: "서버 오류가 발생했습니다.",
+          code: "INTERNAL_SERVER_ERROR",
+        });
+      }
+    }
+  }
+
+  /**
+   * 신청 상태 조회 (letterId와 requestId로)
+   * GET /api/letters/:letterId/physical-request/:requestId
+   */
+  async getPhysicalRequestStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const { letterId, requestId } = req.params;
+
+      console.log(`🔍 [DEBUG] Getting physical request status - letterId: ${letterId}, requestId: ${requestId}`);
+
+      const result = await recipientLetterService.getPhysicalRequestStatus(letterId, requestId);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error: any) {
+      console.error("신청 상태 조회 실패:", error);
+
+      if (error.message.includes("유효하지 않은")) {
+        res.status(400).json({
+          success: false,
+          error: error.message,
+          code: "INVALID_REQUEST",
+        });
+      } else if (error.message.includes("찾을 수 없습니다")) {
+        res.status(404).json({
+          success: false,
+          error: error.message,
+          code: "NOT_FOUND",
         });
       } else {
         res.status(500).json({
