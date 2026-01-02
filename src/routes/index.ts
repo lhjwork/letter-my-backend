@@ -1,6 +1,7 @@
 import { Router } from "express";
 import userRoutes from "./users";
 import letterRoutes from "./letters";
+import draftRoutes from "./drafts";
 import ogRoutes from "./og";
 import testRoutes from "./tests";
 import devAuthRoutes from "./devAuth";
@@ -23,6 +24,9 @@ router.use("/users", userRoutes);
 
 // Letter routes
 router.use("/letters", letterRoutes);
+
+// Draft routes (임시저장)
+router.use("/drafts", draftRoutes);
 
 // OG Image routes
 router.use("/og", ogRoutes);

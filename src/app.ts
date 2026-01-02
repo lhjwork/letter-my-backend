@@ -8,6 +8,7 @@ import { specs } from "./config/swagger";
 // import "express-async-errors";
 import routes from "./routes";
 import { errorHandler } from "./middleware/errorHandler";
+import { setupDraftCleanupJob } from "./jobs/cleanupDrafts";
 
 const app: Application = express();
 
@@ -161,5 +162,11 @@ app.use("/api", routes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
+
+// Setup cron jobs
+if (process.env.NODE_ENV === "production") {
+  setupDraftCleanupJob();
+  console.log("🕐 Cron jobs initialized for production environment");
+}
 
 export default app;
