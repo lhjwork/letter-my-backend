@@ -171,7 +171,7 @@ DraftLetterSchema.index({ authorId: 1, status: 1, lastSavedAt: -1 });
 DraftLetterSchema.index({ authorId: 1, createdAt: -1 });
 
 // 자동 제목 생성 및 단어 수 계산 미들웨어
-DraftLetterSchema.pre("save", function (next: any) {
+DraftLetterSchema.pre("save", function () {
   // 제목이 없고 내용이 있으면 자동 제목 생성
   if (!this.title && this.content) {
     const plainText = this.content.replace(/<[^>]*>/g, ""); // HTML 태그 제거
@@ -185,8 +185,6 @@ DraftLetterSchema.pre("save", function (next: any) {
   // 업데이트 시간 갱신
   this.updatedAt = new Date();
   this.lastSavedAt = new Date();
-
-  next();
 });
 
 // authorId로 임시저장 찾기 (Static 메서드)
