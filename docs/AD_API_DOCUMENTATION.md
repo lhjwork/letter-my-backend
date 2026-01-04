@@ -791,6 +791,96 @@ function generateAdQRUrl(
 
 ---
 
+## 🔍 유입 경로 판별 로직
+
+QR 코드 접근 여부는 **UTM 파라미터**를 기반으로 백엔드에서 자동 판별됩니다.
+
+### 판별 규칙
+
+| 조건 | 판별 결과 (traffic.source) |
+|------|---------------------------|
+| `utm_source=qr` 또는 `utm_medium=offline` | `qr` |
+| `utm_source=letter` | `link` |
+| referrer 헤더 존재 | `referral` |
+| 위 조건 모두 해당 없음 | `direct` |
+
+### 백엔드 판별 로직 (adService.ts)
+
+```typescript
+function analyzeTrafficSource(utm?: UTMParams, referrer?: string) {
+  // 1. QR 코드 스캔 (utm_source=qr 또는 utm_medium=offline)
+  if (utm?.source === "qr" || utm?.medium === "offline") {
+    return {
+      source: "qr",
+      medium: utm.medium || "offline",
+      campaign: utm.campaign,
+    };
+  }
+  
+  // 2. 편지 페이지 내 링크 클릭
+  if (utm?.source === "letter") {
+    return { source: "link", medium: "letter", campaign: utm.campaign };
+  }
+  
+  // 3. 외부 사이트에서 유입 (referrer 존재)
+  if (referrer) {
+    return { source: "referral", medium: "link", referrer };
+  }
+  
+  // 4. 직접 접속 (URL 직접 입력)
+  return { source: "direct", medium: "none" };
+}
+```
+
+### 프론트엔드 구현 (필수)
+
+QR 접근을 정확히 추적하려면 프론트엔드에서 **URL의 UTM 파라미터를 추출하여 이벤트 추적 시 전송**해야 합니다.
+
+```typescript
+// app/ad/[adSlug]/AdLandingClient.tsx
+
+useEffect(() => {
+  // URL에서 UTM 파라미터 추출
+  const searchParams = new URLSearchParams(window.location.search);
+  
+  // 노출 추적 시 UTM 정보 포함
+  trackAdImpression({
+    adId: ad._id,
+    adSlug: ad.slug,
+    letterId: searchParams.get("letter") || undefined,
+    utm: {
+      source: searchParams.get("utm_source") || undefined,   // "qr"
+      medium: searchParams.get("utm_medium") || undefined,   // "offline"
+      campaign: searchParams.get("utm_campaign") || undefined,
+    },
+  });
+}, []);
+```
+
+### 전체 플로우
+
+```
+1. QR 코드 생성 시 URL에 utm_source=qr 포함
+   ↓
+2. 사용자가 QR 스캔 → 광고 랜딩 페이지 접속
+   ↓
+3. 프론트엔드: URL에서 utm_source=qr 추출
+   ↓
+4. 프론트엔드: /api/ads/track 호출 시 utm 정보 포함
+   ↓
+5. 백엔드: analyzeTrafficSource()로 "qr" 판별
+   ↓
+6. DB 저장: traffic.source = "qr"
+```
+
+### ⚠️ 주의사항
+
+- **QR 코드 생성 시 반드시 `utm_source=qr` 포함** → 없으면 `direct`로 판별됨
+- **프론트엔드에서 UTM 파라미터 전송 필수** → 전송 안 하면 판별 불가
+- 통계 조회 시 `bySource` 필드에서 유입 경로별 집계 확인 가능
+
+---
+
 ## ⚠️ 에러 코드
 
 | HTTP 상태 | 메시지 | 설명 |
