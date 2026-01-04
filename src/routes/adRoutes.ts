@@ -9,8 +9,8 @@ const router: Router = Router();
 // 이벤트 추적 (인증 불필요)
 router.post("/track", adController.trackAdEvent);
 
-// 광고 정보 조회 (슬러그로)
-router.get("/:adSlug", adController.getAdBySlug);
+// 노출 가능한 광고 목록 조회 (인증 불필요)
+router.get("/displayable", adController.getDisplayableAds);
 
 // ===== 관리자 API =====
 
@@ -37,5 +37,11 @@ router.post("/:adId/link-letter", adminAuthenticate, adController.linkLetter);
 
 // 편지-광고 연결 해제
 router.delete("/:adId/unlink-letter/:letterId", adminAuthenticate, adController.unlinkLetter);
+
+// 광고 노출 제어 설정 업데이트
+router.put("/:adId/display-control", adminAuthenticate, adController.updateDisplayControl);
+
+// 광고 정보 조회 (슬러그로) - 마지막에 위치 (다른 라우트와 충돌 방지)
+router.get("/:adSlug", adController.getAdBySlug);
 
 export default router;

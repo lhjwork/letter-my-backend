@@ -90,11 +90,48 @@ interface AdStatsQuery {
 
 class AdService {
   // 슬러그로 광고 조회 (공개)
-  async getAdBySlug(adSlug: string): Promise<IAdvertisement | null> {
-    return Advertisement.findOne({
+  async getAdBySlug(adSlug: string, placement?: string): Promise<IAdvertisement | null> {
+    const ad = await Advertisement.findOne({
       slug: adSlug,
       status: { $in: ["active", "paused"] },
     }).select("-createdBy -__v");
+
+    // 노출 가능 여부 확인
+    if (ad && !ad.isDisplayable(placement)) {
+      return null;
+    }
+
+    return ad;
+  }
+
+  // 노출 가능한 광고 목록 조회 (공개)
+  async getDisplayableAds(options?: {
+    placement?: string;
+    limit?: number;
+    theme?: string;
+  }): Promise<IAdvertisement[]> {
+    const { placement, limit = 10, theme } = options || {};
+    
+    const filter: any = {
+      status: "active",
+      "displayControl.isVisible": true,
+    };
+
+    if (theme) {
+      filter["content.theme"] = theme;
+    }
+
+    if (placement) {
+      filter["displayControl.placements"] = placement;
+    }
+
+    const ads = await Advertisement.find(filter)
+      .sort({ "displayControl.priority": -1, createdAt: -1 })
+      .limit(limit)
+      .select("-createdBy -__v");
+
+    // 노출 가능 여부 재확인 (시간대, 스케줄 등)
+    return ads.filter(ad => ad.isDisplayable(placement));
   }
 
   // 광고 이벤트 추적

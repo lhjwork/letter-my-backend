@@ -7,8 +7,9 @@ class AdController {
   async getAdBySlug(req: Request, res: Response): Promise<void> {
     try {
       const { adSlug } = req.params;
+      const { placement } = req.query;
 
-      const ad = await adService.getAdBySlug(adSlug);
+      const ad = await adService.getAdBySlug(adSlug, placement as string);
 
       if (!ad) {
         res.status(404).json({
@@ -29,6 +30,32 @@ class AdController {
       res.status(500).json({
         success: false,
         message: "광고 조회에 실패했습니다.",
+        meta: { timestamp: new Date().toISOString() },
+      });
+    }
+  }
+
+  // 노출 가능한 광고 목록 조회 (공개)
+  async getDisplayableAds(req: Request, res: Response): Promise<void> {
+    try {
+      const { placement, limit, theme } = req.query;
+
+      const ads = await adService.getDisplayableAds({
+        placement: placement as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+        theme: theme as string,
+      });
+
+      res.json({
+        success: true,
+        data: ads,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      console.error("Get displayable ads error:", error);
+      res.status(500).json({
+        success: false,
+        message: "광고 목록 조회에 실패했습니다.",
         meta: { timestamp: new Date().toISOString() },
       });
     }
@@ -315,6 +342,39 @@ class AdController {
       res.status(500).json({
         success: false,
         message: "편지 연결 해제에 실패했습니다.",
+        meta: { timestamp: new Date().toISOString() },
+      });
+    }
+  }
+
+  // 광고 노출 제어 설정 업데이트 (관리자)
+  async updateDisplayControl(req: Request, res: Response): Promise<void> {
+    try {
+      const { adId } = req.params;
+      const displayControl = req.body;
+
+      const ad = await adService.updateAd(adId, { displayControl });
+
+      if (!ad) {
+        res.status(404).json({
+          success: false,
+          message: "광고를 찾을 수 없습니다.",
+          meta: { timestamp: new Date().toISOString() },
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: ad,
+        message: "노출 설정이 업데이트되었습니다.",
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      console.error("Update display control error:", error);
+      res.status(500).json({
+        success: false,
+        message: "노출 설정 업데이트에 실패했습니다.",
         meta: { timestamp: new Date().toISOString() },
       });
     }
