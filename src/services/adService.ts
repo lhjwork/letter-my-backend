@@ -73,6 +73,14 @@ interface TrackEventData {
     referrer?: string;
   };
   ip?: string;
+  // 캐러셀 전용 데이터
+  carouselData?: {
+    currentSlide?: number;
+    totalSlides?: number;
+    viewDuration?: number;
+    interactionType?: "auto" | "manual" | "hover_pause";
+    slideDirection?: "next" | "prev" | "direct";
+  };
 }
 
 // 광고 목록 쿼리 인터페이스
@@ -97,7 +105,7 @@ class AdService {
     }).select("-createdBy -__v");
 
     // 노출 가능 여부 확인
-    if (ad && !ad.isDisplayable(placement)) {
+    if (ad && !ad.isDisplayable(placement as any)) {
       return null;
     }
 
@@ -132,7 +140,7 @@ class AdService {
       .select("-createdBy -__v");
 
     // 노출 가능 여부 재확인 (시간대, 스케줄 등)
-    const displayableAds = ads.filter(ad => ad.isDisplayable(placement));
+    const displayableAds = ads.filter(ad => ad.isDisplayable(placement as any));
 
     // 디버그 모드인 경우 상세 정보 반환
     if (debug) {
@@ -144,7 +152,7 @@ class AdService {
       });
 
       // 필터링된 광고들의 이유 분석
-      const filteredOutAds = ads.filter(ad => !ad.isDisplayable(placement)).map(ad => ({
+      const filteredOutAds = ads.filter(ad => !ad.isDisplayable(placement as any)).map(ad => ({
         _id: ad._id,
         name: ad.name,
         slug: ad.slug,
@@ -162,6 +170,93 @@ class AdService {
     }
 
     return displayableAds;
+  }
+
+  // 캐러셀 전용 광고 목록 조회 (공개)
+  async getCarouselAds(options?: {
+    placement?: string;
+    limit?: number;
+    aspectRatio?: string;
+    deviceType?: string;
+    autoPlay?: boolean;
+  }): Promise<any> {
+    const { placement, limit = 3, aspectRatio = "16:9", deviceType = "desktop", autoPlay } = options || {};
+    
+    const filter: any = {
+      status: "active",
+      "displayControl.isVisible": true,
+      "displayControl.carouselEnabled": true,
+    };
+
+    // 캐러셀 이미지가 있는 광고만 필터링
+    filter["content.carouselImage"] = { $exists: true, $ne: "" };
+
+    // NOTE: MongoDB placement filtering has an issue, so we'll filter after query
+    // if (placement) {
+    //   filter["displayControl.carouselPlacements"] = { $in: [placement] };
+    // }
+
+    if (autoPlay !== undefined) {
+      filter["content.carouselAutoPlay"] = autoPlay;
+    }
+
+    // 캐러셀 시간 스케줄 확인
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    const ads = await Advertisement.find(filter)
+      .sort({ "content.carouselPriority": -1, "displayControl.priority": -1, createdAt: -1 })
+      .limit(Math.min(limit * 2, 10)) // Get more ads to filter from
+      .select("-createdBy -__v");
+
+    // 캐러셀 노출 가능 여부 재확인
+    let carouselAds = ads.filter(ad => {
+      // 기본 노출 가능 여부 확인 (without placement check for carousel)
+      if (!ad.isDisplayable()) return false;
+      
+      // 캐러셀 시간 스케줄 확인
+      if (ad.displayControl?.carouselSchedule?.startHour !== undefined && 
+          ad.displayControl?.carouselSchedule?.endHour !== undefined) {
+        const startHour = ad.displayControl.carouselSchedule.startHour;
+        const endHour = ad.displayControl.carouselSchedule.endHour;
+        
+        if (currentHour < startHour || currentHour > endHour) {
+          return false;
+        }
+      }
+      
+      // Post-query placement filtering (workaround for MongoDB query issue)
+      if (placement && ad.displayControl?.carouselPlacements) {
+        if (!ad.displayControl.carouselPlacements.includes(placement as any)) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+
+    // Limit to requested number
+    carouselAds = carouselAds.slice(0, limit);
+
+    // 권장 자동재생 간격 계산
+    const totalDuration = carouselAds.reduce((sum, ad) => {
+      const duration = (ad.content as any)?.carouselDuration || 5000;
+      return sum + duration;
+    }, 0);
+    const recommendedDuration = carouselAds.length > 0 ? Math.round(totalDuration / carouselAds.length) : 5000;
+
+    return {
+      ads: carouselAds,
+      meta: {
+        totalAds: ads.length,
+        carouselAds: carouselAds.length,
+        filteredAds: carouselAds.length,
+        recommendedDuration,
+        aspectRatio,
+        deviceType,
+        placement
+      }
+    };
   }
 
   // 광고가 필터링된 이유 분석
@@ -192,7 +287,7 @@ class AdService {
       }
     }
     
-    if (ad.displayControl?.schedule?.daysOfWeek?.length > 0) {
+    if (ad.displayControl?.schedule?.daysOfWeek && ad.displayControl.schedule.daysOfWeek.length > 0) {
       const currentDay = now.getDay();
       if (!ad.displayControl.schedule.daysOfWeek.includes(currentDay)) {
         return "Outside allowed days of week";
@@ -269,6 +364,12 @@ class AdService {
       eventData: {
         dwellTime: data.dwellTime,
         clickTarget: data.clickTarget,
+        // 캐러셀 전용 데이터
+        currentSlide: data.carouselData?.currentSlide,
+        totalSlides: data.carouselData?.totalSlides,
+        viewDuration: data.carouselData?.viewDuration,
+        interactionType: data.carouselData?.interactionType,
+        slideDirection: data.carouselData?.slideDirection,
       },
       letter: data.letterId ? { letterId: new mongoose.Types.ObjectId(data.letterId) } : undefined,
       traffic,
@@ -282,13 +383,14 @@ class AdService {
     await event.save();
 
     // 광고 통계 업데이트 (비동기)
-    this.updateAdStats(data.adId, data.eventType, data.session?.visitorId, data.dwellTime).catch(console.error);
+    this.updateAdStats(data.adId, data.eventType, data.session?.visitorId, data.dwellTime, data.carouselData).catch(console.error);
   }
 
   // 광고 통계 업데이트
-  private async updateAdStats(adId: string, eventType: AdEventType, visitorId?: string, dwellTime?: number): Promise<void> {
+  private async updateAdStats(adId: string, eventType: AdEventType, visitorId?: string, dwellTime?: number, carouselData?: any): Promise<void> {
     const updateQuery: any = { $inc: {} };
 
+    // 기본 이벤트 통계
     if (eventType === "impression") {
       updateQuery.$inc["stats.impressions"] = 1;
     }
@@ -297,19 +399,42 @@ class AdService {
       updateQuery.$inc["stats.clicks"] = 1;
     }
 
+    // 캐러셀 이벤트 통계
+    if (eventType === "carousel_impression") {
+      updateQuery.$inc["stats.carouselImpressions"] = 1;
+    }
+
+    if (eventType === "carousel_click") {
+      updateQuery.$inc["stats.carouselClicks"] = 1;
+    }
+
+    if (eventType === "carousel_slide_change") {
+      updateQuery.$inc["stats.carouselSlideChanges"] = 1;
+    }
+
+    if (eventType === "carousel_autoplay_stop") {
+      updateQuery.$inc["stats.carouselAutoPlayStops"] = 1;
+    }
+
     const ad = await Advertisement.findByIdAndUpdate(adId, updateQuery, { new: true });
 
     if (ad) {
       // CTR 재계산
       ad.calculateCTR();
+      
+      // 캐러셀 CTR 계산
+      if (ad.stats.carouselImpressions > 0) {
+        ad.stats.carouselCtr = (ad.stats.carouselClicks / ad.stats.carouselImpressions) * 100;
+      }
+      
       await ad.save();
     }
 
     // 고유 방문자 수 업데이트
-    if (eventType === "impression" && visitorId) {
+    if ((eventType === "impression" || eventType === "carousel_impression") && visitorId) {
       const uniqueCount = await AdEvent.distinct("session.visitorId", {
         adId: new mongoose.Types.ObjectId(adId),
-        eventType: "impression",
+        eventType: { $in: ["impression", "carousel_impression"] },
       });
 
       await Advertisement.findByIdAndUpdate(adId, {
@@ -331,6 +456,27 @@ class AdService {
 
         await Advertisement.findByIdAndUpdate(adId, {
           "stats.avgDwellTime": avgDwell,
+        });
+      }
+    }
+
+    // 캐러셀 평균 시청 시간 업데이트
+    if (eventType === "carousel_complete_view" && carouselData?.viewDuration) {
+      const carouselViewEvents = await AdEvent.find({
+        adId: new mongoose.Types.ObjectId(adId),
+        eventType: "carousel_complete_view",
+        "eventData.viewDuration": { $exists: true },
+      }).select("eventData.viewDuration");
+
+      if (carouselViewEvents.length > 0) {
+        const totalViewTime = carouselViewEvents.reduce((sum, e) => {
+          const viewDuration = (e.eventData as any)?.viewDuration || 0;
+          return sum + viewDuration;
+        }, 0);
+        const avgViewTime = Math.round(totalViewTime / carouselViewEvents.length);
+
+        await Advertisement.findByIdAndUpdate(adId, {
+          "stats.carouselAvgViewTime": avgViewTime,
         });
       }
     }

@@ -62,6 +62,34 @@ class AdController {
     }
   }
 
+  // 캐러셀 전용 광고 목록 조회 (공개)
+  async getCarouselAds(req: Request, res: Response): Promise<void> {
+    try {
+      const { placement, limit, aspectRatio, deviceType, autoPlay } = req.query;
+
+      const result = await adService.getCarouselAds({
+        placement: placement as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+        aspectRatio: aspectRatio as string,
+        deviceType: deviceType as string,
+        autoPlay: autoPlay === 'true' ? true : autoPlay === 'false' ? false : undefined,
+      });
+
+      res.json({
+        success: true,
+        data: result,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      console.error("Get carousel ads error:", error);
+      res.status(500).json({
+        success: false,
+        message: "캐러셀 광고 목록 조회에 실패했습니다.",
+        meta: { timestamp: new Date().toISOString() },
+      });
+    }
+  }
+
   // 광고 디버그 정보 조회 (공개)
   async getAdDebugInfo(req: Request, res: Response): Promise<void> {
     try {
@@ -96,7 +124,10 @@ class AdController {
   // 이벤트 추적 (공개)
   async trackAdEvent(req: Request, res: Response): Promise<void> {
     try {
-      const { eventType, adId, adSlug, letterId, clickTarget, dwellTime, utm, device, session, page, ip } = req.body;
+      const { 
+        eventType, adId, adSlug, letterId, clickTarget, dwellTime, 
+        utm, device, session, page, ip, carouselData 
+      } = req.body;
 
       await adService.trackEvent({
         eventType,
@@ -110,6 +141,7 @@ class AdController {
         session,
         page,
         ip: ip || req.ip,
+        carouselData,
       });
 
       res.json({

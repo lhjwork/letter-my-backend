@@ -1,7 +1,9 @@
 import mongoose, { Document, Schema } from "mongoose";
 
 // 이벤트 타입
-export type AdEventType = "impression" | "click" | "dwell";
+export type AdEventType = "impression" | "click" | "dwell" | 
+                         "carousel_impression" | "carousel_click" | "carousel_slide_change" | 
+                         "carousel_autoplay_stop" | "carousel_complete_view";
 
 // 유입 소스 타입
 export type TrafficSource = "qr" | "direct" | "link" | "social" | "email" | "referral" | "other";
@@ -74,12 +76,25 @@ const adEventSchema = new Schema<IAdEvent>(
     eventType: {
       type: String,
       required: true,
-      enum: ["impression", "click", "dwell"],
+      enum: ["impression", "click", "dwell", "carousel_impression", "carousel_click", 
+             "carousel_slide_change", "carousel_autoplay_stop", "carousel_complete_view"],
       index: true,
     },
     eventData: {
       dwellTime: Number,
       clickTarget: String,
+      // 캐러셀 전용 데이터
+      currentSlide: Number,      // 현재 슬라이드 인덱스 (0부터 시작)
+      totalSlides: Number,       // 전체 슬라이드 수
+      viewDuration: Number,      // 해당 슬라이드 시청 시간 (밀리초)
+      interactionType: {         // "auto", "manual", "hover_pause"
+        type: String,
+        enum: ["auto", "manual", "hover_pause"]
+      },
+      slideDirection: {          // "next", "prev", "direct"
+        type: String,
+        enum: ["next", "prev", "direct"]
+      },
     },
 
     // 연결된 편지

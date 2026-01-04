@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import dotenv from "dotenv";
 import Admin from "../src/models/Admin";
+
+// Load environment variables
+dotenv.config();
 
 async function createTestAdmin() {
   try {
@@ -8,24 +12,15 @@ async function createTestAdmin() {
     await mongoose.connect(process.env.MONGODB_URI!);
     console.log("✅ MongoDB 연결 성공");
 
-    // 기존 테스트 관리자 확인
-    const existingAdmin = await Admin.findOne({ username: "testadmin" });
-    if (existingAdmin) {
-      console.log("✅ 테스트 관리자가 이미 존재합니다");
-      console.log("Username: testadmin");
-      console.log("Password: testpass123");
-      return;
-    }
+    // 기존 테스트 관리자 삭제
+    await Admin.deleteOne({ username: "testadmin" });
+    console.log("🗑️ 기존 테스트 관리자 삭제");
 
-    // 비밀번호 해시화
-    const hashedPassword = await bcrypt.hash("testpass123", 12);
-
-    // 테스트 관리자 생성
+    // 테스트 관리자 생성 (비밀번호는 pre-save hook에서 자동 해시화됨)
     const testAdmin = new Admin({
       username: "testadmin",
-      password: hashedPassword,
+      password: "testpass123", // 평문으로 저장하면 pre-save hook에서 해시화됨
       name: "테스트 관리자",
-      email: "test@admin.com",
       role: "super_admin",
       permissions: ["all"],
       status: "active",

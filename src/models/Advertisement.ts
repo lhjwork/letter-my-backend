@@ -9,6 +9,9 @@ export type AdTheme = "wedding" | "birthday" | "congratulation" | "general";
 // 노출 위치 타입
 export type AdPlacement = "landing" | "banner" | "sidebar" | "footer" | "popup";
 
+// 캐러셀 노출 위치 타입
+export type CarouselPlacement = "home" | "stories" | "letters";
+
 // 노출 제어 설정 인터페이스
 export interface IDisplayControl {
   isVisible: boolean;
@@ -26,6 +29,15 @@ export interface IDisplayControl {
     endTime?: string;   // HH:mm 형식
     daysOfWeek?: number[]; // 0=일요일, 1=월요일, ...
   };
+  // 캐러셀 전용 설정
+  carouselEnabled?: boolean;
+  carouselPlacements?: CarouselPlacement[];
+  maxCarouselImpressions?: number;
+  carouselSchedule?: {
+    startHour?: number; // 0-23
+    endHour?: number;   // 0-23
+    timezone?: string;  // 기본값: "Asia/Seoul"
+  };
 }
 
 // 연결된 편지 인터페이스
@@ -42,6 +54,13 @@ export interface IAdStats {
   ctr: number;
   uniqueVisitors: number;
   avgDwellTime: number;
+  // 캐러셀 전용 통계
+  carouselImpressions: number;
+  carouselClicks: number;
+  carouselCtr: number;
+  carouselAvgViewTime: number;
+  carouselSlideChanges: number;
+  carouselAutoPlayStops: number;
 }
 
 // 광고 문서 인터페이스
@@ -80,7 +99,7 @@ export interface IAdvertisement extends Document {
   createdAt: Date;
   updatedAt: Date;
   calculateCTR(): number;
-  isDisplayable(placement?: AdPlacement): boolean;
+  isDisplayable(placement?: string): boolean;
 }
 
 const advertisementSchema = new Schema<IAdvertisement>(
@@ -127,6 +146,19 @@ const advertisementSchema = new Schema<IAdvertisement>(
         enum: ["wedding", "birthday", "congratulation", "general"],
         default: "general",
       },
+      // 캐러셀 전용 필드
+      carouselImage: String,           // 캐러셀용 고해상도 이미지 (1920x1080 권장)
+      carouselImageMobile: String,     // 모바일용 캐러셀 이미지 (1080x1080 권장)
+      carouselPriority: { type: Number, default: 0, min: 0, max: 100 }, // 캐러셀 내 순서
+      carouselAutoPlay: { type: Boolean, default: true },               // 자동 재생 허용 여부
+      carouselDuration: { type: Number, default: 5000, min: 3000, max: 10000 }, // 노출 시간 (밀리초)
+      // 시각적 개선
+      overlayOpacity: { type: Number, default: 0.3, min: 0, max: 1 },   // 오버레이 투명도
+      textColor: { type: String, default: "white" },                    // 텍스트 색상
+      textShadow: { type: Boolean, default: true },                     // 텍스트 그림자 사용 여부
+      // 반응형 지원
+      mobileHeadline: String,          // 모바일용 짧은 헤드라인
+      mobileDescription: String,       // 모바일용 짧은 설명
     },
 
     // 캠페인 설정
@@ -166,6 +198,18 @@ const advertisementSchema = new Schema<IAdvertisement>(
         endTime: String,   // HH:mm 형식
         daysOfWeek: [{ type: Number, min: 0, max: 6 }], // 0=일요일
       },
+      // 캐러셀 전용 설정
+      carouselEnabled: { type: Boolean, default: false },
+      carouselPlacements: [{
+        type: String,
+        enum: ["home", "stories", "letters"],
+      }],
+      maxCarouselImpressions: Number,
+      carouselSchedule: {
+        startHour: { type: Number, min: 0, max: 23 },
+        endHour: { type: Number, min: 0, max: 23 },
+        timezone: { type: String, default: "Asia/Seoul" },
+      },
     },
 
     // 연결된 편지
@@ -184,6 +228,13 @@ const advertisementSchema = new Schema<IAdvertisement>(
       ctr: { type: Number, default: 0 },
       uniqueVisitors: { type: Number, default: 0 },
       avgDwellTime: { type: Number, default: 0 },
+      // 캐러셀 전용 통계
+      carouselImpressions: { type: Number, default: 0 },
+      carouselClicks: { type: Number, default: 0 },
+      carouselCtr: { type: Number, default: 0 },
+      carouselAvgViewTime: { type: Number, default: 0 },
+      carouselSlideChanges: { type: Number, default: 0 },
+      carouselAutoPlayStops: { type: Number, default: 0 },
     },
 
     // 메타
@@ -226,7 +277,7 @@ advertisementSchema.methods.isDisplayable = function (placement?: string): boole
   
   // 3. 노출 위치 확인
   if (placement && this.displayControl.placements.length > 0) {
-    if (!this.displayControl.placements.includes(placement)) return false;
+    if (!this.displayControl.placements.includes(placement as any)) return false;
   }
   
   // 4. 일일 노출 한도 확인
@@ -247,7 +298,7 @@ advertisementSchema.methods.isDisplayable = function (placement?: string): boole
   }
   
   // 7. 요일 스케줄 확인
-  if (this.displayControl.schedule?.daysOfWeek?.length > 0) {
+  if (this.displayControl.schedule?.daysOfWeek && this.displayControl.schedule.daysOfWeek.length > 0) {
     const currentDay = now.getDay();
     if (!this.displayControl.schedule.daysOfWeek.includes(currentDay)) return false;
   }
