@@ -109,8 +109,9 @@ class AdService {
     placement?: string;
     limit?: number;
     theme?: string;
-  }): Promise<IAdvertisement[]> {
-    const { placement, limit = 10, theme } = options || {};
+    debug?: boolean;
+  }): Promise<IAdvertisement[] | any> {
+    const { placement, limit = 10, theme, debug = false } = options || {};
     
     const filter: any = {
       status: "active",
@@ -131,7 +132,130 @@ class AdService {
       .select("-createdBy -__v");
 
     // 노출 가능 여부 재확인 (시간대, 스케줄 등)
-    return ads.filter(ad => ad.isDisplayable(placement));
+    const displayableAds = ads.filter(ad => ad.isDisplayable(placement));
+
+    // 디버그 모드인 경우 상세 정보 반환
+    if (debug) {
+      const totalAds = await Advertisement.countDocuments({});
+      const activeAds = await Advertisement.countDocuments({ status: "active" });
+      const visibleAds = await Advertisement.countDocuments({ 
+        status: "active", 
+        "displayControl.isVisible": true 
+      });
+
+      // 필터링된 광고들의 이유 분석
+      const filteredOutAds = ads.filter(ad => !ad.isDisplayable(placement)).map(ad => ({
+        _id: ad._id,
+        name: ad.name,
+        slug: ad.slug,
+        reason: this.getFilterReason(ad, placement)
+      }));
+
+      return {
+        displayableAds,
+        filteredOutAds,
+        totalAdsInDB: totalAds,
+        activeAds,
+        visibleAds,
+        displayableAdsCount: displayableAds.length
+      };
+    }
+
+    return displayableAds;
+  }
+
+  // 광고가 필터링된 이유 분석
+  private getFilterReason(ad: IAdvertisement, placement?: string): string {
+    const now = new Date();
+    
+    if (ad.status !== "active") return "Status is not active";
+    if (!ad.displayControl?.isVisible) return "Display control is not visible";
+    if (now < ad.campaign.startDate) return "Campaign not started yet";
+    if (now > ad.campaign.endDate) return "Campaign has ended";
+    
+    if (placement && ad.displayControl?.placements?.length > 0) {
+      if (!ad.displayControl.placements.includes(placement as any)) {
+        return `Placement '${placement}' not allowed`;
+      }
+    }
+    
+    if (ad.displayControl?.maxTotalImpressions && 
+        ad.stats.impressions >= ad.displayControl.maxTotalImpressions) {
+      return "Total impression limit exceeded";
+    }
+    
+    if (ad.displayControl?.schedule?.startTime && ad.displayControl?.schedule?.endTime) {
+      const currentTime = now.toTimeString().slice(0, 5);
+      if (currentTime < ad.displayControl.schedule.startTime || 
+          currentTime > ad.displayControl.schedule.endTime) {
+        return "Outside allowed time range";
+      }
+    }
+    
+    if (ad.displayControl?.schedule?.daysOfWeek?.length > 0) {
+      const currentDay = now.getDay();
+      if (!ad.displayControl.schedule.daysOfWeek.includes(currentDay)) {
+        return "Outside allowed days of week";
+      }
+    }
+    
+    return "Unknown reason";
+  }
+
+  // 광고 디버그 정보 조회
+  async getAdDebugInfo(adSlug: string): Promise<any> {
+    const ad = await Advertisement.findOne({ slug: adSlug }).select("-createdBy -__v");
+    
+    if (!ad) {
+      return null;
+    }
+
+    const now = new Date();
+    const checks = [
+      {
+        check: "status",
+        passed: ad.status === "active",
+        value: ad.status
+      },
+      {
+        check: "isVisible",
+        passed: ad.displayControl?.isVisible === true,
+        value: ad.displayControl?.isVisible
+      },
+      {
+        check: "campaignPeriod",
+        passed: now >= ad.campaign.startDate && now <= ad.campaign.endDate,
+        value: now < ad.campaign.startDate ? "Campaign not started yet" : 
+               now > ad.campaign.endDate ? "Campaign has ended" : "Campaign is active",
+        startDate: ad.campaign.startDate,
+        endDate: ad.campaign.endDate,
+        currentTime: now
+      },
+      {
+        check: "placements",
+        passed: ad.displayControl?.placements?.length > 0,
+        value: ad.displayControl?.placements || []
+      },
+      {
+        check: "impressionLimit",
+        passed: !ad.displayControl?.maxTotalImpressions || 
+                ad.stats.impressions < ad.displayControl.maxTotalImpressions,
+        value: `${ad.stats.impressions}/${ad.displayControl?.maxTotalImpressions || '∞'}`
+      }
+    ];
+
+    return {
+      ad: {
+        _id: ad._id,
+        name: ad.name,
+        slug: ad.slug,
+        status: ad.status
+      },
+      displayStatus: {
+        isDisplayable: ad.isDisplayable(),
+        reasons: checks
+      }
+    };
   }
 
   // 광고 이벤트 추적
