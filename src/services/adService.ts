@@ -123,7 +123,7 @@ class AdService {
     }
 
     if (placement) {
-      filter["displayControl.placements"] = placement;
+      filter["displayControl.placements"] = { $in: [placement] };
     }
 
     const ads = await Advertisement.find(filter)
