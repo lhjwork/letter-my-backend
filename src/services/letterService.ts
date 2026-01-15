@@ -116,6 +116,27 @@ export class LetterService {
     return letter.save();
   }
 
+  // Featured Stories 조회 (메인 랜딩 페이지용 - 최신 4개)
+  async getFeaturedStories(): Promise<ILetter[]> {
+    try {
+      const stories = await Letter.find({
+        type: LetterType.STORY,
+        isPublic: true,
+        // status가 hidden이나 deleted가 아닌 모든 사연 포함
+        status: { $nin: ["hidden", "deleted"] },
+      })
+        .sort({ createdAt: -1 })
+        .limit(4)
+        .select("_id title content authorName category createdAt viewCount likeCount")
+        .lean();
+
+      return stories as ILetter[];
+    } catch (error) {
+      console.error("Featured stories fetch error:", error);
+      throw error;
+    }
+  }
+
   // 사연 목록 조회 (페이지네이션, 검색, 정렬, 카테고리 필터)
   async getStories(params: { page: number; limit: number; search?: string; sort?: "latest" | "oldest" | "popular"; category?: string }): Promise<{
     stories: ILetter[];

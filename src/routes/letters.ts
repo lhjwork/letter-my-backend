@@ -104,6 +104,13 @@ router.get("/stats", authenticate, letterController.getLetterStats);
 router.post("/story", contentSizeLimit(50000), validateHtmlContent, createStoryValidation, letterController.createStory);
 
 /**
+ * @route   GET /api/letters/stories/featured
+ * @desc    메인 랜딩 페이지용 Featured Stories 조회 (최신 4개)
+ * @access  Public
+ */
+router.get("/stories/featured", letterController.getFeaturedStories);
+
+/**
  * @route   GET /api/letters/stories
  * @desc    사연 목록 조회 (페이지네이션, 검색, 정렬, 카테고리 필터)
  * @access  Public

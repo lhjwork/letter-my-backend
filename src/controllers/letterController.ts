@@ -246,6 +246,26 @@ export class LetterController {
     }
   }
 
+  // Featured Stories 조회 (GET /api/letters/stories/featured)
+  async getFeaturedStories(_req: Request, res: Response): Promise<void> {
+    try {
+      const stories = await letterService.getFeaturedStories();
+      
+      res.status(200).json({
+        success: true,
+        data: stories,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      console.error("Error fetching featured stories:", error);
+      res.status(500).json({
+        success: false,
+        message: "서버 오류가 발생했습니다",
+        meta: { timestamp: new Date().toISOString() },
+      });
+    }
+  }
+
   // 사연 목록 조회 (GET /api/letters/stories)
   async getStories(req: Request, res: Response): Promise<void> {
     try {
