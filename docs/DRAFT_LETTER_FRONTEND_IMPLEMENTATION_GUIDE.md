@@ -5,7 +5,6 @@
 편지 작성 중 임시저장과 불러오기 기능을 모달로 구현하는 가이드입니다. Figma 디자인을 기반으로 한 완전한 구현 방법을 제공합니다.
 
 ### 🎯 주요 기능
-- **자동 임시저장**: 작성 중 자동으로 임시저장
 - **수동 임시저장**: 버튼 클릭으로 즉시 저장
 - **임시저장 목록**: 저장된 편지 목록 조회
 - **불러오기**: 임시저장된 편지 불러오기
@@ -45,14 +44,14 @@ import { Save, Clock } from 'lucide-react';
 interface DraftSaveButtonProps {
   onSave: () => void;
   onOpenModal: () => void;
-  isAutoSaving?: boolean;
+  isSaving?: boolean;
   lastSaved?: Date;
 }
 
 export function DraftSaveButton({ 
   onSave, 
   onOpenModal, 
-  isAutoSaving = false, 
+  isSaving = false, 
   lastSaved 
 }: DraftSaveButtonProps) {
   return (
@@ -60,11 +59,11 @@ export function DraftSaveButton({
       {/* 수동 저장 버튼 */}
       <button
         onClick={onSave}
-        disabled={isAutoSaving}
+        disabled={isSaving}
         className="flex items-center space-x-2 px-4 py-2 bg-orange-400 text-white rounded-lg hover:bg-orange-500 disabled:opacity-50 transition-colors"
       >
         <Save size={16} />
-        <span>{isAutoSaving ? '저장 중...' : '임시저장'}</span>
+        <span>{isSaving ? '저장 중...' : '임시저장'}</span>
       </button>
 
       {/* 불러오기 버튼 */}
@@ -297,17 +296,11 @@ function DraftCard({
 }
 ```
 
-### 3. 자동 저장 훅
+### 3. 수동 저장 훅
 
 ```tsx
-// hooks/useAutoSave.ts
-import { useEffect, useRef, useCallback } from 'react';
-import { debounce } from 'lodash';
-
-interface AutoSaveOptions {
-  delay?: number; // 자동저장 지연시간 (ms)
-  enabled?: boolean; // 자동저장 활성화 여부
-}
+// hooks/useDraftSave.ts
+import { useState, useCallback } from 'react';
 
 interface DraftData {
   title: string;
@@ -317,66 +310,49 @@ interface DraftData {
   recipientAddresses?: any[];
 }
 
-export function useAutoSave(
-  data: DraftData,
-  onSave: (data: DraftData, draftId?: string) => Promise<{ _id: string }>,
-  options: AutoSaveOptions = {}
+export function useDraftSave(
+  onSave: (data: DraftData, draftId?: string) => Promise<{ _id: string }>
 ) {
-  const { delay = 3000, enabled = true } = options;
-  const draftIdRef = useRef<string | null>(null);
-  const isInitialRender = useRef(true);
-
-  // 디바운스된 저장 함수
-  const debouncedSave = useCallback(
-    debounce(async (saveData: DraftData) => {
-      if (!enabled) return;
-      
-      try {
-        const result = await onSave(saveData, draftIdRef.current || undefined);
-        draftIdRef.current = result._id;
-      } catch (error) {
-        console.error('Auto save failed:', error);
-      }
-    }, delay),
-    [onSave, enabled, delay]
-  );
-
-  // 데이터 변경 시 자동저장 트리거
-  useEffect(() => {
-    // 초기 렌더링 시에는 저장하지 않음
-    if (isInitialRender.current) {
-      isInitialRender.current = false;
-      return;
-    }
-
-    // 내용이 있을 때만 자동저장
-    if (data.title.trim() || data.content.trim()) {
-      debouncedSave(data);
-    }
-
-    // 컴포넌트 언마운트 시 디바운스 취소
-    return () => {
-      debouncedSave.cancel();
-    };
-  }, [data, debouncedSave]);
+  const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // 수동 저장 함수
-  const saveNow = useCallback(async () => {
-    debouncedSave.cancel(); // 기존 디바운스 취소
+  const saveNow = useCallback(async (data: DraftData) => {
+    setIsSaving(true);
     
     try {
-      const result = await onSave(data, draftIdRef.current || undefined);
-      draftIdRef.current = result._id;
+      const result = await onSave(data, currentDraftId || undefined);
+      setCurrentDraftId(result._id);
+      setLastSaved(new Date());
       return result;
     } catch (error) {
-      console.error('Manual save failed:', error);
+      console.error('Save failed:', error);
       throw error;
+    } finally {
+      setIsSaving(false);
     }
-  }, [data, onSave, debouncedSave]);
+  }, [onSave, currentDraftId]);
+
+  // 새 편지 시작 (draftId 초기화)
+  const startNew = useCallback(() => {
+    setCurrentDraftId(null);
+    setLastSaved(null);
+  }, []);
+
+  // 기존 임시저장 불러오기
+  const loadDraft = useCallback((draftId: string, savedAt: Date) => {
+    setCurrentDraftId(draftId);
+    setLastSaved(savedAt);
+  }, []);
 
   return {
     saveNow,
-    currentDraftId: draftIdRef.current,
+    startNew,
+    loadDraft,
+    currentDraftId,
+    isSaving,
+    lastSaved,
   };
 }
 ```
@@ -388,7 +364,7 @@ export function useAutoSave(
 import React, { useState, useCallback } from 'react';
 import { DraftSaveButton } from '../components/DraftSaveButton';
 import { DraftModal } from '../components/DraftModal';
-import { useAutoSave } from '../hooks/useAutoSave';
+import { useDraftSave } from '../hooks/useDraftSave';
 
 interface LetterForm {
   title: string;
@@ -408,8 +384,6 @@ export function WriteLetter() {
   });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // 임시저장 API 호출
   const saveDraft = useCallback(async (data: LetterForm, draftId?: string) => {
@@ -433,26 +407,19 @@ export function WriteLetter() {
     }
 
     const result = await response.json();
-    setLastSaved(new Date());
     return result.data;
   }, []);
 
-  // 자동저장 훅
-  const { saveNow, currentDraftId } = useAutoSave(form, saveDraft, {
-    delay: 3000,
-    enabled: true,
-  });
+  // 수동 저장 훅
+  const { saveNow, startNew, loadDraft, currentDraftId, isSaving, lastSaved } = useDraftSave(saveDraft);
 
   // 수동 저장
   const handleManualSave = async () => {
-    setIsSaving(true);
     try {
-      await saveNow();
+      await saveNow(form);
       alert('임시저장되었습니다.');
     } catch (error) {
       alert('임시저장에 실패했습니다.');
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -465,14 +432,14 @@ export function WriteLetter() {
       category: draft.category,
       recipientAddresses: draft.recipientAddresses || [],
     });
-    setLastSaved(new Date(draft.lastSavedAt));
+    loadDraft(draft._id, new Date(draft.lastSavedAt));
   };
 
   // 임시저장 삭제
   const handleDeleteDraft = (draftId: string) => {
     // 현재 편집 중인 임시저장이 삭제된 경우 처리
     if (currentDraftId === draftId) {
-      // 필요시 추가 로직
+      startNew();
     }
   };
 
@@ -529,7 +496,7 @@ export function WriteLetter() {
             <DraftSaveButton
               onSave={handleManualSave}
               onOpenModal={() => setIsModalOpen(true)}
-              isAutoSaving={isSaving}
+              isSaving={isSaving}
               lastSaved={lastSaved}
             />
           </div>
@@ -679,12 +646,12 @@ const publishDraft = async (draftId: string, data?: {
 
 ## 🎯 사용자 경험 최적화
 
-### 1. 자동저장 전략
+### 1. 수동 저장 전략
 
 ```typescript
-// 자동저장 조건
-const shouldAutoSave = (data: LetterForm) => {
-  // 제목이나 내용이 있을 때만 저장
+// 저장 가능 여부 확인
+const canSave = (data: LetterForm) => {
+  // 제목이나 내용이 있을 때만 저장 가능
   return data.title.trim().length > 0 || data.content.trim().length > 0;
 };
 
@@ -707,12 +674,27 @@ const SaveStatus = ({ isSaving, lastSaved }: {
   
   return <span className="text-gray-500">저장되지 않음</span>;
 };
+
+// 저장 전 확인
+const handleSaveWithConfirmation = async (data: LetterForm) => {
+  if (!canSave(data)) {
+    alert('제목이나 내용을 입력해주세요.');
+    return;
+  }
+  
+  try {
+    await saveNow(data);
+    alert('임시저장되었습니다.');
+  } catch (error) {
+    alert('임시저장에 실패했습니다.');
+  }
+};
 ```
 
-### 2. 오프라인 지원
+### 2. 로컬 백업 (네트워크 오류 시)
 
 ```typescript
-// 로컬 스토리지 백업
+// 로컬 스토리지 백업 (네트워크 오류 시에만)
 const saveToLocalStorage = (data: LetterForm) => {
   localStorage.setItem('draft_backup', JSON.stringify({
     ...data,
@@ -741,16 +723,33 @@ const restoreFromLocalStorage = (): LetterForm | null => {
     return null;
   }
 };
+
+// 페이지 로드 시 백업 복원 확인
+const checkForBackup = () => {
+  const backup = restoreFromLocalStorage();
+  if (backup) {
+    const shouldRestore = confirm(
+      '이전에 작성하던 내용이 있습니다. 복원하시겠습니까?'
+    );
+    
+    if (shouldRestore) {
+      return backup;
+    } else {
+      localStorage.removeItem('draft_backup');
+    }
+  }
+  return null;
+};
 ```
 
 ### 3. 에러 처리
 
 ```typescript
 // 네트워크 에러 처리
-const handleSaveError = (error: Error) => {
+const handleSaveError = (error: Error, data: LetterForm) => {
   if (error.message.includes('network') || error.message.includes('fetch')) {
     // 네트워크 오류 시 로컬 저장
-    saveToLocalStorage(form);
+    saveToLocalStorage(data);
     showNotification('네트워크 오류로 로컬에 임시저장했습니다.', 'warning');
   } else {
     showNotification('저장에 실패했습니다. 다시 시도해주세요.', 'error');
@@ -763,11 +762,25 @@ const saveWithRetry = async (data: LetterForm, maxRetries = 3) => {
     try {
       return await saveDraft(data);
     } catch (error) {
-      if (i === maxRetries - 1) throw error;
+      if (i === maxRetries - 1) {
+        // 마지막 시도 실패 시 로컬 백업
+        handleSaveError(error as Error, data);
+        throw error;
+      }
       
       // 지수 백오프
       await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
     }
+  }
+};
+
+// 사용자 친화적인 저장 함수
+const handleSave = async (data: LetterForm) => {
+  try {
+    await saveWithRetry(data);
+    showNotification('임시저장되었습니다.', 'success');
+  } catch (error) {
+    // 에러는 이미 handleSaveError에서 처리됨
   }
 };
 ```
@@ -870,26 +883,51 @@ const validateDraftData = (data: LetterForm): string[] => {
 ### 1. 단위 테스트
 
 ```typescript
-// __tests__/useAutoSave.test.ts
+// __tests__/useDraftSave.test.ts
 import { renderHook, act } from '@testing-library/react';
-import { useAutoSave } from '../hooks/useAutoSave';
+import { useDraftSave } from '../hooks/useDraftSave';
 
-describe('useAutoSave', () => {
-  it('should auto save after delay', async () => {
+describe('useDraftSave', () => {
+  it('should save draft manually', async () => {
     const mockSave = jest.fn().mockResolvedValue({ _id: 'test-id' });
-    const { result } = renderHook(() => 
-      useAutoSave(
-        { title: 'Test', content: 'Content', type: 'friend', category: '기타' },
-        mockSave,
-        { delay: 100 }
-      )
-    );
+    const { result } = renderHook(() => useDraftSave(mockSave));
+
+    const testData = {
+      title: 'Test',
+      content: 'Content',
+      type: 'friend' as const,
+      category: '기타'
+    };
 
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await result.current.saveNow(testData);
     });
 
-    expect(mockSave).toHaveBeenCalled();
+    expect(mockSave).toHaveBeenCalledWith(testData, undefined);
+    expect(result.current.currentDraftId).toBe('test-id');
+  });
+
+  it('should update existing draft', async () => {
+    const mockSave = jest.fn().mockResolvedValue({ _id: 'existing-id' });
+    const { result } = renderHook(() => useDraftSave(mockSave));
+
+    // 기존 임시저장 로드
+    act(() => {
+      result.current.loadDraft('existing-id', new Date());
+    });
+
+    const testData = {
+      title: 'Updated Test',
+      content: 'Updated Content',
+      type: 'friend' as const,
+      category: '기타'
+    };
+
+    await act(async () => {
+      await result.current.saveNow(testData);
+    });
+
+    expect(mockSave).toHaveBeenCalledWith(testData, 'existing-id');
   });
 });
 ```
