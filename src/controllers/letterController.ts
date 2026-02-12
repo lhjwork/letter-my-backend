@@ -373,6 +373,39 @@ export class LetterController {
       res.status(500).json({ success: false, message: "편지 목록을 불러오는데 실패했습니다.", meta: { timestamp: new Date().toISOString() } });
     }
   }
+  // 내 사연 목록 조회 (페이지네이션 지원)
+  async getMyStories(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, message: "로그인이 필요합니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+
+      // 파라미터 검증
+      if (page < 1 || limit < 1) {
+        res.status(400).json({
+          success: false,
+          message: "page와 limit은 1 이상의 값이어야 합니다.",
+          meta: { timestamp: new Date().toISOString() },
+        });
+        return;
+      }
+
+      const result = await letterService.findStoriesByUserId(req.user.userId, page, limit);
+      res.status(200).json({
+        success: true,
+        data: result.data,
+        pagination: result.pagination,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      console.error("Error fetching user stories:", error);
+      res.status(500).json({ success: false, message: "사연 목록을 불러오는데 실패했습니다.", meta: { timestamp: new Date().toISOString() } });
+    }
+  }
 
   // 모든 편지 조회 (페이지네이션)
   async getAllLetters(req: Request, res: Response, next: NextFunction): Promise<void> {

@@ -133,6 +133,13 @@ router.get("/categories/stats", letterController.getCategoryStats);
 router.post("/", authenticate, contentSizeLimit(50000), validateHtmlContent, createLetterNewValidation, letterController.createLetterNew);
 
 /**
+ * @route   GET /api/letters/my/stories
+ * @desc    내 사연 목록 조회
+ * @access  Private
+ */
+router.get("/my/stories", authenticate, letterController.getMyStories);
+
+/**
  * @route   GET /api/letters/my
  * @desc    내 편지 목록 조회
  * @access  Private
