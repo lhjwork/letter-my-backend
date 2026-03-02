@@ -141,10 +141,31 @@ router.get("/my/stories", authenticate, letterController.getMyStories);
 
 /**
  * @route   GET /api/letters/my
- * @desc    내 편지 목록 조회
+ * @desc    내 편지 목록 조회 (filter=all|sent|received 지원)
  * @access  Private
  */
 router.get("/my", authenticate, letterController.getMyLetters);
+
+/**
+ * @route   POST /api/letters/:letterId/save
+ * @desc    편지를 받은 편지로 저장(보관)
+ * @access  Private
+ */
+router.post("/:letterId/save", authenticate, letterController.saveLetterToCollection);
+
+/**
+ * @route   DELETE /api/letters/:letterId/save
+ * @desc    편지 저장 취소 (보관 목록에서 제거)
+ * @access  Private
+ */
+router.delete("/:letterId/save", authenticate, letterController.unsaveLetterFromCollection);
+
+/**
+ * @route   GET /api/letters/:letterId/save
+ * @desc    편지 저장 여부 확인
+ * @access  Private
+ */
+router.get("/:letterId/save", authenticate, letterController.checkLetterSaveStatus);
 
 /**
  * @route   GET /api/letters

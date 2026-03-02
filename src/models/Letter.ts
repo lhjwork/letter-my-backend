@@ -112,6 +112,12 @@ export interface IPhysicalLetterStats {
   completedRequests: number;
 }
 
+// savedBy 항목 인터페이스
+export interface ISavedByEntry {
+  userId: mongoose.Types.ObjectId;
+  savedAt: Date;
+}
+
 // Letter Document 인터페이스
 export interface ILetter extends Document {
   type: LetterType;
@@ -121,6 +127,9 @@ export interface ILetter extends Document {
   contentType: "text" | "html";
   plainContent?: string;
   authorName: string;
+  senderName?: string;
+  recipientName?: string;
+  savedBy: ISavedByEntry[];
   category: LetterCategory;
   status: LetterStatus;
   viewCount: number;
@@ -198,6 +207,20 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
       required: true,
       trim: true,
     },
+    senderName: {
+      type: String,
+      trim: true,
+    },
+    recipientName: {
+      type: String,
+      trim: true,
+    },
+    savedBy: [
+      {
+        userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        savedAt: { type: Date, default: Date.now },
+      },
+    ],
     category: {
       type: String,
       enum: Object.values(LetterCategory),
@@ -369,6 +392,7 @@ LetterSchema.index({ type: 1, category: 1, createdAt: -1 });
 LetterSchema.index({ userId: 1, createdAt: -1 }); // 내 편지 목록 조회 최적화
 LetterSchema.index({ type: 1, isPublic: 1, createdAt: -1 }); // 공개 편지 조회 최적화
 LetterSchema.index({ viewCount: -1 }); // 인기 편지 조회 최적화
+LetterSchema.index({ "savedBy.userId": 1, createdAt: -1 }); // 받은 편지 조회 최적화
 
 // userId로 편지 찾기 (Static 메서드)
 LetterSchema.statics.findByUserId = function (userId: string): Promise<ILetter[]> {

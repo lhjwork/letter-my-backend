@@ -1,4 +1,5 @@
 import Letter, { ILetter, OgImageType, LetterType, LetterCategory } from "../models/Letter";
+import mongoose from "mongoose";
 import { sanitizeHtmlContent, extractPlainText, generatePreviewText, isHtmlContent, textToHtml } from "../utils/htmlProcessor";
 
 // Letter Service 클래스
@@ -316,6 +317,171 @@ export class LetterService {
   async getOgImageUrl(letterId: string): Promise<string | null> {
     const letter = await Letter.findById(letterId).select("ogImageUrl");
     return letter?.ogImageUrl || null;
+  }
+
+  // ==================== 편지 저장(보관) 관련 메서드 ====================
+
+  /**
+   * 편지 저장 (받은 편지로 보관)
+   */
+  async saveLetter(letterId: string, userId: string): Promise<{ success: boolean; message: string }> {
+    if (!mongoose.Types.ObjectId.isValid(letterId)) {
+      throw new Error("올바르지 않은 편지 ID입니다.");
+    }
+
+    const letter = await Letter.findById(letterId);
+    if (!letter) {
+      throw new Error("편지를 찾을 수 없습니다.");
+    }
+
+    // 자기 자신이 작성한 편지는 저장 불가
+    if (letter.userId?.toString() === userId) {
+      return { success: false, message: "자신이 작성한 편지는 저장할 수 없습니다." };
+    }
+
+    // 이미 저장한 편지인지 확인
+    const alreadySaved = letter.savedBy?.some(
+      (entry: any) => entry.userId.toString() === userId
+    );
+    if (alreadySaved) {
+      return { success: false, message: "이미 저장한 편지입니다." };
+    }
+
+    // savedBy 배열에 추가
+    await Letter.findByIdAndUpdate(letterId, {
+      $push: {
+        savedBy: {
+          userId: new mongoose.Types.ObjectId(userId),
+          savedAt: new Date(),
+        },
+      },
+    });
+
+    return { success: true, message: "편지가 저장되었습니다." };
+  }
+
+  /**
+   * 편지 저장 취소
+   */
+  async unsaveLetter(letterId: string, userId: string): Promise<{ success: boolean; message: string }> {
+    if (!mongoose.Types.ObjectId.isValid(letterId)) {
+      throw new Error("올바르지 않은 편지 ID입니다.");
+    }
+
+    const letter = await Letter.findById(letterId);
+    if (!letter) {
+      throw new Error("편지를 찾을 수 없습니다.");
+    }
+
+    const isSaved = letter.savedBy?.some(
+      (entry: any) => entry.userId.toString() === userId
+    );
+    if (!isSaved) {
+      return { success: false, message: "저장하지 않은 편지입니다." };
+    }
+
+    await Letter.findByIdAndUpdate(letterId, {
+      $pull: {
+        savedBy: { userId: new mongoose.Types.ObjectId(userId) },
+      },
+    });
+
+    return { success: true, message: "편지 저장이 취소되었습니다." };
+  }
+
+  /**
+   * 편지 저장 여부 확인
+   */
+  async checkLetterSaved(letterId: string, userId: string): Promise<boolean> {
+    if (!mongoose.Types.ObjectId.isValid(letterId)) {
+      throw new Error("올바르지 않은 편지 ID입니다.");
+    }
+
+    const letter = await Letter.findById(letterId).select("savedBy").lean();
+    if (!letter) {
+      throw new Error("편지를 찾을 수 없습니다.");
+    }
+
+    return (letter as any).savedBy?.some(
+      (entry: any) => entry.userId.toString() === userId
+    ) ?? false;
+  }
+
+  /**
+   * 내 편지 목록 조회 (filter 지원: all/sent/received)
+   */
+  async findMyLettersWithFilter(
+    userId: string,
+    filter: "all" | "sent" | "received" = "all",
+    page: number = 1,
+    limit: number = 20
+  ): Promise<{
+    data: any[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+    };
+  }> {
+    const skip = (page - 1) * limit;
+    let queryFilter: any;
+
+    switch (filter) {
+      case "sent":
+        // 내가 작성한 편지
+        queryFilter = { userId, type: LetterType.FRIEND };
+        break;
+      case "received":
+        // 내가 저장한(받은) 편지
+        queryFilter = { "savedBy.userId": new mongoose.Types.ObjectId(userId), type: LetterType.FRIEND };
+        break;
+      case "all":
+      default:
+        // 보낸 편지 + 받은 편지 모두
+        queryFilter = {
+          $or: [
+            { userId, type: LetterType.FRIEND },
+            { "savedBy.userId": new mongoose.Types.ObjectId(userId), type: LetterType.FRIEND },
+          ],
+        };
+        break;
+    }
+
+    const [letters, total] = await Promise.all([
+      Letter.find(queryFilter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select("-__v -savedBy")
+        .populate("userId", "name email image")
+        .lean(),
+      Letter.countDocuments(queryFilter),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    // 각 편지에 direction 필드 추가
+    const lettersWithDirection = letters.map((letter: any) => ({
+      ...letter,
+      direction: letter.userId?._id?.toString() === userId || letter.userId?.toString() === userId
+        ? "sent"
+        : "received",
+    }));
+
+    return {
+      data: lettersWithDirection,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    };
   }
 
   /**

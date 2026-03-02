@@ -56,6 +56,7 @@ class LetterCreateService {
       contentType: processedContent.contentType,
       plainContent: processedContent.plainContent,
       authorName: userName,
+      senderName: userName,
       category: data.category || "기타",
       status: LetterStatus.CREATED,
       // URL 공유 관련 설정

@@ -333,7 +333,7 @@ export class LetterController {
     }
   }
 
-  // 내 편지 목록 조회 (페이지네이션 지원)
+  // 내 편지 목록 조회 (페이지네이션 + filter 지원)
   async getMyLetters(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -343,6 +343,7 @@ export class LetterController {
 
       const page = parseInt(req.query.page as string) || 1;
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+      const filter = (req.query.filter as "all" | "sent" | "received") || "all";
 
       // 파라미터 검증
       if (page < 1 || limit < 1) {
@@ -354,23 +355,115 @@ export class LetterController {
         return;
       }
 
-      // 페이지네이션이 요청된 경우
-      if (req.query.page || req.query.limit) {
-        const result = await letterService.findByUserIdWithPagination(req.user.userId, page, limit);
-        res.status(200).json({
-          success: true,
-          data: result.data,
-          pagination: result.pagination,
+      if (!["all", "sent", "received"].includes(filter)) {
+        res.status(400).json({
+          success: false,
+          message: "filter는 'all', 'sent', 'received' 중 하나여야 합니다.",
           meta: { timestamp: new Date().toISOString() },
         });
-      } else {
-        // 기존 호환성을 위해 파라미터가 없으면 전체 조회 (하위 호환성)
-        const letters = await letterService.findByUserId(req.user.userId);
-        res.status(200).json({ success: true, data: letters, meta: { timestamp: new Date().toISOString() } });
+        return;
       }
+
+      const result = await letterService.findMyLettersWithFilter(req.user.userId, filter, page, limit);
+      res.status(200).json({
+        success: true,
+        data: result.data,
+        pagination: result.pagination,
+        meta: { timestamp: new Date().toISOString() },
+      });
     } catch (error) {
       console.error("Error fetching user letters:", error);
       res.status(500).json({ success: false, message: "편지 목록을 불러오는데 실패했습니다.", meta: { timestamp: new Date().toISOString() } });
+    }
+  }
+
+  // 편지 저장 (받은 편지로 보관)
+  async saveLetterToCollection(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, message: "로그인이 필요합니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      const { letterId } = req.params;
+      const result = await letterService.saveLetter(letterId, req.user.userId);
+
+      if (!result.success) {
+        res.status(400).json({
+          success: false,
+          error: result.message,
+          meta: { timestamp: new Date().toISOString() },
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error: unknown) {
+      console.error("Error saving letter:", error);
+      const message = error instanceof Error ? error.message : "편지 저장에 실패했습니다.";
+      const status = message.includes("찾을 수 없습니다") ? 404 : message.includes("올바르지 않은") ? 400 : 500;
+      res.status(status).json({ success: false, error: message, meta: { timestamp: new Date().toISOString() } });
+    }
+  }
+
+  // 편지 저장 취소
+  async unsaveLetterFromCollection(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, message: "로그인이 필요합니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      const { letterId } = req.params;
+      const result = await letterService.unsaveLetter(letterId, req.user.userId);
+
+      if (!result.success) {
+        res.status(400).json({
+          success: false,
+          error: result.message,
+          meta: { timestamp: new Date().toISOString() },
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error: unknown) {
+      console.error("Error unsaving letter:", error);
+      const message = error instanceof Error ? error.message : "편지 저장 취소에 실패했습니다.";
+      const status = message.includes("찾을 수 없습니다") ? 404 : message.includes("올바르지 않은") ? 400 : 500;
+      res.status(status).json({ success: false, error: message, meta: { timestamp: new Date().toISOString() } });
+    }
+  }
+
+  // 편지 저장 여부 확인
+  async checkLetterSaveStatus(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, message: "로그인이 필요합니다.", meta: { timestamp: new Date().toISOString() } });
+        return;
+      }
+
+      const { letterId } = req.params;
+      const isSaved = await letterService.checkLetterSaved(letterId, req.user.userId);
+
+      res.status(200).json({
+        success: true,
+        data: { isSaved },
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error: unknown) {
+      console.error("Error checking letter save status:", error);
+      const message = error instanceof Error ? error.message : "저장 상태 확인에 실패했습니다.";
+      const status = message.includes("찾을 수 없습니다") ? 404 : message.includes("올바르지 않은") ? 400 : 500;
+      res.status(status).json({ success: false, error: message, meta: { timestamp: new Date().toISOString() } });
     }
   }
   // 내 사연 목록 조회 (페이지네이션 지원)
