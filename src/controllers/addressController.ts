@@ -34,7 +34,7 @@ export const getAddresses = async (req: Request, res: Response): Promise<void> =
 // 최근 사용 배송지 목록 조회
 export const getRecentAddresses = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user?.userId;
-  const limit = parseInt(req.query.limit as string) || 20;
+  const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
 
   const user = await User.findById(userId).select("addresses");
 

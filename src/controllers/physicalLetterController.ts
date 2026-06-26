@@ -134,7 +134,7 @@ export class PhysicalLetterController {
     try {
       const { status, page = "1", limit = "20" } = req.query;
 
-      const result = await physicalLetterService.getPhysicalLetterRequests(status as string, parseInt(page as string), parseInt(limit as string));
+      const result = await physicalLetterService.getPhysicalLetterRequests(status as string, parseInt(page as string), Math.min(parseInt(limit as string), 100));
 
       res.status(200).json({
         success: true,

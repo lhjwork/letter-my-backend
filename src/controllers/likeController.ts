@@ -77,7 +77,7 @@ class LikeController {
     try {
       const userId = req.user?.userId;
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
 
       if (!userId) {
         sendUnauthorized(res, "로그인이 필요합니다");

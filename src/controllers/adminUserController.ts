@@ -47,7 +47,7 @@ class AdminUserController {
         return;
       }
 
-      const users = await adminUserService.searchUsers(searchTerm as string, parseInt(limit as string) || 10, status as string);
+      const users = await adminUserService.searchUsers(searchTerm as string, Math.min(parseInt(limit as string) || 10, 100), status as string);
 
       res.json({
         success: true,

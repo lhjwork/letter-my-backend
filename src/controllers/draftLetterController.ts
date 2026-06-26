@@ -110,7 +110,7 @@ class DraftLetterController {
       }
 
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
+      const limit = Math.min(parseInt(req.query.limit as string) || 10, 100);
       const sort = (req.query.sort as string) || "latest";
       const type = (req.query.type as string) || "all";
 
