@@ -74,11 +74,6 @@ router.post("/create", authenticate, letterCreateLimiter, contentSizeLimit(50000
  * @access  Private
  */
 router.post("/test-create", authenticate, (req, res) => {
-  console.log("=== TEST CREATE ENDPOINT ===");
-  console.log("Headers:", req.headers);
-  console.log("Body:", req.body);
-  console.log("User:", req.user);
-
   res.json({
     success: true,
     message: "테스트 엔드포인트 작동 중",

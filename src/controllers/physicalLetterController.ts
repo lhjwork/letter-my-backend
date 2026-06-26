@@ -12,7 +12,6 @@ export class PhysicalLetterController {
       const { letterId } = req.params;
       const { address } = req.body;
 
-      console.log("🏠 실물 편지 신청 요청:", { letterId, address });
 
       if (!address) {
         res.status(400).json({
@@ -31,7 +30,7 @@ export class PhysicalLetterController {
         data: result,
       });
     } catch (error: unknown) {
-      console.error("❌ 실물 편지 신청 실패:", error);
+      console.error("실물 편지 신청 실패:", error);
 
       if (error instanceof Error) {
         const message = error.message;
@@ -92,7 +91,7 @@ export class PhysicalLetterController {
         data: result,
       });
     } catch (error: unknown) {
-      console.error("❌ 실물 편지 상태 조회 실패:", error);
+      console.error("실물 편지 상태 조회 실패:", error);
 
       if (error instanceof Error) {
         const message = error.message;
@@ -142,7 +141,7 @@ export class PhysicalLetterController {
         pagination: result.pagination,
       });
     } catch (error: unknown) {
-      console.error("❌ 실물 편지 목록 조회 실패:", error);
+      console.error("실물 편지 목록 조회 실패:", error);
 
       res.status(500).json({
         success: false,
@@ -178,7 +177,7 @@ export class PhysicalLetterController {
         data: result,
       });
     } catch (error: unknown) {
-      console.error("❌ 상태 업데이트 실패:", error);
+      console.error("상태 업데이트 실패:", error);
 
       if (error instanceof Error) {
         const message = error.message;

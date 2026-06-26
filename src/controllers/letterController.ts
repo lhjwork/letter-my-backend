@@ -7,23 +7,16 @@ import { LetterCategory } from "../models/Letter";
 export class LetterController {
   // 편지 생성 (새로운 URL 공유 방식)
   async createLetterNew(req: Request, res: Response): Promise<void> {
-    console.log("=== CREATE LETTER NEW ===");
-    console.log("Request body:", req.body);
-    console.log("Request user:", req.user);
-
     try {
       if (!req.user) {
-        console.log("❌ No user in request");
         res.status(401).json({ success: false, message: "로그인이 필요합니다.", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
       const { title, content, type, category, ogTitle, ogPreviewText, aiGenerated, aiModel, recipientAddresses } = req.body;
-      console.log("📝 Extracted fields:", { title, content, type, category, recipientAddresses });
 
       // 기본 검증
       if (!title || !content) {
-        console.log("❌ Missing title or content");
         res.status(400).json({
           success: false,
           message: "제목과 내용은 필수입니다.",
@@ -37,7 +30,6 @@ export class LetterController {
       }
 
       if (!["story", "friend"].includes(type)) {
-        console.log("❌ Invalid type:", type);
         res.status(400).json({
           success: false,
           message: "올바른 편지 타입을 선택해주세요.",
@@ -50,11 +42,9 @@ export class LetterController {
       }
 
       // 사용자 정보 조회
-      console.log("👤 Looking up user:", req.user.userId);
       const User = require("../models/User").default;
       const user = await User.findById(req.user.userId);
       if (!user) {
-        console.log("❌ User not found:", req.user.userId);
         res.status(404).json({
           success: false,
           message: "사용자를 찾을 수 없습니다.",
@@ -65,9 +55,6 @@ export class LetterController {
         });
         return;
       }
-
-      console.log("✅ User found:", user.name);
-      console.log("📤 Calling letterCreateService...");
 
       const result = await letterCreateService.createLetter(req.user.userId, user.name, {
         title,
@@ -81,8 +68,6 @@ export class LetterController {
         recipientAddresses,
       });
 
-      console.log("✅ Letter created successfully:", result);
-
       res.status(201).json({
         success: true,
         message: "편지가 성공적으로 생성되었습니다.",
@@ -90,12 +75,9 @@ export class LetterController {
         meta: { timestamp: new Date().toISOString() },
       });
     } catch (error: unknown) {
-      console.error("❌ 편지 생성 에러:", error);
+      console.error("편지 생성 에러:", error);
 
       if (error instanceof Error) {
-        console.error("Error message:", error.message);
-        console.error("Error stack:", error.stack);
-
         // 특정 에러 메시지에 따른 상태 코드 설정
         if (error.message.includes("한도")) {
           res.status(429).json({
@@ -120,7 +102,6 @@ export class LetterController {
           });
         }
       } else {
-        console.error("Unknown error type:", typeof error);
         res.status(500).json({
           success: false,
           message: "편지 생성에 실패했습니다.",

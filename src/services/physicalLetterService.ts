@@ -184,11 +184,8 @@ class PhysicalLetterService {
 
     const total = countResult[0]?.total || 0;
 
-    console.log(`📊 [DEBUG] Found ${letters.length} physical requests (total: ${total})`);
-
     // 기존 구조와의 호환성을 위해 기존 필드도 확인
     if (letters.length === 0) {
-      console.log(`🔍 [DEBUG] No requests found in new structure, checking legacy structure...`);
 
       // 기존 구조 조회 (하위 호환성)
       const legacyFilter: any = { physicalRequested: true };
@@ -205,8 +202,6 @@ class PhysicalLetterService {
           .lean(),
         Letter.countDocuments(legacyFilter),
       ]);
-
-      console.log(`📊 [DEBUG] Found ${legacyLetters.length} legacy physical requests`);
 
       return {
         data: legacyLetters,
@@ -275,8 +270,6 @@ class PhysicalLetterService {
 
       await letter.save();
 
-      console.log(`✅ [DEBUG] Updated recipientAddresses status to ${status} for letter ${letterId}`);
-
       return {
         letterId: letter._id.toString(),
         status: status,
@@ -294,8 +287,6 @@ class PhysicalLetterService {
         },
         { new: true }
       );
-
-      console.log(`✅ [DEBUG] Updated legacy physicalStatus to ${status} for letter ${letterId}`);
 
       return {
         letterId: updatedLetter!._id.toString(),
@@ -405,16 +396,9 @@ class PhysicalLetterService {
 
   /**
    * 관리자 알림
-   * @param letter - 편지 정보
+   * @param _letter - 편지 정보
    */
-  private async notifyAdminNewRequest(letter: ILetter): Promise<void> {
-    console.log("🏠 새로운 실물 편지 신청");
-    console.log(`편지 ID: ${letter._id}`);
-    console.log(`제목: ${letter.title}`);
-    console.log(`받는 분: ${letter.shippingAddress?.name}`);
-    console.log(`연락처: ${letter.shippingAddress?.phone}`);
-    console.log(`주소: (${letter.shippingAddress?.zipCode}) ${letter.shippingAddress?.address1} ${letter.shippingAddress?.address2}`);
-
+  private async notifyAdminNewRequest(_letter: ILetter): Promise<void> {
     // TODO: 실제 알림 시스템 구현
     // - 이메일 발송
     // - 슬랙 메시지

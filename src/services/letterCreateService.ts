@@ -135,22 +135,8 @@ class LetterCreateService {
     };
 
     try {
-      console.log(`🔍 [DEBUG] Checking physical requests for letterId: ${letterId}`);
-
       // Letter의 recipientAddresses에서 실물 편지 신청 정보 조회
       const physicalRequests = letter.recipientAddresses.filter((addr: any) => addr.isPhysicalRequested);
-
-      console.log(`📊 [DEBUG] Found ${physicalRequests?.length || 0} physical requests for letter ${letterId}`);
-      console.log(
-        `📋 [DEBUG] Physical requests data:`,
-        physicalRequests?.map((req: any) => ({
-          requestId: req.requestId,
-          name: req.name,
-          status: req.physicalStatus,
-          requestedAt: req.physicalRequestDate,
-          sessionId: req.sessionId,
-        }))
-      );
 
       if (physicalRequests && physicalRequests.length > 0) {
         physicalLetterInfo.physicalRequested = true;
@@ -164,13 +150,9 @@ class LetterCreateService {
         // 상태 결정 (승인된 것이 있으면 approved, 아니면 requested)
         const hasApproved = physicalRequests.some((req: any) => req.physicalStatus === "approved");
         physicalLetterInfo.physicalStatus = hasApproved ? "approved" : "requested";
-
-        console.log(`✅ [DEBUG] Final physical info for letter ${letterId}:`, physicalLetterInfo);
-      } else {
-        console.log(`❌ [DEBUG] No physical requests found for letter ${letterId}`);
       }
     } catch (error) {
-      console.error("❌ [DEBUG] 실물 편지 정보 조회 실패:", error);
+      console.error("실물 편지 정보 조회 실패:", error);
       // 에러가 발생해도 편지 조회는 계속 진행
     }
 
@@ -293,11 +275,8 @@ class LetterCreateService {
     plainContent: string;
     previewText: string;
   } {
-    console.log("🔍 Processing content:", { originalContent: content, length: content.length });
-
     // HTML 콘텐츠인지 확인
     const isHtml = isHtmlContent(content);
-    console.log("📝 Is HTML content:", isHtml);
 
     let processedContent: string;
     let contentType: "text" | "html";
@@ -306,21 +285,17 @@ class LetterCreateService {
     if (isHtml) {
       // HTML 콘텐츠 보안 처리
       processedContent = sanitizeHtmlContent(content);
-      console.log("🧹 Sanitized content:", { processedContent, length: processedContent.length });
       contentType = "html";
       plainContent = extractPlainText(processedContent);
-      console.log("📄 Plain text:", { plainContent, length: plainContent.length });
     } else {
       // 일반 텍스트를 HTML로 변환 (줄바꿈 처리)
       processedContent = textToHtml(content.trim());
-      console.log("🔄 Text to HTML:", { processedContent, length: processedContent.length });
       contentType = "html";
       plainContent = content.trim();
     }
 
     // 미리보기 텍스트 생성
     const previewText = generatePreviewText(processedContent);
-    console.log("👀 Preview text:", previewText);
 
     const result = {
       content: processedContent,
@@ -329,7 +304,6 @@ class LetterCreateService {
       previewText,
     };
 
-    console.log("✅ Final processed content:", result);
     return result;
   }
 

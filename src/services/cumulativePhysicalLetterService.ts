@@ -443,17 +443,10 @@ class CumulativePhysicalLetterService {
 
   /**
    * 관리자 알림
-   * @param letter - 편지 정보
-   * @param request - 요청 정보
+   * @param _letter - 편지 정보
+   * @param _request - 요청 정보
    */
-  private async notifyAdminNewRequest(letter: any, request: ICumulativePhysicalLetterRequest): Promise<void> {
-    console.log("📮 새로운 누적 실물 편지 신청");
-    console.log(`편지 ID: ${letter._id}`);
-    console.log(`편지 제목: ${letter.title || letter.ogTitle}`);
-    console.log(`수신자: ${request.recipientInfo.name}`);
-    console.log(`비용: ${request.cost.totalCost}원`);
-    console.log(`신청 시간: ${request.createdAt}`);
-
+  private async notifyAdminNewRequest(_letter: any, _request: ICumulativePhysicalLetterRequest): Promise<void> {
     // TODO: 실제 알림 시스템 구현
     // - 이메일 발송
     // - 슬랙 메시지

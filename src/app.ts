@@ -31,22 +31,16 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      console.log("🌐 CORS Origin 요청:", origin);
-
       // 개발 환경에서 origin이 없는 경우 (Postman, 모바일 앱 등) 허용
       if (!origin) {
-        console.log("✅ Origin 없음 - 허용 (Postman, 모바일 앱 등)");
         callback(null, true);
         return;
       }
 
       // 허용된 origin인지 확인
       if (allowedOrigins.includes(origin)) {
-        console.log("✅ 허용된 Origin:", origin);
         callback(null, true);
       } else {
-        console.log("❌ 차단된 Origin:", origin);
-        console.log("허용된 Origins:", allowedOrigins);
         callback(new Error(`CORS not allowed for origin: ${origin}`));
       }
     },
@@ -166,7 +160,6 @@ app.use(errorHandler);
 // Setup cron jobs
 if (process.env.NODE_ENV === "production") {
   setupDraftCleanupJob();
-  console.log("🕐 Cron jobs initialized for production environment");
 }
 
 export default app;

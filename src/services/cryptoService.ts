@@ -16,7 +16,6 @@ class CryptoService {
     // 기존 키가 있으면 로드
     if (fs.existsSync(this.keyFile)) {
       const key = fs.readFileSync(this.keyFile, "utf8");
-      console.log("✅ AES 키 로드 완료");
       return key;
     }
 
@@ -30,23 +29,17 @@ class CryptoService {
 
     // 키 파일 저장
     fs.writeFileSync(this.keyFile, key);
-    console.log("✅ AES 키 생성 완료");
     return key;
   }
 
   // 암호화 키 반환 (프론트엔드에서 사용)
   getEncryptionKey(): string {
-    console.log("📤 암호화 키 요청됨");
     return this.secretKey;
   }
 
   // 복호화 (백엔드에서 사용)
   decrypt(encryptedData: string): string {
     try {
-      console.log("🔐 복호화 시도:", {
-        dataLength: encryptedData.length,
-        dataPreview: encryptedData.substring(0, 50) + "...",
-      });
 
       // AES 복호화
       const bytes = CryptoJS.AES.decrypt(encryptedData, this.secretKey);
@@ -56,10 +49,9 @@ class CryptoService {
         throw new Error("복호화 결과가 비어있습니다");
       }
 
-      console.log("✅ 복호화 성공");
       return result;
     } catch (error) {
-      console.error("❌ 복호화 실패:", error);
+      console.error("복호화 실패:", error);
       throw new Error("복호화에 실패했습니다");
     }
   }

@@ -449,20 +449,10 @@ class MultiplePhysicalLetterService {
 
   /**
    * 관리자 알림
-   * @param letter - 편지 정보
-   * @param requests - 요청 목록
+   * @param _letter - 편지 정보
+   * @param _requests - 요청 목록
    */
-  private async notifyAdminMultipleRequests(letter: any, requests: IPhysicalLetterRequest[]): Promise<void> {
-    console.log("📮 새로운 다중 수신자 실물 편지 신청");
-    console.log(`편지 ID: ${letter._id}`);
-    console.log(`편지 제목: ${letter.title}`);
-    console.log(`수신자 수: ${requests.length}명`);
-    console.log(`총 비용: ${requests.reduce((sum, req) => sum + req.totalCost, 0)}원`);
-
-    requests.forEach((req, index) => {
-      console.log(`${index + 1}. ${req.recipientInfo.name} - (${req.recipientInfo.zipCode}) ${req.recipientInfo.address1}`);
-    });
-
+  private async notifyAdminMultipleRequests(_letter: any, _requests: IPhysicalLetterRequest[]): Promise<void> {
     // TODO: 실제 알림 시스템 구현
     // - 이메일 발송
     // - 슬랙 메시지

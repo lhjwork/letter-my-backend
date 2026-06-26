@@ -20,8 +20,6 @@ class DraftLetterController {
         return;
       }
 
-      console.log(`🔍 [DEBUG] Save draft request for authorId: ${authorId}`);
-      console.log(`📋 [DEBUG] Request data:`, { title, content: content?.substring(0, 100), type, category });
 
       const requestData: IDraftLetterData = {
         title,
@@ -41,7 +39,7 @@ class DraftLetterController {
         message,
       });
     } catch (error: any) {
-      console.error("❌ [DEBUG] 임시저장 실패:", error);
+      console.error("임시저장 실패:", error);
       res.status(400).json({
         success: false,
         error: error.message || "임시저장 중 오류가 발생했습니다.",
@@ -67,7 +65,6 @@ class DraftLetterController {
         return;
       }
 
-      console.log(`🔍 [DEBUG] Update draft request for draftId: ${draftId}, authorId: ${authorId}`);
 
       const requestData: IDraftLetterData = {
         title,
@@ -85,7 +82,7 @@ class DraftLetterController {
         message: "임시저장이 업데이트되었습니다.",
       });
     } catch (error: any) {
-      console.error("❌ [DEBUG] 임시저장 업데이트 실패:", error);
+      console.error("임시저장 업데이트 실패:", error);
       res.status(400).json({
         success: false,
         error: error.message || "임시저장 업데이트 중 오류가 발생했습니다.",
@@ -114,8 +111,6 @@ class DraftLetterController {
       const sort = (req.query.sort as string) || "latest";
       const type = (req.query.type as string) || "all";
 
-      console.log(`🔍 [DEBUG] Get drafts request for authorId: ${authorId}`);
-      console.log(`📋 [DEBUG] Query params:`, { page, limit, sort, type });
 
       const result = await draftLetterService.getDrafts(authorId, page, limit, sort, type);
 
@@ -124,7 +119,7 @@ class DraftLetterController {
         data: result,
       });
     } catch (error: any) {
-      console.error("❌ [DEBUG] 임시저장 목록 조회 실패:", error);
+      console.error("임시저장 목록 조회 실패:", error);
       res.status(500).json({
         success: false,
         error: error.message || "임시저장 목록을 불러올 수 없습니다.",
@@ -149,7 +144,6 @@ class DraftLetterController {
         return;
       }
 
-      console.log(`🔍 [DEBUG] Get draft request for draftId: ${draftId}, authorId: ${authorId}`);
 
       const result = await draftLetterService.getDraft(draftId, authorId);
 
@@ -158,7 +152,7 @@ class DraftLetterController {
         data: result,
       });
     } catch (error: any) {
-      console.error("❌ [DEBUG] 임시저장 조회 실패:", error);
+      console.error("임시저장 조회 실패:", error);
 
       if (error.message.includes("찾을 수 없습니다")) {
         res.status(404).json({
@@ -191,7 +185,6 @@ class DraftLetterController {
         return;
       }
 
-      console.log(`🔍 [DEBUG] Delete draft request for draftId: ${draftId}, authorId: ${authorId}`);
 
       await draftLetterService.deleteDraft(draftId, authorId);
 
@@ -200,7 +193,7 @@ class DraftLetterController {
         message: "임시저장된 편지가 삭제되었습니다.",
       });
     } catch (error: any) {
-      console.error("❌ [DEBUG] 임시저장 삭제 실패:", error);
+      console.error("임시저장 삭제 실패:", error);
 
       if (error.message.includes("찾을 수 없습니다")) {
         res.status(404).json({
@@ -235,7 +228,6 @@ class DraftLetterController {
         return;
       }
 
-      console.log(`🔍 [DEBUG] Publish draft request for draftId: ${draftId}, authorId: ${authorId}`);
 
       const updateData = {
         title,
@@ -253,7 +245,7 @@ class DraftLetterController {
         message: "편지가 성공적으로 발행되었습니다.",
       });
     } catch (error: any) {
-      console.error("❌ [DEBUG] 편지 발행 실패:", error);
+      console.error("편지 발행 실패:", error);
 
       if (error.message.includes("찾을 수 없습니다")) {
         res.status(404).json({
@@ -290,7 +282,6 @@ class DraftLetterController {
         return;
       }
 
-      console.log(`🔍 [DEBUG] Get draft stats request for authorId: ${authorId}`);
 
       const result = await draftLetterService.getDraftStats(authorId);
 
@@ -299,7 +290,7 @@ class DraftLetterController {
         data: result,
       });
     } catch (error: any) {
-      console.error("❌ [DEBUG] 임시저장 통계 조회 실패:", error);
+      console.error("임시저장 통계 조회 실패:", error);
       res.status(500).json({
         success: false,
         error: error.message || "임시저장 통계를 불러올 수 없습니다.",
@@ -313,7 +304,6 @@ class DraftLetterController {
    */
   async cleanupOldDrafts(_req: Request, res: Response): Promise<void> {
     try {
-      console.log(`🧹 [DEBUG] Cleanup old drafts request`);
 
       const cleanedCount = await draftLetterService.cleanupOldDrafts();
 
@@ -325,7 +315,7 @@ class DraftLetterController {
         message: `${cleanedCount}개의 오래된 임시저장이 정리되었습니다.`,
       });
     } catch (error: any) {
-      console.error("❌ [DEBUG] 임시저장 정리 실패:", error);
+      console.error("임시저장 정리 실패:", error);
       res.status(500).json({
         success: false,
         error: error.message || "임시저장 정리 중 오류가 발생했습니다.",

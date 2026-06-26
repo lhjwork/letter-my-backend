@@ -20,7 +20,6 @@ const transporter = nodemailer.createTransport({
 export async function sendEmailNotification(receiverEmail: string, letter: ILetter): Promise<void> {
   // 이메일 알림이 비활성화된 경우 스킵
   if (process.env.ENABLE_EMAIL_NOTIFICATIONS !== "true") {
-    console.log("이메일 알림이 비활성화되어 있습니다.");
     return;
   }
 
@@ -36,7 +35,6 @@ export async function sendEmailNotification(receiverEmail: string, letter: ILett
     };
 
     await transporter.sendMail(mailOptions);
-    console.log(`이메일 알림 전송 완료: ${receiverEmail}`);
   } catch (error) {
     console.error("이메일 전송 실패:", error);
     throw error;
@@ -106,7 +104,6 @@ function generateEmailTemplate(letter: ILetter, letterUrl: string): string {
 export async function testEmailConnection(): Promise<boolean> {
   try {
     await transporter.verify();
-    console.log("이메일 서버 연결 성공");
     return true;
   } catch (error) {
     console.error("이메일 서버 연결 실패:", error);

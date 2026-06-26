@@ -11,9 +11,6 @@ class RecipientLetterController {
       const { letterId } = req.params;
       const requestData: IPhysicalRequestData = req.body;
 
-      console.log(`🔍 [DEBUG] Physical letter request for letterId: ${letterId}`);
-      console.log(`📋 [DEBUG] Request data:`, requestData);
-
       // 세션 ID 생성 또는 가져오기
       let sessionId = (req.session as any)?.id;
       if (!sessionId) {
@@ -22,8 +19,6 @@ class RecipientLetterController {
           (req.session as any).id = sessionId;
         }
       }
-
-      console.log(`🔑 [DEBUG] Session ID: ${sessionId}`);
 
       // 요청자 정보 수집
       const userAgent = req.get("User-Agent") || "";
@@ -34,7 +29,6 @@ class RecipientLetterController {
 
       const result = await recipientLetterService.requestPhysicalLetter(letterId, sessionId, userAgent, ipAddress, requestData, userId);
 
-      console.log(`✅ [DEBUG] Physical letter request result:`, result);
 
       // 중복 신청인 경우 다른 메시지
       const message = result.isDuplicate
@@ -56,7 +50,7 @@ class RecipientLetterController {
         },
       });
     } catch (error: any) {
-      console.error("❌ [DEBUG] 실물 편지 신청 실패:", error);
+      console.error("실물 편지 신청 실패:", error);
       res.status(400).json({
         success: false,
         error: error.message || "실물 편지 신청에 실패했습니다.",
@@ -168,7 +162,6 @@ class RecipientLetterController {
     try {
       const { requestId } = req.params;
 
-      console.log(`🔍 [DEBUG] Getting request status by requestId: ${requestId}`);
 
       const result = await recipientLetterService.getRequestStatusByRequestId(requestId);
 
@@ -203,7 +196,6 @@ class RecipientLetterController {
     try {
       const { letterId, requestId } = req.params;
 
-      console.log(`🔍 [DEBUG] Getting physical request status - letterId: ${letterId}, requestId: ${requestId}`);
 
       const result = await recipientLetterService.getPhysicalRequestStatus(letterId, requestId);
 
@@ -245,8 +237,6 @@ class RecipientLetterController {
       const { letterId } = req.params;
       const userId = (req as any).user?.userId;
 
-      console.log(`🔍 [DEBUG] getSimplePhysicalStatus called`);
-      console.log(`📋 [DEBUG] letterId: ${letterId}, userId: ${userId}`);
 
       if (!userId) {
         res.status(401).json({
@@ -299,12 +289,7 @@ class RecipientLetterController {
       const { letterId } = req.params;
       const sessionId = (req.session as any)?.id;
 
-      console.log(`🔍 [DEBUG] getPhysicalStatusForUser called`);
-      console.log(`📋 [DEBUG] letterId: ${letterId}`);
-      console.log(`🔑 [DEBUG] sessionId from req.session: ${sessionId}`);
-
       if (!sessionId) {
-        console.log(`❌ [DEBUG] No sessionId found in request`);
         res.status(401).json({
           success: false,
           error: "로그인이 필요합니다.",

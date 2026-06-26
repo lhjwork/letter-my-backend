@@ -62,9 +62,6 @@ class DraftLetterService {
    * 임시저장 생성 또는 업데이트
    */
   async saveDraft(authorId: string, data: IDraftLetterData, draftId?: string): Promise<IDraftLetterResult> {
-    console.log(`🔍 [DEBUG] Saving draft for authorId: ${authorId}, draftId: ${draftId}`);
-    console.log(`📋 [DEBUG] Draft data:`, data);
-
     // ObjectId 유효성 검사
     if (!mongoose.Types.ObjectId.isValid(authorId)) {
       throw new Error("유효하지 않은 사용자 ID입니다.");
@@ -97,7 +94,6 @@ class DraftLetterService {
       existingDraft.saveCount += 1;
 
       draft = await existingDraft.save();
-      console.log(`✅ [DEBUG] Updated existing draft: ${draft._id}`);
     } else {
       // 새 임시저장 생성
       const newDraft = new DraftLetter({
@@ -110,7 +106,6 @@ class DraftLetterService {
       });
 
       draft = await newDraft.save();
-      console.log(`✅ [DEBUG] Created new draft: ${draft._id}`);
     }
 
     return {
@@ -131,8 +126,6 @@ class DraftLetterService {
    * 임시저장 목록 조회
    */
   async getDrafts(authorId: string, page: number = 1, limit: number = 10, sort: string = "latest", type: string = "all"): Promise<IDraftListResult> {
-    console.log(`🔍 [DEBUG] Getting drafts for authorId: ${authorId}`);
-
     // ObjectId 유효성 검사
     if (!mongoose.Types.ObjectId.isValid(authorId)) {
       throw new Error("유효하지 않은 사용자 ID입니다.");
@@ -181,8 +174,6 @@ class DraftLetterService {
       },
     ]);
 
-    console.log(`📊 [DEBUG] Found ${total} drafts for user ${authorId}`);
-
     return {
       drafts: processedDrafts,
       pagination: {
@@ -201,8 +192,6 @@ class DraftLetterService {
    * 임시저장 상세 조회
    */
   async getDraft(draftId: string, authorId: string): Promise<IDraftLetter> {
-    console.log(`🔍 [DEBUG] Getting draft: ${draftId} for authorId: ${authorId}`);
-
     // ObjectId 유효성 검사
     if (!mongoose.Types.ObjectId.isValid(draftId)) {
       throw new Error("유효하지 않은 임시저장 ID입니다.");
@@ -222,7 +211,6 @@ class DraftLetterService {
       throw new Error("임시저장된 편지를 찾을 수 없습니다.");
     }
 
-    console.log(`✅ [DEBUG] Found draft: ${draft.title || draft.autoTitle}`);
     return draft;
   }
 
@@ -230,8 +218,6 @@ class DraftLetterService {
    * 임시저장 삭제 (소프트 삭제)
    */
   async deleteDraft(draftId: string, authorId: string): Promise<void> {
-    console.log(`🔍 [DEBUG] Deleting draft: ${draftId} for authorId: ${authorId}`);
-
     // ObjectId 유효성 검사
     if (!mongoose.Types.ObjectId.isValid(draftId)) {
       throw new Error("유효하지 않은 임시저장 ID입니다.");
@@ -246,16 +232,12 @@ class DraftLetterService {
     if (!result) {
       throw new Error("임시저장된 편지를 찾을 수 없습니다.");
     }
-
-    console.log(`✅ [DEBUG] Deleted draft: ${draftId}`);
   }
 
   /**
    * 임시저장 → 정식 발행
    */
   async publishDraft(draftId: string, authorId: string, userName: string, updateData?: Partial<IDraftLetterData>): Promise<IPublishResult> {
-    console.log(`🔍 [DEBUG] Publishing draft: ${draftId} for authorId: ${authorId}`);
-
     // ObjectId 유효성 검사
     if (!mongoose.Types.ObjectId.isValid(draftId)) {
       throw new Error("유효하지 않은 임시저장 ID입니다.");
@@ -310,8 +292,6 @@ class DraftLetterService {
     draft.publishedLetterId = new mongoose.Types.ObjectId(publishedLetter._id);
     await draft.save();
 
-    console.log(`✅ [DEBUG] Published draft ${draftId} as letter ${publishedLetter._id}`);
-
     return {
       letterId: publishedLetter._id,
       url: publishedLetter.url,
@@ -323,8 +303,6 @@ class DraftLetterService {
    * 임시저장 통계 조회
    */
   async getDraftStats(authorId: string) {
-    console.log(`🔍 [DEBUG] Getting draft stats for authorId: ${authorId}`);
-
     // ObjectId 유효성 검사
     if (!mongoose.Types.ObjectId.isValid(authorId)) {
       throw new Error("유효하지 않은 사용자 ID입니다.");
@@ -372,8 +350,6 @@ class DraftLetterService {
       },
     ]);
 
-    console.log(`📊 [DEBUG] Draft stats for user ${authorId}:`, stats[0]);
-
     return {
       totalDrafts: stats[0]?.totalDrafts || 0,
       totalWords: stats[0]?.totalWords || 0,
@@ -386,8 +362,6 @@ class DraftLetterService {
    * 오래된 임시저장 정리 (30일 이상)
    */
   async cleanupOldDrafts(): Promise<number> {
-    console.log(`🧹 [DEBUG] Cleaning up old drafts`);
-
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -399,7 +373,6 @@ class DraftLetterService {
       { status: DraftStatus.DELETED }
     );
 
-    console.log(`✅ [DEBUG] Cleaned up ${result.modifiedCount} old drafts`);
     return result.modifiedCount;
   }
 }
