@@ -97,6 +97,24 @@ interface AdStatsQuery {
 }
 
 class AdService {
+  /**
+   * 일일 노출 한도 초과 여부 확인
+   */
+  private async isOverDailyLimit(ad: IAdvertisement): Promise<boolean> {
+    if (!ad.displayControl.maxDailyImpressions) return false;
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const dailyCount = await AdEvent.countDocuments({
+      adId: ad._id,
+      eventType: "impression",
+      timestamp: { $gte: todayStart },
+    });
+
+    return dailyCount >= ad.displayControl.maxDailyImpressions;
+  }
+
   // 슬러그로 광고 조회 (공개)
   async getAdBySlug(adSlug: string, placement?: string): Promise<IAdvertisement | null> {
     const ad = await Advertisement.findOne({
@@ -106,6 +124,11 @@ class AdService {
 
     // 노출 가능 여부 확인
     if (ad && !ad.isDisplayable(placement as any)) {
+      return null;
+    }
+
+    // 일일 노출 한도 확인
+    if (ad && await this.isOverDailyLimit(ad)) {
       return null;
     }
 
@@ -140,7 +163,11 @@ class AdService {
       .select("-createdBy -__v");
 
     // 노출 가능 여부 재확인 (시간대, 스케줄 등)
-    const displayableAds = ads.filter(ad => ad.isDisplayable(placement as any));
+    const syncFiltered = ads.filter(ad => ad.isDisplayable(placement as any));
+
+    // 일일 노출 한도 확인
+    const dailyChecks = await Promise.all(syncFiltered.map(ad => this.isOverDailyLimit(ad)));
+    const displayableAds = syncFiltered.filter((_, i) => !dailyChecks[i]);
 
     // 디버그 모드인 경우 상세 정보 반환
     if (debug) {

@@ -579,13 +579,15 @@ class RecipientLetterService {
   }
 
   /**
-   * 사용자 요청 여부 확인 (세션 기반 임시 로직)
-   * TODO: 향후 사용자 ID 기반으로 개선 필요
+   * 사용자 요청 여부 확인 (requesterId 기반)
    */
-  private isUserRequest(_request: any, _userId: string): boolean {
-    // 현재는 세션 기반이므로 임시로 모든 요청을 해당 사용자 것으로 간주
-    // 실제로는 사용자 ID나 다른 식별자로 매칭해야 함
-    return true;
+  private isUserRequest(request: any, userId: string): boolean {
+    if (!request.requesterId) return false;
+    if (request.requesterType === "authenticated") {
+      return request.requesterId === userId;
+    }
+    // 익명 사용자의 경우 sessionId로 매칭
+    return request.requesterId === userId;
   }
 
   /**

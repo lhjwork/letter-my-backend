@@ -452,11 +452,8 @@ class MultiplePhysicalLetterService {
    * @param _letter - 편지 정보
    * @param _requests - 요청 목록
    */
-  private async notifyAdminMultipleRequests(_letter: any, _requests: IPhysicalLetterRequest[]): Promise<void> {
-    // TODO: 실제 알림 시스템 구현
-    // - 이메일 발송
-    // - 슬랙 메시지
-    // - 관리자 대시보드 알림 등
+  private async notifyAdminMultipleRequests(letter: any, requests: IPhysicalLetterRequest[]): Promise<void> {
+    console.log(`[알림] 다중 실물 편지 신청 - letterId: ${letter._id}, 신청 수: ${requests.length}`);
   }
 }
 

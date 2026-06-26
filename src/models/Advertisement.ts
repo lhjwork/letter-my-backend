@@ -281,9 +281,9 @@ advertisementSchema.methods.isDisplayable = function (placement?: string): boole
   }
   
   // 4. 일일 노출 한도 확인
-  if (this.displayControl.maxDailyImpressions) {
-    // TODO: 일일 노출 수 체크 로직 (AdEvent 집계 필요)
-  }
+  // 주의: isDisplayable은 동기 메서드이므로 AdEvent DB 집계 불가
+  // 일일 노출 한도는 adService에서 비동기로 체크해야 함
+  // stats.impressions으로 총 노출만 확인 가능
   
   // 5. 총 노출 한도 확인
   if (this.displayControl.maxTotalImpressions) {

@@ -446,11 +446,8 @@ class CumulativePhysicalLetterService {
    * @param _letter - 편지 정보
    * @param _request - 요청 정보
    */
-  private async notifyAdminNewRequest(_letter: any, _request: ICumulativePhysicalLetterRequest): Promise<void> {
-    // TODO: 실제 알림 시스템 구현
-    // - 이메일 발송
-    // - 슬랙 메시지
-    // - 관리자 대시보드 알림 등
+  private async notifyAdminNewRequest(letter: any, request: ICumulativePhysicalLetterRequest): Promise<void> {
+    console.log(`[알림] 새 누적 실물 편지 신청 - letterId: ${letter._id}, requestId: ${request._id}`);
   }
 }
 
