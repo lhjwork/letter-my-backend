@@ -30,6 +30,26 @@ class AdminAuthService {
     return { admin, token };
   }
 
+  /**
+   * 비밀번호 정책 검증
+   * - 최소 8자 이상
+   * - 영문, 숫자, 특수문자 중 2종류 이상 포함
+   */
+  validatePassword(password: string): void {
+    if (password.length < 8) {
+      throw new Error("비밀번호는 8자 이상이어야 합니다");
+    }
+
+    let typeCount = 0;
+    if (/[a-zA-Z]/.test(password)) typeCount++;
+    if (/[0-9]/.test(password)) typeCount++;
+    if (/[^a-zA-Z0-9]/.test(password)) typeCount++;
+
+    if (typeCount < 2) {
+      throw new Error("비밀번호는 영문, 숫자, 특수문자 중 2종류 이상 포함해야 합니다");
+    }
+  }
+
   // 비밀번호 변경
   async changePassword(adminId: string, currentPassword: string, newPassword: string): Promise<void> {
     const admin = await Admin.findById(adminId);
@@ -43,6 +63,8 @@ class AdminAuthService {
     if (!isMatch) {
       throw new Error("현재 비밀번호가 올바르지 않습니다");
     }
+
+    this.validatePassword(newPassword);
 
     admin.password = newPassword;
     await admin.save();

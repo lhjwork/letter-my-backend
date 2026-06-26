@@ -81,8 +81,11 @@ class AdminAuthController {
         }
       }
 
-      if (decryptedNewPassword.length < 4) {
-        res.status(400).json({ success: false, message: "비밀번호는 4자 이상이어야 합니다", meta: { timestamp: new Date().toISOString() } });
+      try {
+        adminAuthService.validatePassword(decryptedNewPassword);
+      } catch (validationError: unknown) {
+        const msg = validationError instanceof Error ? validationError.message : "비밀번호 정책을 충족하지 않습니다";
+        res.status(400).json({ success: false, message: msg, meta: { timestamp: new Date().toISOString() } });
         return;
       }
 

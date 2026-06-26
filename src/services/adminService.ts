@@ -73,6 +73,10 @@ class AdminService {
       throw new Error("이미 존재하는 아이디입니다");
     }
 
+    // 비밀번호 정책 검증
+    const adminAuthService = (await import("./adminAuthService")).default;
+    adminAuthService.validatePassword(data.password);
+
     const admin = new Admin({
       ...data,
       role: data.role || AdminRole.MANAGER,
