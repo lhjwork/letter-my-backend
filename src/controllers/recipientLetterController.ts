@@ -26,7 +26,7 @@ class RecipientLetterController {
       const ipAddress = req.ip || req.connection.remoteAddress || "";
 
       // 로그인 사용자 ID (있으면)
-      const userId = (req as any).user?.userId;
+      const userId = req.user?.userId;
 
       const result = await recipientLetterService.requestPhysicalLetter(letterId, sessionId, userAgent, ipAddress, requestData, userId);
 
@@ -91,7 +91,7 @@ class RecipientLetterController {
   async getAuthorRecipients(req: Request, res: Response): Promise<void> {
     try {
       const { letterId } = req.params;
-      const authorId = (req as any).user?.userId;
+      const authorId = req.user?.userId;
 
       if (!authorId) {
         res.status(401).json({
@@ -133,7 +133,7 @@ class RecipientLetterController {
     try {
       const { letterId, requestId } = req.params;
       const { action, rejectionReason } = req.body;
-      const authorId = (req as any).user?.userId;
+      const authorId = req.user?.userId;
 
       if (!authorId) {
         res.status(401).json({
@@ -242,7 +242,7 @@ class RecipientLetterController {
   async getSimplePhysicalStatus(req: Request, res: Response): Promise<void> {
     try {
       const { letterId } = req.params;
-      const userId = (req as any).user?.userId;
+      const userId = req.user?.userId;
 
 
       if (!userId) {

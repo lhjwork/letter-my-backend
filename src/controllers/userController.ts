@@ -3,17 +3,7 @@ import userService from "../services/userService";
 import { OAuthProvider } from "../models/User";
 import { sendSuccess, sendBadRequest, sendUnauthorized, sendNotFound, getErrorMessage } from "../utils/response";
 
-// Request에 user 정보 추가를 위한 타입 확장
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        userId: string;
-        email: string;
-      };
-    }
-  }
-}
+// Express Request 타입 확장은 src/types/express.d.ts에서 관리
 
 // User Controller 클래스
 export class UserController {

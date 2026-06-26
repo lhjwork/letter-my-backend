@@ -51,7 +51,7 @@ class AuthorApprovalPhysicalLetterController {
     try {
       const { letterId } = req.params;
       const { status, page = "1", limit = "20" } = req.query;
-      const authorId = (req as any).user?.userId;
+      const authorId = req.user?.userId;
 
       if (!authorId) {
         res.status(401).json({
@@ -89,7 +89,7 @@ class AuthorApprovalPhysicalLetterController {
     try {
       const { letterId, requestId } = req.params;
       const approvalData: IApprovalData = req.body;
-      const authorId = (req as any).user?.userId;
+      const authorId = req.user?.userId;
 
       if (!authorId) {
         res.status(401).json({
@@ -149,7 +149,7 @@ class AuthorApprovalPhysicalLetterController {
     try {
       const { letterId } = req.params;
       const { authorSettings } = req.body;
-      const authorId = (req as any).user?.userId;
+      const authorId = req.user?.userId;
 
       if (!authorId) {
         res.status(401).json({

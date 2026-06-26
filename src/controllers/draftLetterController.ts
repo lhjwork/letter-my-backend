@@ -11,7 +11,7 @@ class DraftLetterController {
   async saveDraft(req: Request, res: Response): Promise<void> {
     try {
       const { title, content, type, category, recipientAddresses, draftId } = req.body;
-      const authorId = (req as any).user?.userId;
+      const authorId = req.user?.userId;
 
       if (!authorId) {
         res.status(401).json({
@@ -57,7 +57,7 @@ class DraftLetterController {
     try {
       const { draftId } = req.params;
       const { title, content, type, category, recipientAddresses } = req.body;
-      const authorId = (req as any).user?.userId;
+      const authorId = req.user?.userId;
 
       if (!authorId) {
         res.status(401).json({
@@ -99,7 +99,7 @@ class DraftLetterController {
    */
   async getDrafts(req: Request, res: Response): Promise<void> {
     try {
-      const authorId = (req as any).user?.userId;
+      const authorId = req.user?.userId;
 
       if (!authorId) {
         res.status(401).json({
@@ -138,7 +138,7 @@ class DraftLetterController {
   async getDraft(req: Request, res: Response): Promise<void> {
     try {
       const { draftId } = req.params;
-      const authorId = (req as any).user?.userId;
+      const authorId = req.user?.userId;
 
       if (!authorId) {
         res.status(401).json({
@@ -180,7 +180,7 @@ class DraftLetterController {
   async deleteDraft(req: Request, res: Response): Promise<void> {
     try {
       const { draftId } = req.params;
-      const authorId = (req as any).user?.userId;
+      const authorId = req.user?.userId;
 
       if (!authorId) {
         res.status(401).json({
@@ -223,8 +223,8 @@ class DraftLetterController {
     try {
       const { draftId } = req.params;
       const { title, content, type, category, recipientAddresses } = req.body;
-      const authorId = (req as any).user?.userId;
-      const userName = (req as any).user?.name || "익명";
+      const authorId = req.user?.userId;
+      const userName = req.user?.name || "익명";
 
       if (!authorId) {
         res.status(401).json({
@@ -279,7 +279,7 @@ class DraftLetterController {
    */
   async getDraftStats(req: Request, res: Response): Promise<void> {
     try {
-      const authorId = (req as any).user?.userId;
+      const authorId = req.user?.userId;
 
       if (!authorId) {
         res.status(401).json({

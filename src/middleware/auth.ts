@@ -48,8 +48,8 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     };
 
     next();
-  } catch (error: any) {
-    if (error.name === "JsonWebTokenError") {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === "JsonWebTokenError") {
       res.status(401).json({
         success: false,
         message: "Invalid token",
@@ -57,7 +57,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    if (error.name === "TokenExpiredError") {
+    if (error instanceof Error && error.name === "TokenExpiredError") {
       res.status(401).json({
         success: false,
         message: "Token expired",
