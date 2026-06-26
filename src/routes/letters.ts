@@ -7,6 +7,7 @@ import { updateLetterValidation, letterIdValidation } from "../middleware/letter
 import { contentSizeLimit, validateHtmlContent } from "../middleware/contentValidation";
 import { body } from "express-validator";
 import { validate } from "../middleware/validation";
+import { letterCreateLimiter } from "../middleware/rateLimiter";
 
 const router: Router = Router();
 
@@ -65,7 +66,7 @@ const createLetterNewValidation = [
  * @desc    편지 생성 (새로운 URL 공유 방식)
  * @access  Private
  */
-router.post("/create", authenticate, contentSizeLimit(50000), validateHtmlContent, createLetterNewValidation, letterController.createLetterNew);
+router.post("/create", authenticate, letterCreateLimiter, contentSizeLimit(50000), validateHtmlContent, createLetterNewValidation, letterController.createLetterNew);
 
 /**
  * @route   POST /api/letters/test-create
@@ -101,7 +102,7 @@ router.get("/stats", authenticate, letterController.getLetterStats);
  * @desc    사연 등록
  * @access  Public
  */
-router.post("/story", contentSizeLimit(50000), validateHtmlContent, createStoryValidation, letterController.createStory);
+router.post("/story", letterCreateLimiter, contentSizeLimit(50000), validateHtmlContent, createStoryValidation, letterController.createStory);
 
 /**
  * @route   GET /api/letters/stories/featured
@@ -130,7 +131,7 @@ router.get("/categories/stats", letterController.getCategoryStats);
  * @desc    편지 생성 (기존 방식 - 하위 호환성)
  * @access  Private
  */
-router.post("/", authenticate, contentSizeLimit(50000), validateHtmlContent, createLetterNewValidation, letterController.createLetterNew);
+router.post("/", authenticate, letterCreateLimiter, contentSizeLimit(50000), validateHtmlContent, createLetterNewValidation, letterController.createLetterNew);
 
 /**
  * @route   GET /api/letters/my/stories

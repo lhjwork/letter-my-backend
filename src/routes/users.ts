@@ -3,6 +3,7 @@ import userController from "../controllers/userController";
 import likeController from "../controllers/likeController";
 import { authenticate } from "../middleware/auth";
 import { oauthLoginValidation, updateUserValidation, linkOAuthValidation, unlinkOAuthValidation, mongoIdValidation } from "../middleware/validation";
+import { authLimiter } from "../middleware/rateLimiter";
 
 const router: IRouter = Router();
 
@@ -12,7 +13,7 @@ const router: IRouter = Router();
  * @desc    OAuth 로그인/회원가입 (Instagram, Naver, Kakao)
  * @access  Public
  */
-router.post("/oauth/login", oauthLoginValidation, userController.oauthLogin);
+router.post("/oauth/login", authLimiter, oauthLoginValidation, userController.oauthLogin);
 
 // 보호된 라우트 (인증 필요)
 /**
