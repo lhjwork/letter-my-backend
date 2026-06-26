@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import authorApprovalPhysicalLetterService, { IPhysicalRequestData, IApprovalData } from "../services/authorApprovalPhysicalLetterService";
+import { getErrorMessage } from "../utils/response";
 
 class AuthorApprovalPhysicalLetterController {
   /**
@@ -32,11 +33,12 @@ class AuthorApprovalPhysicalLetterController {
         message: result.needsApproval ? "실물 편지 신청이 완료되었습니다. 편지 작성자의 승인을 기다려주세요." : "실물 편지 신청이 자동 승인되었습니다.",
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("실물 편지 신청 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "실물 편지 신청에 실패했습니다.",
+        error: message || "실물 편지 신청에 실패했습니다.",
       });
     }
   }
@@ -69,11 +71,12 @@ class AuthorApprovalPhysicalLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("작성자 신청 목록 조회 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "신청 목록 조회에 실패했습니다.",
+        error: message || "신청 목록 조회에 실패했습니다.",
       });
     }
   }
@@ -103,11 +106,12 @@ class AuthorApprovalPhysicalLetterController {
         message: approvalData.action === "approve" ? "신청이 승인되었습니다." : "신청이 거절되었습니다.",
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("신청 승인/거절 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "신청 처리에 실패했습니다.",
+        error: message || "신청 처리에 실패했습니다.",
       });
     }
   }
@@ -127,11 +131,12 @@ class AuthorApprovalPhysicalLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("공개 신청 현황 조회 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "신청 현황 조회에 실패했습니다.",
+        error: message || "신청 현황 조회에 실패했습니다.",
       });
     }
   }
@@ -161,11 +166,12 @@ class AuthorApprovalPhysicalLetterController {
         message: "설정이 업데이트되었습니다.",
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("편지 설정 업데이트 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "설정 업데이트에 실패했습니다.",
+        error: message || "설정 업데이트에 실패했습니다.",
       });
     }
   }
@@ -198,11 +204,12 @@ class AuthorApprovalPhysicalLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("요청 제한 체크 실패:", error);
+      const message = getErrorMessage(error);
       res.status(500).json({
         success: false,
-        error: error.message || "요청 제한 체크에 실패했습니다.",
+        error: message || "요청 제한 체크에 실패했습니다.",
       });
     }
   }
@@ -231,18 +238,19 @@ class AuthorApprovalPhysicalLetterController {
         success: true,
         data: request,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("개별 신청 상태 조회 실패:", error);
 
-      if (error.message === "접근 권한이 없습니다.") {
+      const message = getErrorMessage(error);
+      if (message === "접근 권한이 없습니다.") {
         res.status(403).json({
           success: false,
-          error: error.message,
+          error: message,
         });
       } else {
         res.status(400).json({
           success: false,
-          error: error.message || "신청 상태 조회에 실패했습니다.",
+          error: message || "신청 상태 조회에 실패했습니다.",
         });
       }
     }

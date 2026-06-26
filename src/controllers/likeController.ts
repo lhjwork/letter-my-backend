@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import likeService from "../services/likeService";
-import { sendSuccess, sendCreated, sendUnauthorized, sendNotFound, sendBadRequest, sendServerError } from "../utils/response";
+import { sendSuccess, sendCreated, sendUnauthorized, sendNotFound, sendBadRequest, sendServerError, getErrorMessage } from "../utils/response";
 
 class LikeController {
   // 좋아요 추가
@@ -17,12 +17,13 @@ class LikeController {
       const result = await likeService.addLike(userId, letterId);
 
       sendCreated(res, { isLiked: true, likeCount: result.likeCount }, "좋아요를 눌렀습니다");
-    } catch (error: any) {
-      if (error.message === "Letter not found") {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      if (message === "Letter not found") {
         sendNotFound(res, "편지를 찾을 수 없습니다");
         return;
       }
-      if (error.message === "Already liked") {
+      if (message === "Already liked") {
         sendBadRequest(res, "이미 좋아요를 눌렀습니다");
         return;
       }
@@ -44,8 +45,9 @@ class LikeController {
       const result = await likeService.removeLike(userId, letterId);
 
       sendSuccess(res, { isLiked: false, likeCount: result.likeCount }, "좋아요를 취소했습니다");
-    } catch (error: any) {
-      if (error.message === "Like not found") {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      if (message === "Like not found") {
         sendNotFound(res, "좋아요 기록을 찾을 수 없습니다");
         return;
       }

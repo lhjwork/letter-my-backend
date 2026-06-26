@@ -118,3 +118,12 @@ export function sendNotFound(res: Response, message: string = "Not found"): Resp
 export function sendServerError(res: Response, message: string = "Internal server error"): Response {
   return sendError(res, message, 500, "INTERNAL_ERROR");
 }
+
+/**
+ * unknown 타입 에러에서 안전하게 메시지 추출
+ */
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return "알 수 없는 오류가 발생했습니다.";
+}

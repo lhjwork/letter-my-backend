@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import testService from "../services/testService";
+import { getErrorMessage } from "../utils/response";
 
 // Test Controller 클래스
 export class TestController {
@@ -116,9 +117,10 @@ export class TestController {
         data: test,
         message: "Test created successfully",
       });
-    } catch (error: any) {
-      if (error.message === "You already have a test with this title") {
-        res.status(409).json({ message: error.message });
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      if (message === "You already have a test with this title") {
+        res.status(409).json({ message });
         return;
       }
       next(error);
@@ -166,9 +168,10 @@ export class TestController {
         data: test,
         message: "Test status changed successfully",
       });
-    } catch (error: any) {
-      if (error.message === "Test not found" || error.message?.includes("Cannot change")) {
-        res.status(400).json({ message: error.message });
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      if (message === "Test not found" || message.includes("Cannot change")) {
+        res.status(400).json({ message });
         return;
       }
       next(error);

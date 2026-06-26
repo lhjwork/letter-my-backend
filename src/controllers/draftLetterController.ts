@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import draftLetterService, { IDraftLetterData } from "../services/draftLetterService";
+import { getErrorMessage } from "../utils/response";
 
 class DraftLetterController {
   /**
@@ -38,11 +39,12 @@ class DraftLetterController {
         data: result,
         message,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("임시저장 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "임시저장 중 오류가 발생했습니다.",
+        error: message || "임시저장 중 오류가 발생했습니다.",
       });
     }
   }
@@ -81,11 +83,12 @@ class DraftLetterController {
         data: result,
         message: "임시저장이 업데이트되었습니다.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("임시저장 업데이트 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "임시저장 업데이트 중 오류가 발생했습니다.",
+        error: message || "임시저장 업데이트 중 오류가 발생했습니다.",
       });
     }
   }
@@ -118,11 +121,12 @@ class DraftLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("임시저장 목록 조회 실패:", error);
+      const message = getErrorMessage(error);
       res.status(500).json({
         success: false,
-        error: error.message || "임시저장 목록을 불러올 수 없습니다.",
+        error: message || "임시저장 목록을 불러올 수 없습니다.",
       });
     }
   }
@@ -151,18 +155,19 @@ class DraftLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("임시저장 조회 실패:", error);
 
-      if (error.message.includes("찾을 수 없습니다")) {
+      const message = getErrorMessage(error);
+      if (message.includes("찾을 수 없습니다")) {
         res.status(404).json({
           success: false,
-          error: error.message,
+          error: message,
         });
       } else {
         res.status(400).json({
           success: false,
-          error: error.message || "임시저장된 편지를 불러올 수 없습니다.",
+          error: message || "임시저장된 편지를 불러올 수 없습니다.",
         });
       }
     }
@@ -192,18 +197,19 @@ class DraftLetterController {
         success: true,
         message: "임시저장된 편지가 삭제되었습니다.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("임시저장 삭제 실패:", error);
 
-      if (error.message.includes("찾을 수 없습니다")) {
+      const message = getErrorMessage(error);
+      if (message.includes("찾을 수 없습니다")) {
         res.status(404).json({
           success: false,
-          error: error.message,
+          error: message,
         });
       } else {
         res.status(400).json({
           success: false,
-          error: error.message || "임시저장 삭제 중 오류가 발생했습니다.",
+          error: message || "임시저장 삭제 중 오류가 발생했습니다.",
         });
       }
     }
@@ -244,23 +250,24 @@ class DraftLetterController {
         data: result,
         message: "편지가 성공적으로 발행되었습니다.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("편지 발행 실패:", error);
 
-      if (error.message.includes("찾을 수 없습니다")) {
+      const message = getErrorMessage(error);
+      if (message.includes("찾을 수 없습니다")) {
         res.status(404).json({
           success: false,
-          error: error.message,
+          error: message,
         });
-      } else if (error.message.includes("필수입니다")) {
+      } else if (message.includes("필수입니다")) {
         res.status(400).json({
           success: false,
-          error: error.message,
+          error: message,
         });
       } else {
         res.status(500).json({
           success: false,
-          error: error.message || "편지 발행 중 오류가 발생했습니다.",
+          error: message || "편지 발행 중 오류가 발생했습니다.",
         });
       }
     }
@@ -289,11 +296,12 @@ class DraftLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("임시저장 통계 조회 실패:", error);
+      const message = getErrorMessage(error);
       res.status(500).json({
         success: false,
-        error: error.message || "임시저장 통계를 불러올 수 없습니다.",
+        error: message || "임시저장 통계를 불러올 수 없습니다.",
       });
     }
   }
@@ -314,11 +322,12 @@ class DraftLetterController {
         },
         message: `${cleanedCount}개의 오래된 임시저장이 정리되었습니다.`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("임시저장 정리 실패:", error);
+      const message = getErrorMessage(error);
       res.status(500).json({
         success: false,
-        error: error.message || "임시저장 정리 중 오류가 발생했습니다.",
+        error: message || "임시저장 정리 중 오류가 발생했습니다.",
       });
     }
   }

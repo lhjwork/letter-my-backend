@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import multiplePhysicalLetterService, { MultipleRecipientRequest } from "../services/multiplePhysicalLetterService";
 import { PhysicalRequestStatus } from "../models/PhysicalLetterRequest";
+import { getErrorMessage } from "../utils/response";
 
 class MultiplePhysicalLetterController {
   /**
@@ -28,11 +29,12 @@ class MultiplePhysicalLetterController {
         message: "다중 수신자 실물 편지 신청이 완료되었습니다.",
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("다중 수신자 실물 편지 신청 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "다중 수신자 실물 편지 신청에 실패했습니다.",
+        error: message || "다중 수신자 실물 편지 신청에 실패했습니다.",
       });
     }
   }
@@ -60,11 +62,12 @@ class MultiplePhysicalLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("실물 편지 요청 목록 조회 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "실물 편지 요청 목록 조회에 실패했습니다.",
+        error: message || "실물 편지 요청 목록 조회에 실패했습니다.",
       });
     }
   }
@@ -93,11 +96,12 @@ class MultiplePhysicalLetterController {
         message: "실물 편지 요청이 취소되었습니다.",
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("실물 편지 요청 취소 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "실물 편지 요청 취소에 실패했습니다.",
+        error: message || "실물 편지 요청 취소에 실패했습니다.",
       });
     }
   }
@@ -125,11 +129,12 @@ class MultiplePhysicalLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("관리자 실물 편지 요청 목록 조회 실패:", error);
+      const message = getErrorMessage(error);
       res.status(500).json({
         success: false,
-        error: error.message || "관리자 실물 편지 요청 목록 조회에 실패했습니다.",
+        error: message || "관리자 실물 편지 요청 목록 조회에 실패했습니다.",
       });
     }
   }
@@ -159,11 +164,12 @@ class MultiplePhysicalLetterController {
         message: "실물 편지 요청 상태가 업데이트되었습니다.",
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("실물 편지 요청 상태 업데이트 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "실물 편지 요청 상태 업데이트에 실패했습니다.",
+        error: message || "실물 편지 요청 상태 업데이트에 실패했습니다.",
       });
     }
   }
@@ -200,10 +206,11 @@ class MultiplePhysicalLetterController {
         try {
           const result = await multiplePhysicalLetterService.updatePhysicalLetterRequestStatus(requestId, updateData, adminId);
           results.push(result);
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const errorMessage = getErrorMessage(error);
           errors.push({
             requestId,
-            error: error.message,
+            error: errorMessage,
           });
         }
       }
@@ -219,11 +226,12 @@ class MultiplePhysicalLetterController {
           errorCount: errors.length,
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("실물 편지 요청 일괄 업데이트 실패:", error);
+      const message = getErrorMessage(error);
       res.status(500).json({
         success: false,
-        error: error.message || "실물 편지 요청 일괄 업데이트에 실패했습니다.",
+        error: message || "실물 편지 요청 일괄 업데이트에 실패했습니다.",
       });
     }
   }
@@ -266,11 +274,12 @@ class MultiplePhysicalLetterController {
         success: true,
         data: stats,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("실물 편지 요청 통계 조회 실패:", error);
+      const message = getErrorMessage(error);
       res.status(500).json({
         success: false,
-        error: error.message || "실물 편지 요청 통계 조회에 실패했습니다.",
+        error: message || "실물 편지 요청 통계 조회에 실패했습니다.",
       });
     }
   }

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { Session } from "express-session";
 import cumulativePhysicalLetterService, { CumulativeRequestData } from "../services/cumulativePhysicalLetterService";
 import { CumulativeRequestStatus } from "../models/CumulativePhysicalLetterRequest";
+import { getErrorMessage } from "../utils/response";
 
 // 세션 확장을 위한 인터페이스
 interface SessionRequest extends Request {
@@ -40,11 +41,12 @@ class CumulativePhysicalLetterController {
         message: "실물 편지 신청이 완료되었습니다.",
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("누적 실물 편지 신청 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "실물 편지 신청에 실패했습니다.",
+        error: message || "실물 편지 신청에 실패했습니다.",
       });
     }
   }
@@ -64,11 +66,12 @@ class CumulativePhysicalLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("편지별 신청 현황 조회 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "신청 현황 조회에 실패했습니다.",
+        error: message || "신청 현황 조회에 실패했습니다.",
       });
     }
   }
@@ -96,18 +99,19 @@ class CumulativePhysicalLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("개별 신청 상태 조회 실패:", error);
 
-      if (error.message === "접근 권한이 없습니다.") {
+      const message = getErrorMessage(error);
+      if (message === "접근 권한이 없습니다.") {
         res.status(403).json({
           success: false,
-          error: error.message,
+          error: message,
         });
       } else {
         res.status(400).json({
           success: false,
-          error: error.message || "신청 상태 조회에 실패했습니다.",
+          error: message || "신청 상태 조회에 실패했습니다.",
         });
       }
     }
@@ -136,11 +140,12 @@ class CumulativePhysicalLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("관리자 신청 목록 조회 실패:", error);
+      const message = getErrorMessage(error);
       res.status(500).json({
         success: false,
-        error: error.message || "관리자 신청 목록 조회에 실패했습니다.",
+        error: message || "관리자 신청 목록 조회에 실패했습니다.",
       });
     }
   }
@@ -177,11 +182,12 @@ class CumulativePhysicalLetterController {
         message: "신청 상태가 업데이트되었습니다.",
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("신청 상태 업데이트 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "신청 상태 업데이트에 실패했습니다.",
+        error: message || "신청 상태 업데이트에 실패했습니다.",
       });
     }
   }
@@ -200,11 +206,12 @@ class CumulativePhysicalLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("인기 편지 분석 실패:", error);
+      const message = getErrorMessage(error);
       res.status(500).json({
         success: false,
-        error: error.message || "인기 편지 분석에 실패했습니다.",
+        error: message || "인기 편지 분석에 실패했습니다.",
       });
     }
   }
@@ -247,11 +254,12 @@ class CumulativePhysicalLetterController {
         success: true,
         data: stats,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("통계 조회 실패:", error);
+      const message = getErrorMessage(error);
       res.status(500).json({
         success: false,
-        error: error.message || "통계 조회에 실패했습니다.",
+        error: message || "통계 조회에 실패했습니다.",
       });
     }
   }
@@ -291,11 +299,12 @@ class CumulativePhysicalLetterController {
           recentRequestCount,
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("요청 제한 체크 실패:", error);
+      const message = getErrorMessage(error);
       res.status(500).json({
         success: false,
-        error: error.message || "요청 제한 체크에 실패했습니다.",
+        error: message || "요청 제한 체크에 실패했습니다.",
       });
     }
   }

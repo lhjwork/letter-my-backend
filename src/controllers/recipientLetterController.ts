@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import recipientLetterService, { IPhysicalRequestData } from "../services/recipientLetterService";
+import { getErrorMessage } from "../utils/response";
 
 class RecipientLetterController {
   /**
@@ -49,11 +50,12 @@ class RecipientLetterController {
           },
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("실물 편지 신청 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "실물 편지 신청에 실패했습니다.",
+        error: message || "실물 편지 신청에 실패했습니다.",
       });
     }
   }
@@ -72,11 +74,12 @@ class RecipientLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("실물 편지 현황 조회 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "실물 편지 현황 조회에 실패했습니다.",
+        error: message || "실물 편지 현황 조회에 실패했습니다.",
       });
     }
   }
@@ -104,18 +107,19 @@ class RecipientLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("작성자 수신자 목록 조회 실패:", error);
 
-      if (error.message.includes("작성자만")) {
+      const message = getErrorMessage(error);
+      if (message.includes("작성자만")) {
         res.status(403).json({
           success: false,
-          error: error.message,
+          error: message,
         });
       } else {
         res.status(400).json({
           success: false,
-          error: error.message || "수신자 목록 조회에 실패했습니다.",
+          error: message || "수신자 목록 조회에 실패했습니다.",
         });
       }
     }
@@ -145,11 +149,12 @@ class RecipientLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("신청 승인/거절 실패:", error);
+      const message = getErrorMessage(error);
       res.status(400).json({
         success: false,
-        error: error.message || "신청 처리에 실패했습니다.",
+        error: message || "신청 처리에 실패했습니다.",
       });
     }
   }
@@ -169,10 +174,11 @@ class RecipientLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("개별 신청 상태 조회 실패:", error);
 
-      if (error.message === "REQUEST_NOT_FOUND") {
+      const message = getErrorMessage(error);
+      if (message === "REQUEST_NOT_FOUND") {
         res.status(404).json({
           success: false,
           error: "신청을 찾을 수 없습니다. 요청 ID를 확인해주세요.",
@@ -203,19 +209,20 @@ class RecipientLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("신청 상태 조회 실패:", error);
 
-      if (error.message.includes("유효하지 않은")) {
+      const message = getErrorMessage(error);
+      if (message.includes("유효하지 않은")) {
         res.status(400).json({
           success: false,
-          error: error.message,
+          error: message,
           code: "INVALID_REQUEST",
         });
-      } else if (error.message.includes("찾을 수 없습니다")) {
+      } else if (message.includes("찾을 수 없습니다")) {
         res.status(404).json({
           success: false,
-          error: error.message,
+          error: message,
           code: "NOT_FOUND",
         });
       } else {
@@ -259,10 +266,11 @@ class RecipientLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("간단한 실물 편지 상태 조회 실패:", error);
 
-      switch (error.message) {
+      const message = getErrorMessage(error);
+      switch (message) {
         case "LETTER_NOT_FOUND":
           res.status(404).json({
             success: false,
@@ -304,10 +312,11 @@ class RecipientLetterController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("사용자 실물 편지 상태 조회 실패:", error);
 
-      switch (error.message) {
+      const message = getErrorMessage(error);
+      switch (message) {
         case "NO_PHYSICAL_REQUESTS":
           res.status(403).json({
             success: false,

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import userService from "../services/userService";
 import { OAuthProvider } from "../models/User";
-import { sendSuccess, sendBadRequest, sendUnauthorized, sendNotFound } from "../utils/response";
+import { sendSuccess, sendBadRequest, sendUnauthorized, sendNotFound, getErrorMessage } from "../utils/response";
 
 // Request에 user 정보 추가를 위한 타입 확장
 declare global {
@@ -121,8 +121,9 @@ export class UserController {
       }
 
       sendSuccess(res, user, "사용자 정보가 수정되었습니다");
-    } catch (error: any) {
-      if (error.message === "Email already exists") {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      if (message === "Email already exists") {
         sendBadRequest(res, "이미 사용 중인 이메일입니다");
         return;
       }
@@ -175,9 +176,10 @@ export class UserController {
       });
 
       sendSuccess(res, user, "OAuth 계정이 연결되었습니다");
-    } catch (error: any) {
-      if (error.message === "User not found" || error.message?.includes("already linked")) {
-        sendBadRequest(res, error.message);
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      if (message === "User not found" || message.includes("already linked")) {
+        sendBadRequest(res, message);
         return;
       }
       next(error);
@@ -202,9 +204,10 @@ export class UserController {
       const user = await userService.unlinkOAuthAccount(req.user.userId, provider as OAuthProvider);
 
       sendSuccess(res, user, "OAuth 계정 연결이 해제되었습니다");
-    } catch (error: any) {
-      if (error.message === "User not found" || error.message?.includes("Cannot unlink")) {
-        sendBadRequest(res, error.message);
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      if (message === "User not found" || message.includes("Cannot unlink")) {
+        sendBadRequest(res, message);
         return;
       }
       next(error);
