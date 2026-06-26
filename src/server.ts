@@ -13,10 +13,15 @@ const startServer = async () => {
     await connectDatabase();
 
     // Start Express server
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`✅ Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
       console.log(`🚀 API available at http://localhost:${PORT}/`);
     });
+
+    // 요청 타임아웃 설정 (30초)
+    server.timeout = 30000;
+    server.keepAliveTimeout = 65000;
+    server.headersTimeout = 66000;
   } catch (error) {
     console.error("❌ Failed to start server:", error);
     process.exit(1);
