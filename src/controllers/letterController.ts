@@ -456,7 +456,9 @@ export class LetterController {
       }
 
       const page = parseInt(req.query.page as string) || 1;
-      const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+      const limit = Math.min(parseInt(req.query.limit as string) || 12, 100);
+      const search = req.query.search as string | undefined;
+      const category = req.query.category as string | undefined;
 
       // 파라미터 검증
       if (page < 1 || limit < 1) {
@@ -468,7 +470,7 @@ export class LetterController {
         return;
       }
 
-      const result = await letterService.findStoriesByUserId(req.user.userId, page, limit);
+      const result = await letterService.findStoriesByUserId(req.user.userId, page, limit, search, category);
       res.status(200).json({
         success: true,
         data: result.data,

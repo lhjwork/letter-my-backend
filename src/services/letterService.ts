@@ -66,7 +66,9 @@ export class LetterService {
   async findStoriesByUserId(
     userId: string,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
+    search?: string,
+    category?: string
   ): Promise<{
     data: ILetter[];
     pagination: {
@@ -81,10 +83,23 @@ export class LetterService {
     const skip = (page - 1) * limit;
 
     // story 타입만 조회
-    const query = {
+    const query: any = {
       userId,
       type: LetterType.STORY,
     };
+
+    // 카테고리 필터
+    if (category) {
+      query.category = category;
+    }
+
+    // 제목/내용 검색
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { content: { $regex: search, $options: "i" } },
+      ];
+    }
 
     const [stories, total] = await Promise.all([
       Letter.find(query)
