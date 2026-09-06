@@ -54,6 +54,7 @@ export interface ILetterSettings {
 export interface IUser extends Document {
   email: string;
   name: string;
+  realName?: string; // OAuth에서 받은 실명 (실물 편지 발송용, 공개 금지)
   image?: string;
   emailVerified?: Date;
   oauthAccounts: IOAuthAccount[];
@@ -171,6 +172,10 @@ const UserSchema = new Schema<IUser, IUserModel>(
       required: true,
       trim: true,
       index: true,
+    },
+    realName: {
+      type: String,
+      trim: true,
     },
     image: {
       type: String,

@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User, { IUser, OAuthProvider, IOAuthAccount } from "../models/User";
+import { generateUniqueNickname } from "../utils/nickname";
 
 // JWT Payload 인터페이스
 export interface JWTPayload {
@@ -82,6 +83,7 @@ export class UserService {
       };
 
       await user.addOAuthAccount(oauthAccount);
+      if (!user.realName && data.name) user.realName = data.name;
       user.lastLoginAt = new Date();
       return user.save();
     }
@@ -101,6 +103,7 @@ export class UserService {
         };
 
         await user.addOAuthAccount(oauthAccount);
+        if (!user.realName && data.name) user.realName = data.name;
         user.lastLoginAt = new Date();
         return user.save();
       }
@@ -109,10 +112,11 @@ export class UserService {
     // 이메일이 없는 경우 (Kakao 등) 임시 이메일 생성
     const email = data.email || `not-provided-${data.providerId}`;
 
-    // 새로운 사용자 생성
+    // 새로운 사용자 생성 (실명 노출 방지를 위해 익명 닉네임 자동 생성, 실명은 realName에 보관)
     const newUser = new User({
       email: email,
-      name: data.name,
+      name: await generateUniqueNickname(),
+      realName: data.name,
       image: data.image,
       emailVerified: new Date(), // OAuth로 가입한 경우 이메일 검증됨
       oauthAccounts: [
@@ -139,6 +143,18 @@ export class UserService {
       email?: string;
     }
   ): Promise<IUser | null> {
+    // 닉네임 변경 시 중복 체크
+    if (data.name) {
+      const existingName = await User.findOne({
+        name: data.name,
+        _id: { $ne: userId },
+      });
+
+      if (existingName) {
+        throw new Error("Name already exists");
+      }
+    }
+
     // 이메일 변경 시 중복 체크
     if (data.email) {
       const existingUser = await User.findOne({

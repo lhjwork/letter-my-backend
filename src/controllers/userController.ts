@@ -117,6 +117,10 @@ export class UserController {
         sendBadRequest(res, "이미 사용 중인 이메일입니다");
         return;
       }
+      if (message === "Name already exists") {
+        sendBadRequest(res, "이미 사용 중인 닉네임입니다");
+        return;
+      }
       next(error);
     }
   }
