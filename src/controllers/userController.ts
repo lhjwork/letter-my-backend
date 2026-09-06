@@ -68,7 +68,7 @@ export class UserController {
   // OAuth 로그인/회원가입
   async oauthLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { provider, providerId, email, name, image, accessToken, refreshToken, profile } = req.body;
+      const { provider, providerId, email, name, image, accessToken, refreshToken, profile, emailVerified } = req.body;
 
       if (!Object.values(OAuthProvider).includes(provider)) {
         sendBadRequest(res, "유효하지 않은 OAuth provider입니다. instagram, naver, kakao 중 하나여야 합니다");
@@ -84,6 +84,7 @@ export class UserController {
         accessToken,
         refreshToken,
         profile,
+        emailVerified: emailVerified === true,
       });
 
       const token = userService.generateToken(user);

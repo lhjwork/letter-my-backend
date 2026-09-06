@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import Letter, { IRecipientAddress } from "../models/Letter";
 import mongoose from "mongoose";
 
@@ -25,14 +26,14 @@ class RecipientLetterService {
    * 고유 ID 생성 (UUID 대신 간단한 방식 사용)
    */
   private generateUniqueId(): string {
-    return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
+    return crypto.randomBytes(16).toString("hex");
   }
 
   /**
    * 세션 ID 생성
    */
   generateSessionId(): string {
-    return Date.now().toString(36) + Math.random().toString(36).substring(2, 15);
+    return crypto.randomBytes(16).toString("hex");
   }
 
   /**
@@ -248,23 +249,10 @@ class RecipientLetterService {
       throw new Error("편지를 찾을 수 없습니다.");
     }
 
-    // 실물 편지 신청된 주소들만 필터링
-    const physicalRequests = letter.recipientAddresses.filter((addr: any) => addr.isPhysicalRequested);
+    // 공개 엔드포인트: 개인정보 없이 집계값만 반환
+    const totalRequests = letter.recipientAddresses.filter((addr: any) => addr.isPhysicalRequested).length;
 
-    return {
-      letterId,
-      totalRequests: physicalRequests.length,
-      requests: physicalRequests.map((req: any) => ({
-        requestId: req.requestId,
-        name: req.name,
-        phone: req.phone,
-        address: `(${req.zipCode}) ${req.address1} ${req.address2}`.trim(),
-        status: req.physicalStatus,
-        requestedAt: req.physicalRequestDate,
-        memo: req.memo,
-      })),
-      stats: letter.physicalLetterStats,
-    };
+    return { letterId, totalRequests, stats: letter.physicalLetterStats };
   }
 
   /**
@@ -397,11 +385,6 @@ class RecipientLetterService {
       letterAuthor: letter.authorName,
       status: request.physicalStatus,
       requestedAt: request.physicalRequestDate,
-      recipientInfo: {
-        name: request.name,
-        phone: request.phone,
-        address: `(${request.zipCode}) ${request.address1} ${request.address2}`.trim(),
-      },
       statusHistory: {
         requested: request.physicalRequestDate,
         approved:

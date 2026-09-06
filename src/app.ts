@@ -10,6 +10,9 @@ import routes from "./routes";
 import { errorHandler } from "./middleware/errorHandler";
 import { setupDraftCleanupJob } from "./jobs/cleanupDrafts";
 
+const sessionSecret = process.env.SESSION_SECRET || process.env.JWT_SECRET;
+if (!sessionSecret) throw new Error("SESSION_SECRET (or JWT_SECRET) env is required");
+
 const app: Application = express();
 
 // Security middleware
@@ -57,7 +60,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // Session configuration for author approval system
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "letter-author-approval-secret-key",
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: true,
     cookie: {

@@ -6,7 +6,7 @@ import { sanitizeHtmlContent, extractPlainText, generatePreviewText, isHtmlConte
 export class LetterService {
   // ID로 편지 조회
   async findById(letterId: string): Promise<ILetter | null> {
-    return Letter.findById(letterId);
+    return Letter.findById(letterId).select("-recipientAddresses -shippingAddress -savedBy");
   }
 
   // userId로 편지 목록 조회
@@ -129,7 +129,11 @@ export class LetterService {
   // 모든 편지 조회 (페이지네이션)
   async findAll(page: number = 1, limit: number = 10): Promise<{ letters: ILetter[]; total: number; page: number; totalPages: number }> {
     const skip = (page - 1) * limit;
-    const [letters, total] = await Promise.all([Letter.find().skip(skip).limit(limit).sort({ createdAt: -1 }), Letter.countDocuments()]);
+    const query = { type: LetterType.STORY, isPublic: true };
+    const [letters, total] = await Promise.all([
+      Letter.find(query).skip(skip).limit(limit).sort({ createdAt: -1 }).select("-recipientAddresses -shippingAddress -savedBy -__v").lean(),
+      Letter.countDocuments(query),
+    ]);
     return { letters, total, page, totalPages: Math.ceil(total / limit) };
   }
 

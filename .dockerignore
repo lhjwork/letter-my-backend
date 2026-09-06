@@ -1,3 +1,8 @@
 node_modules
 dist
 .git
+.env*
+.keys
+.github
+docs
+.bkit

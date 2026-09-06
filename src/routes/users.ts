@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import userController from "../controllers/userController";
 import likeController from "../controllers/likeController";
-import { authenticate } from "../middleware/auth";
+import { authenticate, internalOnly } from "../middleware/auth";
 import { oauthLoginValidation, updateUserValidation, linkOAuthValidation, unlinkOAuthValidation, mongoIdValidation } from "../middleware/validation";
 import { authLimiter } from "../middleware/rateLimiter";
 
@@ -11,9 +11,9 @@ const router: IRouter = Router();
 /**
  * @route   POST /api/users/oauth/login
  * @desc    OAuth 로그인/회원가입 (Instagram, Naver, Kakao)
- * @access  Public
+ * @access  Internal (Next.js 서버만, x-internal-secret 헤더 필요)
  */
-router.post("/oauth/login", authLimiter, oauthLoginValidation, userController.oauthLogin);
+router.post("/oauth/login", internalOnly, authLimiter, oauthLoginValidation, userController.oauthLogin);
 
 // 보호된 라우트 (인증 필요)
 /**

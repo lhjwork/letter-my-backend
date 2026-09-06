@@ -318,9 +318,9 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
           enum: ["none", "requested", "approved", "rejected", "writing", "sent", "delivered"],
           default: "none",
         },
-        sessionId: { type: String },
-        userAgent: { type: String },
-        ipAddress: { type: String },
+        sessionId: { type: String, select: false },
+        userAgent: { type: String, select: false },
+        ipAddress: { type: String, select: false },
         requestId: { type: String, unique: true, sparse: true }, // 고유 신청 ID
         // 신청자 정보
         requesterId: { type: String }, // userId 또는 sessionId

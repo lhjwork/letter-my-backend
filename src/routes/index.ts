@@ -4,7 +4,6 @@ import letterRoutes from "./letters";
 import draftRoutes from "./drafts";
 import ogRoutes from "./og";
 import testRoutes from "./tests";
-import devAuthRoutes from "./devAuth";
 import addressRoutes from "./addressRoutes";
 import adminRoutes from "./adminRoutes";
 import adRoutes from "./adRoutes";
@@ -31,9 +30,6 @@ router.use("/drafts", draftRoutes);
 
 // OG Image routes
 router.use("/og", ogRoutes);
-
-// Dev-only auth helper (token issuance for Postman/local testing)
-router.use("/dev", devAuthRoutes);
 
 // Test routes (MVC 패턴 예제)
 router.use("/tests", testRoutes);

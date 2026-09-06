@@ -2,6 +2,12 @@ import jwt from "jsonwebtoken";
 import User, { IUser, OAuthProvider, IOAuthAccount } from "../models/User";
 import { generateUniqueNickname } from "../utils/nickname";
 
+const jwtSecret = (): string => {
+  const s = process.env.JWT_SECRET;
+  if (!s) throw new Error("JWT_SECRET env is required");
+  return s;
+};
+
 // JWT Payload 인터페이스
 export interface JWTPayload {
   userId: string;
@@ -17,16 +23,14 @@ export class UserService {
       email: user.email,
     };
 
-    const secret = process.env.JWT_SECRET || "your-secret-key";
     const expiresIn = process.env.JWT_EXPIRES_IN || "7d";
 
-    return jwt.sign(payload, secret, { expiresIn } as jwt.SignOptions);
+    return jwt.sign(payload, jwtSecret(), { expiresIn, algorithm: "HS256" } as jwt.SignOptions);
   }
 
   // JWT 토큰 검증
   verifyToken(token: string): JWTPayload {
-    const secret = process.env.JWT_SECRET || "your-secret-key";
-    return jwt.verify(token, secret) as JWTPayload;
+    return jwt.verify(token, jwtSecret(), { algorithms: ["HS256"] }) as JWTPayload;
   }
 
   // ID로 사용자 조회
@@ -68,6 +72,7 @@ export class UserService {
     accessToken?: string;
     refreshToken?: string;
     profile?: any;
+    emailVerified?: boolean;
   }): Promise<IUser> {
     // OAuth Provider로 기존 사용자 찾기
     let user = await this.findByOAuthProvider(data.provider, data.providerId);
@@ -88,8 +93,8 @@ export class UserService {
       return user.save();
     }
 
-    // 이메일로 기존 사용자 찾기 (다른 OAuth로 가입한 경우)
-    if (data.email) {
+    // 이메일로 기존 사용자 찾기 (다른 OAuth로 가입한 경우) — provider가 이메일을 검증한 경우에만 자동 연결
+    if (data.email && data.emailVerified) {
       user = await this.findByEmail(data.email);
 
       if (user) {

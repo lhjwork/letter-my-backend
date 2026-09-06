@@ -1,6 +1,22 @@
 import { Request, Response, NextFunction } from "express";
 import userService from "../services/userService";
 
+// 서버 간(Next.js → backend) 전용 라우트 보호. nginx 에서도 외부 차단됨.
+export const internalOnly = (req: Request, res: Response, next: NextFunction): void => {
+  const expected = process.env.INTERNAL_API_SECRET;
+  if (!expected) {
+    // ponytail: env 미설정 시 임시 fail-open (기존과 동일 노출). 서버 env 추가 후 이 분기 삭제할 것 — docs/SECURITY_TODO.md C1
+    console.warn("[SECURITY] INTERNAL_API_SECRET 미설정: /oauth/login 이 외부에 열려 있습니다");
+    next();
+    return;
+  }
+  if (req.headers["x-internal-secret"] !== expected) {
+    res.status(404).json({ success: false, error: { message: "Route not found" } });
+    return;
+  }
+  next();
+};
+
 // JWT 인증 미들웨어
 export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -19,16 +35,6 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
     // 토큰 검증
     const decoded = userService.verifyToken(token);
-
-    // 개발 환경에서는 DB 조회 건너뛰기 (dev token 지원)
-    if (process.env.NODE_ENV !== "production" && decoded.userId === "test") {
-      req.user = {
-        userId: decoded.userId,
-        email: decoded.email,
-      };
-      next();
-      return;
-    }
 
     // 사용자 존재 확인
     const user = await userService.findById(decoded.userId);
