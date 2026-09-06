@@ -4,13 +4,8 @@ import userService from "../services/userService";
 // 서버 간(Next.js → backend) 전용 라우트 보호. nginx 에서도 외부 차단됨.
 export const internalOnly = (req: Request, res: Response, next: NextFunction): void => {
   const expected = process.env.INTERNAL_API_SECRET;
-  if (!expected) {
-    // ponytail: env 미설정 시 임시 fail-open (기존과 동일 노출). 서버 env 추가 후 이 분기 삭제할 것 — docs/SECURITY_TODO.md C1
-    console.warn("[SECURITY] INTERNAL_API_SECRET 미설정: /oauth/login 이 외부에 열려 있습니다");
-    next();
-    return;
-  }
-  if (req.headers["x-internal-secret"] !== expected) {
+  // fail-closed: env 미설정이거나 헤더 불일치면 외부에 라우트를 숨김
+  if (!expected || req.headers["x-internal-secret"] !== expected) {
     res.status(404).json({ success: false, error: { message: "Route not found" } });
     return;
   }
