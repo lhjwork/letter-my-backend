@@ -15,9 +15,6 @@ router.get("/displayable", adController.getDisplayableAds);
 // 캐러셀 전용 광고 목록 조회 (인증 불필요)
 router.get("/carousel", adController.getCarouselAds);
 
-// 광고 디버그 정보 조회 (인증 불필요)
-router.get("/debug/:adSlug", adController.getAdDebugInfo);
-
 // ===== 관리자 API =====
 
 // 광고 목록 조회

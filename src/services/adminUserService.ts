@@ -1,3 +1,4 @@
+import { safeSearch } from "../utils/search";
 import User from "../models/User";
 import Letter from "../models/Letter";
 import mongoose from "mongoose";
@@ -64,8 +65,8 @@ class AdminUserService {
     }
 
     // 검색 조건
-    if (search) {
-      matchQuery.$or = [{ name: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }];
+    if (safeSearch(search)) {
+      matchQuery.$or = [{ name: { $regex: safeSearch(search), $options: "i" } }, { email: { $regex: safeSearch(search), $options: "i" } }];
     }
 
     // 정렬 조건
@@ -148,8 +149,9 @@ class AdminUserService {
 
   // 사용자 검색 (letterCount와 lastActiveAt 추가)
   async searchUsers(searchTerm: string, limit: number = 10, status?: string) {
+    if (!safeSearch(searchTerm)) return [];
     const query: any = {
-      $or: [{ name: { $regex: searchTerm, $options: "i" } }, { email: { $regex: searchTerm, $options: "i" } }],
+      $or: [{ name: { $regex: safeSearch(searchTerm), $options: "i" } }, { email: { $regex: safeSearch(searchTerm), $options: "i" } }],
     };
 
     // 상태 필터 추가

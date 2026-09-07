@@ -7,7 +7,7 @@ import { updateLetterValidation, letterIdValidation } from "../middleware/letter
 import { contentSizeLimit, validateHtmlContent } from "../middleware/contentValidation";
 import { body } from "express-validator";
 import { validate } from "../middleware/validation";
-import { letterCreateLimiter } from "../middleware/rateLimiter";
+import { letterCreateLimiter, physicalRequestLimiter } from "../middleware/rateLimiter";
 
 const router: Router = Router();
 
@@ -67,23 +67,6 @@ const createLetterNewValidation = [
  * @access  Private
  */
 router.post("/create", authenticate, letterCreateLimiter, contentSizeLimit(50000), validateHtmlContent, createLetterNewValidation, letterController.createLetterNew);
-
-/**
- * @route   POST /api/letters/test-create
- * @desc    편지 생성 테스트 (디버깅용)
- * @access  Private
- */
-router.post("/test-create", authenticate, (req, res) => {
-  res.json({
-    success: true,
-    message: "테스트 엔드포인트 작동 중",
-    data: {
-      receivedBody: req.body,
-      user: req.user,
-      timestamp: new Date().toISOString(),
-    },
-  });
-});
 
 /**
  * @route   GET /api/letters/stats
@@ -231,7 +214,7 @@ router.get("/physical-requests/:requestId/status", recipientLetterController.get
  * @desc    실물 편지 신청 (로그인 없이 가능)
  * @access  Public
  */
-router.post("/:letterId/physical-request", physicalLetterRequestValidation, recipientLetterController.requestPhysicalLetter);
+router.post("/:letterId/physical-request", physicalRequestLimiter, physicalLetterRequestValidation, recipientLetterController.requestPhysicalLetter);
 
 /**
  * @route   GET /api/letters/:letterId/physical-request/:requestId

@@ -50,13 +50,6 @@ const publishDraftValidation = [
 router.get("/stats", draftLetterController.getDraftStats);
 
 /**
- * @route   POST /api/drafts/cleanup
- * @desc    오래된 임시저장 정리 (관리자용)
- * @access  Private
- */
-router.post("/cleanup", draftLetterController.cleanupOldDrafts);
-
-/**
  * @route   POST /api/drafts
  * @desc    임시저장 생성
  * @access  Private

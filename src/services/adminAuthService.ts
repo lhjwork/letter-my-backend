@@ -1,27 +1,40 @@
 import jwt from "jsonwebtoken";
 import Admin, { IAdmin, AdminStatus } from "../models/Admin";
 
+const MAX_FAILED = 5;
+const LOCK_MS = 15 * 60 * 1000;
+
 class AdminAuthService {
   // 로그인
   async login(username: string, password: string): Promise<{ admin: IAdmin; token: string }> {
+    const GENERIC = "아이디 또는 비밀번호가 올바르지 않습니다";
     const admin = await Admin.findByUsername(username);
 
-    if (!admin) {
-      throw new Error("아이디 또는 비밀번호가 올바르지 않습니다");
+    // 계정 존재/상태 여부를 메시지로 구분하지 않음 (계정 열거 방지)
+    if (!admin || admin.status !== AdminStatus.ACTIVE) {
+      throw new Error(GENERIC);
     }
 
-    if (admin.status !== AdminStatus.ACTIVE) {
-      throw new Error("비활성화된 계정입니다");
+    if (admin.lockedUntil && admin.lockedUntil > new Date()) {
+      throw new Error("로그인 시도가 너무 많습니다. 15분 후 다시 시도해주세요");
     }
 
     const isMatch = await admin.comparePassword(password);
 
     if (!isMatch) {
-      throw new Error("아이디 또는 비밀번호가 올바르지 않습니다");
+      admin.failedLoginAttempts = (admin.failedLoginAttempts || 0) + 1;
+      if (admin.failedLoginAttempts >= MAX_FAILED) {
+        admin.lockedUntil = new Date(Date.now() + LOCK_MS);
+        admin.failedLoginAttempts = 0;
+      }
+      await admin.save();
+      throw new Error(GENERIC);
     }
 
-    // 마지막 로그인 시간 업데이트
+    // 마지막 로그인 시간 업데이트 + 실패 카운터 초기화
     admin.lastLoginAt = new Date();
+    admin.failedLoginAttempts = 0;
+    admin.lockedUntil = undefined;
     await admin.save();
 
     // JWT 토큰 생성

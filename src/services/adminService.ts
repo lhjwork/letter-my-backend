@@ -1,3 +1,4 @@
+import { safeSearch } from "../utils/search";
 import Admin, { IAdmin, AdminRole, AdminStatus, Permission, ROLE_PERMISSIONS } from "../models/Admin";
 import User from "../models/User";
 import Letter from "../models/Letter";
@@ -48,8 +49,8 @@ class AdminService {
     const { page = 1, limit = 20, search, role, status, department } = params;
     const query: Record<string, unknown> = {};
 
-    if (search) {
-      query.$or = [{ username: { $regex: search, $options: "i" } }, { name: { $regex: search, $options: "i" } }];
+    if (safeSearch(search)) {
+      query.$or = [{ username: { $regex: safeSearch(search), $options: "i" } }, { name: { $regex: safeSearch(search), $options: "i" } }];
     }
     if (role) query.role = role;
     if (status) query.status = status;
@@ -173,8 +174,8 @@ class AdminService {
     const { page = 1, limit = 20, search, status, sort = "createdAt", order = "desc" } = params;
     const query: Record<string, unknown> = {};
 
-    if (search) {
-      query.$or = [{ email: { $regex: search, $options: "i" } }, { name: { $regex: search, $options: "i" } }];
+    if (safeSearch(search)) {
+      query.$or = [{ email: { $regex: safeSearch(search), $options: "i" } }, { name: { $regex: safeSearch(search), $options: "i" } }];
     }
     if (status) query.status = status;
 
@@ -242,8 +243,8 @@ class AdminService {
     const { page = 1, limit = 20, search, type, category, status, sort = "createdAt", order = "desc" } = params;
     const query: Record<string, unknown> = {};
 
-    if (search) {
-      query.$or = [{ title: { $regex: search, $options: "i" } }, { content: { $regex: search, $options: "i" } }, { authorName: { $regex: search, $options: "i" } }];
+    if (safeSearch(search)) {
+      query.$or = [{ title: { $regex: safeSearch(search), $options: "i" } }, { content: { $regex: safeSearch(search), $options: "i" } }, { authorName: { $regex: safeSearch(search), $options: "i" } }];
     }
     if (type) query.type = type;
     if (category) query.category = category;

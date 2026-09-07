@@ -1,3 +1,4 @@
+import { safeSearch } from "../utils/search";
 import Letter, { ILetter, OgImageType, LetterType, LetterCategory } from "../models/Letter";
 import mongoose from "mongoose";
 import { sanitizeHtmlContent, extractPlainText, generatePreviewText, isHtmlContent, textToHtml } from "../utils/htmlProcessor";
@@ -94,10 +95,10 @@ export class LetterService {
     }
 
     // 제목/내용 검색
-    if (search) {
+    if (safeSearch(search)) {
       query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { content: { $regex: search, $options: "i" } },
+        { title: { $regex: safeSearch(search), $options: "i" } },
+        { content: { $regex: safeSearch(search), $options: "i" } },
       ];
     }
 
@@ -228,11 +229,11 @@ export class LetterService {
     }
 
     // 검색 조건 - plainContent 필드 사용으로 HTML 태그 제외하고 검색
-    if (search) {
+    if (safeSearch(search)) {
       query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { plainContent: { $regex: search, $options: "i" } }, // HTML이 아닌 일반 텍스트에서 검색
-        { authorName: { $regex: search, $options: "i" } },
+        { title: { $regex: safeSearch(search), $options: "i" } },
+        { plainContent: { $regex: safeSearch(search), $options: "i" } }, // HTML이 아닌 일반 텍스트에서 검색
+        { authorName: { $regex: safeSearch(search), $options: "i" } },
       ];
     }
 

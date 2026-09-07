@@ -30,7 +30,7 @@ export async function sendEmailNotification(receiverEmail: string, letter: ILett
     const mailOptions = {
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to: receiverEmail,
-      subject: `💌 새로운 편지가 도착했습니다: ${letter.title}`,
+      subject: `💌 새로운 편지가 도착했습니다: ${letter.title.replace(/[\r\n]/g, " ")}`,
       html: generateEmailTemplate(letter, letterUrl),
     };
 
@@ -47,7 +47,12 @@ export async function sendEmailNotification(receiverEmail: string, letter: ILett
  * @param letterUrl - 편지 읽기 URL
  * @returns HTML 템플릿
  */
+const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
 function generateEmailTemplate(letter: ILetter, letterUrl: string): string {
+  const title = esc(letter.title);
+  const preview = esc(letter.ogPreviewText || letter.content.slice(0, 100) + "...");
+  const authorName = esc(letter.authorName);
   return `
     <div style="max-width: 600px; margin: 0 auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa;">
       <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center;">
@@ -58,14 +63,14 @@ function generateEmailTemplate(letter: ILetter, letterUrl: string): string {
       <div style="background: white; padding: 40px 30px; margin: 0;">
         <div style="background: #f8f9fa; padding: 30px; border-radius: 12px; border-left: 4px solid #667eea;">
           <h2 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 22px; font-weight: 600;">
-            ${letter.title}
+            ${title}
           </h2>
           <p style="color: #6c757d; margin: 0; font-size: 16px; line-height: 1.6;">
-            ${letter.ogPreviewText || letter.content.slice(0, 100) + "..."}
+            ${preview}
           </p>
           <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e9ecef;">
             <p style="margin: 0; color: #868e96; font-size: 14px;">
-              <strong>작성자:</strong> ${letter.authorName}
+              <strong>작성자:</strong> ${authorName}
             </p>
           </div>
         </div>

@@ -46,6 +46,8 @@ export interface IAdmin extends Document {
   department?: string;
   status: AdminStatus;
   lastLoginAt?: Date;
+  failedLoginAttempts: number;
+  lockedUntil?: Date;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -95,12 +97,16 @@ const AdminSchema = new Schema<IAdmin, IAdminModel>(
       default: AdminStatus.ACTIVE,
     },
     lastLoginAt: Date,
+    failedLoginAttempts: { type: Number, default: 0 },
+    lockedUntil: Date,
   },
   {
     timestamps: true,
     toJSON: {
       transform: function (_doc, ret: Record<string, unknown>) {
         delete ret.password;
+        delete ret.failedLoginAttempts;
+        delete ret.lockedUntil;
         delete ret.__v;
         return ret;
       },

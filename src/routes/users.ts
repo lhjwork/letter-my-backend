@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import userController from "../controllers/userController";
 import likeController from "../controllers/likeController";
 import { authenticate, internalOnly } from "../middleware/auth";
-import { oauthLoginValidation, updateUserValidation, linkOAuthValidation, unlinkOAuthValidation, mongoIdValidation } from "../middleware/validation";
+import { oauthLoginValidation, updateUserValidation, linkOAuthValidation, unlinkOAuthValidation } from "../middleware/validation";
 import { authLimiter } from "../middleware/rateLimiter";
 
 const router: IRouter = Router();
@@ -29,21 +29,6 @@ router.get("/me", authenticate, userController.getMe);
  * @access  Private
  */
 router.get("/me/likes", authenticate, likeController.getMyLikes);
-
-/**
- * @route   GET /api/users
- * @desc    모든 사용자 조회 (페이지네이션)
- * @access  Private
- * @query   page, limit
- */
-router.get("/", authenticate, userController.getAllUsers);
-
-/**
- * @route   GET /api/users/:id
- * @desc    ID로 사용자 조회
- * @access  Private
- */
-router.get("/:id", authenticate, mongoIdValidation, userController.getUserById);
 
 /**
  * @route   PUT /api/users/me

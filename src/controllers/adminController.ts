@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import adminService from "../services/adminService";
 
+// req.body 통째 저장 금지: 허용 필드만 추림 (password/role 등 우회 방지)
+const pick = <T extends Record<string, unknown>>(body: T, keys: string[]) =>
+  Object.fromEntries(keys.filter((k) => body?.[k] !== undefined).map((k) => [k, body[k]]));
+
 class AdminController {
   // ===== 관리자 관리 =====
 
@@ -16,7 +20,7 @@ class AdminController {
 
   async createAdmin(req: Request, res: Response): Promise<void> {
     try {
-      const admin = await adminService.createAdmin(req.body);
+      const admin = await adminService.createAdmin(pick(req.body, ["username", "password", "name", "role", "permissions", "department"]) as Parameters<typeof adminService.createAdmin>[0]);
       res.status(201).json({ success: true, data: admin, message: "관리자가 생성되었습니다" });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "관리자 생성 실패";
@@ -40,7 +44,7 @@ class AdminController {
 
   async updateAdmin(req: Request, res: Response): Promise<void> {
     try {
-      const admin = await adminService.updateAdmin(req.params.id, req.body);
+      const admin = await adminService.updateAdmin(req.params.id, pick(req.body, ["name", "role", "permissions", "department", "status"]));
       if (!admin) {
         res.status(404).json({ success: false, message: "관리자를 찾을 수 없습니다" });
         return;
@@ -111,7 +115,7 @@ class AdminController {
 
   async updateUser(req: Request, res: Response): Promise<void> {
     try {
-      const user = await adminService.updateUser(req.params.id, req.body);
+      const user = await adminService.updateUser(req.params.id, pick(req.body, ["name", "email"]));
       if (!user) {
         res.status(404).json({ success: false, message: "사용자를 찾을 수 없습니다" });
         return;
@@ -198,7 +202,7 @@ class AdminController {
 
   async updateLetter(req: Request, res: Response): Promise<void> {
     try {
-      const letter = await adminService.updateLetter(req.params.id, req.body);
+      const letter = await adminService.updateLetter(req.params.id, pick(req.body, ["title", "content", "category"]));
       if (!letter) {
         res.status(404).json({ success: false, message: "편지를 찾을 수 없습니다" });
         return;

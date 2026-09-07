@@ -43,6 +43,20 @@ export const letterCreateLimiter = rateLimit({
 });
 
 /**
+ * 실물 편지 신청 제한: 1시간에 5회 (주소 수집 남용 방지)
+ */
+export const physicalRequestLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: { message: "실물 편지 신청 횟수를 초과했습니다. 잠시 후 다시 시도해주세요." },
+  },
+});
+
+/**
  * 관리자 로그인 제한: 15분에 5회
  */
 export const adminAuthLimiter = rateLimit({

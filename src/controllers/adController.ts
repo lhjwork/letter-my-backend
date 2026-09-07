@@ -90,43 +90,12 @@ class AdController {
     }
   }
 
-  // 광고 디버그 정보 조회 (공개)
-  async getAdDebugInfo(req: Request, res: Response): Promise<void> {
-    try {
-      const { adSlug } = req.params;
-
-      const debugInfo = await adService.getAdDebugInfo(adSlug);
-
-      if (!debugInfo) {
-        res.status(404).json({
-          success: false,
-          message: "광고를 찾을 수 없습니다.",
-          meta: { timestamp: new Date().toISOString() },
-        });
-        return;
-      }
-
-      res.json({
-        success: true,
-        data: debugInfo,
-        meta: { timestamp: new Date().toISOString() },
-      });
-    } catch (error) {
-      console.error("Get ad debug info error:", error);
-      res.status(500).json({
-        success: false,
-        message: "광고 디버그 정보 조회에 실패했습니다.",
-        meta: { timestamp: new Date().toISOString() },
-      });
-    }
-  }
-
   // 이벤트 추적 (공개)
   async trackAdEvent(req: Request, res: Response): Promise<void> {
     try {
       const { 
         eventType, adId, adSlug, letterId, clickTarget, dwellTime, 
-        utm, device, session, page, ip, carouselData 
+        utm, device, session, page, carouselData 
       } = req.body;
 
       await adService.trackEvent({
@@ -140,7 +109,7 @@ class AdController {
         device,
         session,
         page,
-        ip: ip || req.ip,
+        ip: req.ip, // body.ip 신뢰 안 함
         carouselData,
       });
 

@@ -138,7 +138,7 @@ const advertisementSchema = new Schema<IAdvertisement>(
       headline: { type: String, required: true },
       description: { type: String, required: true },
       ctaText: { type: String, default: "자세히 보기" },
-      targetUrl: { type: String, required: true },
+      targetUrl: { type: String, required: true, match: [/^https?:\/\//i, "targetUrl 은 http(s):// 로 시작해야 합니다"] },
       backgroundImage: String,
       backgroundColor: { type: String, default: "#ffffff" },
       theme: {

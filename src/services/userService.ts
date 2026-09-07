@@ -48,20 +48,6 @@ export class UserService {
     return User.findByOAuthProvider(provider, providerId);
   }
 
-  // 모든 사용자 조회 (페이지네이션)
-  async findAll(page: number = 1, limit: number = 10): Promise<{ users: IUser[]; total: number; page: number; totalPages: number }> {
-    const skip = (page - 1) * limit;
-
-    const [users, total] = await Promise.all([User.find().skip(skip).limit(limit).sort({ createdAt: -1 }), User.countDocuments()]);
-
-    return {
-      users,
-      total,
-      page,
-      totalPages: Math.ceil(total / limit),
-    };
-  }
-
   // OAuth 로그인/회원가입
   async findOrCreateOAuthUser(data: {
     provider: OAuthProvider;

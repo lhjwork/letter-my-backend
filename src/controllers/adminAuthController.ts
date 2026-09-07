@@ -1,37 +1,18 @@
 import { Request, Response } from "express";
 import adminAuthService from "../services/adminAuthService";
-import cryptoService from "../services/cryptoService";
 
 class AdminAuthController {
-  // AES 암호화 키 조회
-  async getEncryptionKey(_req: Request, res: Response): Promise<void> {
-    res.json({
-      success: true,
-      data: { encryptionKey: cryptoService.getEncryptionKey() },
-      meta: { timestamp: new Date().toISOString() },
-    });
-  }
-
   // 로그인
   async login(req: Request, res: Response): Promise<void> {
     try {
-      const { username, password, encrypted } = req.body;
+      const { username, password } = req.body;
 
       if (!username || !password) {
         res.status(400).json({ success: false, message: "아이디와 비밀번호를 입력해주세요", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
-      // 암호화된 비밀번호인 경우 복호화
-      let decryptedPassword = password;
-      if (encrypted) {
-        try {
-          decryptedPassword = cryptoService.decrypt(password);
-        } catch {
-          res.status(400).json({ success: false, message: "비밀번호 복호화에 실패했습니다", meta: { timestamp: new Date().toISOString() } });
-          return;
-        }
-      }
+      const decryptedPassword = password;
 
       const { admin, token } = await adminAuthService.login(username, decryptedPassword);
 
@@ -60,26 +41,15 @@ class AdminAuthController {
   // 비밀번호 변경
   async changePassword(req: Request, res: Response): Promise<void> {
     try {
-      const { currentPassword, newPassword, encrypted } = req.body;
+      const { currentPassword, newPassword } = req.body;
 
       if (!currentPassword || !newPassword) {
         res.status(400).json({ success: false, message: "현재 비밀번호와 새 비밀번호를 입력해주세요", meta: { timestamp: new Date().toISOString() } });
         return;
       }
 
-      // 암호화된 비밀번호인 경우 복호화
-      let decryptedCurrentPassword = currentPassword;
-      let decryptedNewPassword = newPassword;
-
-      if (encrypted) {
-        try {
-          decryptedCurrentPassword = cryptoService.decrypt(currentPassword);
-          decryptedNewPassword = cryptoService.decrypt(newPassword);
-        } catch {
-          res.status(400).json({ success: false, message: "비밀번호 복호화에 실패했습니다", meta: { timestamp: new Date().toISOString() } });
-          return;
-        }
-      }
+      const decryptedCurrentPassword = currentPassword;
+      const decryptedNewPassword = newPassword;
 
       try {
         adminAuthService.validatePassword(decryptedNewPassword);

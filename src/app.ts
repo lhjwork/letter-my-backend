@@ -17,6 +17,10 @@ if (!process.env.SESSION_SECRET) console.warn("[SECURITY] SESSION_SECRET 미설�
 
 const app: Application = express();
 
+// nginx 1홉 뒤. true 금지 (X-Forwarded-For 위조로 rate limit 우회)
+app.set("trust proxy", 1);
+app.disable("x-powered-by");
+
 // Security middleware
 app.use(helmet());
 
@@ -64,10 +68,11 @@ app.use(
   session({
     secret: sessionSecret,
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === "production", // HTTPS only in production
       httpOnly: true,
+      sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
   })
@@ -141,7 +146,6 @@ app.get("/", (_req, res) => {
         <div class="status">✅ 서버가 정상적으로 실행 중입니다</div>
         <div class="info">
           <p>포트: ${process.env.PORT || 5000}</p>
-          <p>환경: ${process.env.NODE_ENV || "development"}</p>
         </div>
         <div class="links">
           <a href="/api-docs">📚 API 문서 (Swagger)</a>
@@ -153,8 +157,10 @@ app.get("/", (_req, res) => {
   `);
 });
 
-// Swagger UI
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
+// Swagger UI (개발 전용)
+if (process.env.NODE_ENV !== "production") {
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
+}
 
 // API routes
 app.use("/api", routes);

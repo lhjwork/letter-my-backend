@@ -17,7 +17,8 @@ export class AppError extends Error {
 
 export const errorHandler = (err: Error | AppError, _req: Request, res: Response, _next: NextFunction) => {
   const statusCode = err instanceof AppError ? err.statusCode : 500;
-  const message = err.message || "Internal Server Error";
+  // 5xx 는 내부 메시지(Mongoose/드라이버 오류 등) 노출 금지
+  const message = statusCode >= 500 && process.env.NODE_ENV === "production" ? "Internal Server Error" : err.message || "Internal Server Error";
   const code = err instanceof AppError ? err.code : "INTERNAL_ERROR";
 
   console.error("Error:", {

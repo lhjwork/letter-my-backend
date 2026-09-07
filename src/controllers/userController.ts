@@ -28,43 +28,6 @@ export class UserController {
     }
   }
 
-  // ID로 사용자 조회
-  async getUserById(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const { id } = req.params;
-      const user = await userService.findById(id);
-
-      if (!user) {
-        sendNotFound(res, "사용자를 찾을 수 없습니다");
-        return;
-      }
-
-      sendSuccess(res, user, "사용자 정보를 조회했습니다");
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  // 모든 사용자 조회 (페이지네이션)
-  async getAllUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = Math.min(parseInt(req.query.limit as string) || 10, 100);
-      const result = await userService.findAll(page, limit);
-
-      sendSuccess(res, result.users, "사용자 목록을 조회했습니다", 200, {
-        page: result.page,
-        limit,
-        total: result.total,
-        totalPages: result.totalPages,
-        hasNextPage: result.page < result.totalPages,
-        hasPrevPage: result.page > 1,
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
   // OAuth 로그인/회원가입
   async oauthLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

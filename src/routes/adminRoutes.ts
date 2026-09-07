@@ -10,7 +10,6 @@ import { adminAuthLimiter } from "../middleware/rateLimiter";
 const router: Router = Router();
 
 // ===== 인증 API =====
-router.get("/auth/encryption-key", adminAuthController.getEncryptionKey);
 router.post("/auth/login", adminAuthLimiter, adminAuthController.login);
 router.post("/auth/logout", adminAuthenticate, adminAuthController.logout);
 router.get("/auth/me", adminAuthenticate, adminAuthController.getMe);

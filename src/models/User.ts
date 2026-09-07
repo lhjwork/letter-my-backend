@@ -92,8 +92,9 @@ const OAuthAccountSchema = new Schema<IOAuthAccount>(
       type: String,
       required: true,
     },
-    accessToken: String,
-    refreshToken: String,
+    // 서버에서 읽는 곳 없음. 응답/조회에 절대 포함되지 않도록
+    accessToken: { type: String, select: false },
+    refreshToken: { type: String, select: false },
     tokenExpiresAt: Date,
     profile: {
       type: Schema.Types.Mixed,
