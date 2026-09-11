@@ -35,7 +35,10 @@ const allowedOrigins = [
   // 프로덕션 환경
   "https://letter-community.vercel.app", // 메인 임시 프론트엔드 프로덕션 도메인
   "https://letter-admin.vercel.app", // 메인 임시 admin 도메인
-];
+  "https://letter.seoul.kr", // 실제 서비스 도메인
+  "https://www.letter.seoul.kr",
+  process.env.FRONTEND_URL, // 환경변수로 지정한 프론트 도메인
+].filter((o): o is string => !!o);
 
 app.use(
   cors({
