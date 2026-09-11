@@ -11,6 +11,7 @@ export interface CreateLetterData {
   ogPreviewText?: string;
   aiGenerated?: boolean;
   aiModel?: string;
+  replyToId?: string;
   recipientAddresses?: Array<{
     name: string;
     phone: string;
@@ -44,6 +45,17 @@ class LetterCreateService {
     // 2. 일일 생성 제한 확인
     await this.checkLetterLimit(userId);
 
+    // 2-1. 사연 답장이면 원본 사연 존재 확인
+    if (data.replyToId) {
+      if (!mongoose.Types.ObjectId.isValid(data.replyToId)) {
+        throw new Error("유효하지 않은 사연 ID입니다.");
+      }
+      const target = await Letter.findById(data.replyToId).select("type").lean();
+      if (!target || target.type !== LetterType.STORY) {
+        throw new Error("답장할 사연을 찾을 수 없습니다.");
+      }
+    }
+
     // 3. HTML 콘텐츠 처리
     const processedContent = this.processContent(data.content);
 
@@ -63,6 +75,7 @@ class LetterCreateService {
       isPublic: data.type === "story", // 사연은 공개, 편지는 비공개
       shareableUrl: true,
       viewCount: 0,
+      replyToId: data.replyToId || undefined,
       // 수신자 주소 목록
       recipientAddresses:
         data.recipientAddresses?.map((addr) => ({
@@ -186,6 +199,19 @@ class LetterCreateService {
         newPhysicalStatus: physicalLetterInfo.physicalStatus,
       },
     };
+  }
+
+  /**
+   * 사연에 달린 답장 목록 (공개 목록용 최소 필드)
+   */
+  async getReplies(storyId: string) {
+    if (!mongoose.Types.ObjectId.isValid(storyId)) {
+      throw new Error("올바르지 않은 편지 ID입니다.");
+    }
+    return Letter.find({ replyToId: storyId, status: { $nin: [LetterStatus.HIDDEN, LetterStatus.DELETED] } })
+      .sort({ createdAt: -1 })
+      .select("_id title ogPreviewText plainContent authorName createdAt")
+      .lean();
   }
 
   /**

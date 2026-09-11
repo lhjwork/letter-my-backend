@@ -13,7 +13,7 @@ export class LetterController {
         return;
       }
 
-      const { title, content, type, category, ogTitle, ogPreviewText, aiGenerated, aiModel, recipientAddresses } = req.body;
+      const { title, content, type, category, ogTitle, ogPreviewText, aiGenerated, aiModel, recipientAddresses, replyToId } = req.body;
 
       // 기본 검증
       if (!title || !content) {
@@ -66,6 +66,7 @@ export class LetterController {
         aiGenerated,
         aiModel,
         recipientAddresses,
+        replyToId,
       });
 
       res.status(201).json({
@@ -178,6 +179,17 @@ export class LetterController {
           meta: { timestamp: new Date().toISOString() },
         });
       }
+    }
+  }
+
+  // 사연 답장 목록 조회
+  async getReplies(req: Request, res: Response): Promise<void> {
+    try {
+      const replies = await letterCreateService.getReplies(req.params.letterId);
+      res.json({ success: true, data: replies, meta: { timestamp: new Date().toISOString() } });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "답장 조회에 실패했습니다.";
+      res.status(message.includes("올바르지 않은") ? 400 : 500).json({ success: false, message, meta: { timestamp: new Date().toISOString() } });
     }
   }
 

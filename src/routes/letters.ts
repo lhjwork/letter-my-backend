@@ -44,6 +44,7 @@ const createLetterNewValidation = [
   body("ogPreviewText").optional().trim(),
   body("aiGenerated").optional().isBoolean(),
   body("aiModel").optional().trim(),
+  body("replyToId").optional().isMongoId().withMessage("유효하지 않은 사연 ID입니다."),
   // recipientAddresses 검증
   body("recipientAddresses").optional().isArray().withMessage("수신자 주소는 배열이어야 합니다."),
   body("recipientAddresses.*.name").optional().trim().isLength({ min: 2, max: 50 }).withMessage("받는 분 성함은 2-50자 이내여야 합니다."),
@@ -152,6 +153,13 @@ router.get("/:letterId/save", authenticate, letterController.checkLetterSaveStat
  * @access  Public
  */
 router.get("/", letterController.getAllLetters);
+
+/**
+ * @route   GET /api/letters/:letterId/replies
+ * @desc    사연에 달린 답장 목록 조회
+ * @access  Public
+ */
+router.get("/:letterId/replies", letterController.getReplies);
 
 /**
  * @route   GET /api/letters/:letterId

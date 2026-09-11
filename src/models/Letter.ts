@@ -159,6 +159,8 @@ export interface ILetter extends Document {
   authorSettings: IAuthorSettings;
   // AI 생성 관련 메타데이터
   aiMetadata: IAIMetadata;
+  // 사연 답장인 경우 원본 사연 ID
+  replyToId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -370,6 +372,11 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
       tags: [String],
       classifiedAt: Date,
       model: String,
+    },
+    replyToId: {
+      type: Schema.Types.ObjectId,
+      ref: "Letter",
+      index: true,
     },
     hiddenAt: Date,
     hiddenReason: String,
