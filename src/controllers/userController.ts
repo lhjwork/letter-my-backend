@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import userService from "../services/userService";
+import userService, { NAME_CHANGE_LOCKED } from "../services/userService";
 import { OAuthProvider } from "../models/User";
 import { sendSuccess, sendBadRequest, sendUnauthorized, sendNotFound, getErrorMessage } from "../utils/response";
 
@@ -83,6 +83,14 @@ export class UserController {
       }
       if (message === "Name already exists") {
         sendBadRequest(res, "이미 사용 중인 닉네임입니다");
+        return;
+      }
+      if (message.startsWith(NAME_CHANGE_LOCKED)) {
+        const nextAt = new Date(message.slice(NAME_CHANGE_LOCKED.length));
+        sendBadRequest(
+          res,
+          `닉네임은 한 달에 한 번만 변경할 수 있습니다. ${nextAt.toLocaleDateString("ko-KR")}부터 변경할 수 있어요`
+        );
         return;
       }
       next(error);

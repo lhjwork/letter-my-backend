@@ -67,6 +67,7 @@ export interface IUser extends Document {
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt?: Date;
+  nameUpdatedAt?: Date; // 닉네임 마지막 변경 시각 (한 달 1회 제한)
 
   // 메서드
   addOAuthAccount(account: IOAuthAccount): Promise<IUser>;
@@ -209,6 +210,9 @@ const UserSchema = new Schema<IUser, IUserModel>(
       },
     },
     lastLoginAt: {
+      type: Date,
+    },
+    nameUpdatedAt: {
       type: Date,
     },
     status: {

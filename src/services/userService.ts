@@ -9,6 +9,13 @@ const jwtSecret = (): string => {
 };
 
 // JWT Payload 인터페이스
+// 닉네임은 마지막 변경일로부터 30일 뒤에 다시 바꿀 수 있다
+export const NAME_CHANGE_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000;
+export const NAME_CHANGE_LOCKED = "Name change locked:";
+
+export const getNextNameChangeAt = (nameUpdatedAt?: Date): Date | null =>
+  nameUpdatedAt ? new Date(nameUpdatedAt.getTime() + NAME_CHANGE_INTERVAL_MS) : null;
+
 export interface JWTPayload {
   userId: string;
   email: string;
@@ -134,8 +141,15 @@ export class UserService {
       email?: string;
     }
   ): Promise<IUser | null> {
-    // 닉네임 변경 시 중복 체크
-    if (data.name) {
+    const current = await User.findById(userId);
+    if (!current) {
+      return null;
+    }
+
+    const update: Record<string, unknown> = { ...data };
+
+    // 닉네임 변경 시 중복 체크 + 한 달 1회 제한
+    if (data.name && data.name !== current.name) {
       const existingName = await User.findOne({
         name: data.name,
         _id: { $ne: userId },
@@ -144,6 +158,15 @@ export class UserService {
       if (existingName) {
         throw new Error("Name already exists");
       }
+
+      const nextAllowedAt = getNextNameChangeAt(current.nameUpdatedAt);
+      if (nextAllowedAt && nextAllowedAt > new Date()) {
+        throw new Error(`${NAME_CHANGE_LOCKED}${nextAllowedAt.toISOString()}`);
+      }
+
+      update.nameUpdatedAt = new Date();
+    } else {
+      delete update.name;
     }
 
     // 이메일 변경 시 중복 체크
@@ -158,7 +181,7 @@ export class UserService {
       }
     }
 
-    const user = await User.findByIdAndUpdate(userId, { $set: data }, { new: true, runValidators: true });
+    const user = await User.findByIdAndUpdate(userId, { $set: update }, { new: true, runValidators: true });
 
     return user;
   }
