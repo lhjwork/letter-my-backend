@@ -1,5 +1,5 @@
 import { safeSearch } from "../utils/search";
-import Letter, { ILetter, OgImageType, LetterType, LetterCategory } from "../models/Letter";
+import Letter, { ILetter, OgImageType, LetterType, LetterCategory, LetterStatus } from "../models/Letter";
 import mongoose from "mongoose";
 import { sanitizeHtmlContent, extractPlainText, generatePreviewText, isHtmlContent, textToHtml } from "../utils/htmlProcessor";
 
@@ -37,6 +37,7 @@ export class LetterService {
     const query = {
       userId,
       type: { $in: [LetterType.STORY, LetterType.FRIEND] },
+      status: { $ne: LetterStatus.DELETED },
     };
 
     const [letters, total] = await Promise.all([
@@ -87,6 +88,7 @@ export class LetterService {
     const query: any = {
       userId,
       type: LetterType.STORY,
+      status: { $ne: LetterStatus.DELETED },
     };
 
     // 카테고리 필터
@@ -130,7 +132,7 @@ export class LetterService {
   // 모든 편지 조회 (페이지네이션)
   async findAll(page: number = 1, limit: number = 10): Promise<{ letters: ILetter[]; total: number; page: number; totalPages: number }> {
     const skip = (page - 1) * limit;
-    const query = { type: LetterType.STORY, isPublic: true };
+    const query = { type: LetterType.STORY, isPublic: true, status: { $nin: [LetterStatus.HIDDEN, LetterStatus.DELETED] } };
     const [letters, total] = await Promise.all([
       Letter.find(query).skip(skip).limit(limit).sort({ createdAt: -1 }).select("-recipientAddresses -shippingAddress -savedBy -__v").lean(),
       Letter.countDocuments(query),
@@ -308,14 +310,18 @@ export class LetterService {
       ogBgColor?: string;
       ogIllustration?: string;
       ogFontSize?: number;
+      isPublic?: boolean;
+      ogTitle?: string;
+      ogPreviewText?: string;
     }
   ): Promise<ILetter | null> {
     return Letter.findByIdAndUpdate(letterId, { $set: data }, { new: true, runValidators: true });
   }
 
   // 편지 삭제
+  // 사용자 삭제는 소프트 삭제. 실제 삭제는 어드민(status=deleted 목록)에서만 수행한다.
   async deleteLetter(letterId: string): Promise<boolean> {
-    const result = await Letter.findByIdAndDelete(letterId);
+    const result = await Letter.findByIdAndUpdate(letterId, { $set: { status: LetterStatus.DELETED, deletedAt: new Date() } });
     return !!result;
   }
 

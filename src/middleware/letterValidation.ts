@@ -10,6 +10,10 @@ export const createLetterValidation = [
   body("ogBgColor").optional().isString().withMessage("ogBgColor must be a string"),
   body("ogIllustration").optional().isString().withMessage("ogIllustration must be a string"),
   body("ogFontSize").optional().isInt({ min: 12, max: 100 }).withMessage("ogFontSize must be between 12 and 100"),
+  body("category").optional().isString().withMessage("category must be a string"),
+  body("isPublic").optional().isBoolean().withMessage("isPublic must be a boolean"),
+  body("ogTitle").optional().isString(),
+  body("ogPreviewText").optional().isString(),
   validate,
 ];
 

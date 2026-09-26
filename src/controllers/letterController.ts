@@ -516,7 +516,7 @@ export class LetterController {
       }
 
       const { id } = req.params;
-      const { title, content, authorName, category, ogPreviewMessage, ogBgColor, ogIllustration, ogFontSize } = req.body;
+      const { title, content, authorName, category, ogPreviewMessage, ogBgColor, ogIllustration, ogFontSize, isPublic, ogTitle, ogPreviewText } = req.body;
 
       const existingLetter = await letterService.findById(id);
       if (!existingLetter) {
@@ -538,6 +538,9 @@ export class LetterController {
         ogBgColor,
         ogIllustration,
         ogFontSize,
+        isPublic,
+        ogTitle,
+        ogPreviewText,
       });
 
       res.status(200).json({ success: true, data: letter, message: "편지가 성공적으로 수정되었습니다.", meta: { timestamp: new Date().toISOString() } });

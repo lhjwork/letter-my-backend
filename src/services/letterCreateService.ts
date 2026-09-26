@@ -272,6 +272,11 @@ class LetterCreateService {
    * @param viewerId - 조회자 ID
    */
   private checkLetterAccess(letter: any, viewerId?: string): void {
+    // 사용자가 삭제한 글은 작성자 본인 외에는 없는 글로 취급
+    if (letter.status === "deleted" && letter.userId?._id?.toString() !== viewerId) {
+      throw new Error("편지를 찾을 수 없습니다.");
+    }
+
     // 사연은 모든 사용자가 접근 가능
     if (letter.type === "story" && letter.isPublic) {
       return;
