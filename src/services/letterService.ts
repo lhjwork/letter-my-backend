@@ -4,10 +4,15 @@ import mongoose from "mongoose";
 import { sanitizeHtmlContent, extractPlainText, generatePreviewText, isHtmlContent, textToHtml } from "../utils/htmlProcessor";
 
 // Letter Service 클래스
-export class LetterService {
+export // recipientAddresses 전체를 빼는 프로젝션. 하위 필드에 select:false 가 있어 "-recipientAddresses" 만 쓰면
+// mongoose 가 "recipientAddresses.sessionId: 0" 을 함께 붙여 MongoDB Path collision 이 난다. "+하위경로" 로 자동 제외를 끈다.
+const WITHOUT_PII =
+  "-recipientAddresses +recipientAddresses.sessionId +recipientAddresses.userAgent +recipientAddresses.ipAddress -shippingAddress -savedBy";
+
+class LetterService {
   // ID로 편지 조회
   async findById(letterId: string): Promise<ILetter | null> {
-    return Letter.findById(letterId).select("-recipientAddresses -shippingAddress -savedBy");
+    return Letter.findById(letterId).select(WITHOUT_PII);
   }
 
   // userId로 편지 목록 조회
@@ -134,7 +139,7 @@ export class LetterService {
     const skip = (page - 1) * limit;
     const query = { type: LetterType.STORY, isPublic: true, status: { $nin: [LetterStatus.HIDDEN, LetterStatus.DELETED] } };
     const [letters, total] = await Promise.all([
-      Letter.find(query).skip(skip).limit(limit).sort({ createdAt: -1 }).select("-recipientAddresses -shippingAddress -savedBy -__v").lean(),
+      Letter.find(query).skip(skip).limit(limit).sort({ createdAt: -1 }).select(`${WITHOUT_PII} -__v`).lean(),
       Letter.countDocuments(query),
     ]);
     return { letters, total, page, totalPages: Math.ceil(total / limit) };
