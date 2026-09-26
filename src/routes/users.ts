@@ -15,6 +15,13 @@ const router: IRouter = Router();
  */
 router.post("/oauth/login", internalOnly, authLimiter, oauthLoginValidation, userController.oauthLogin);
 
+/**
+ * @route   POST /api/users/token/refresh
+ * @desc    백엔드 JWT 재발급 (NextAuth 세션은 살아있는데 백엔드 토큰만 만료되는 문제 방지)
+ * @access  Internal (Next.js 서버만, x-internal-secret 헤더 필요)
+ */
+router.post("/token/refresh", internalOnly, authLimiter, userController.refreshToken);
+
 // 보호된 라우트 (인증 필요)
 /**
  * @route   GET /api/users/me

@@ -58,6 +58,21 @@ export class UserController {
     }
   }
 
+  // 백엔드 토큰 재발급 (Next.js 서버 전용 — NextAuth jwt 콜백이 만료 전 호출)
+  async refreshToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { userId } = req.body as { userId?: string };
+      const user = userId ? await userService.findById(userId) : null;
+      if (!user || user.deletedAt) {
+        sendNotFound(res, "사용자를 찾을 수 없습니다");
+        return;
+      }
+      sendSuccess(res, { token: userService.generateToken(user) }, "토큰이 재발급되었습니다");
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // 사용자 정보 업데이트
   async updateUser(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
