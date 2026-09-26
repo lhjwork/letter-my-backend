@@ -315,7 +315,10 @@ export class LetterService {
       ogPreviewText?: string;
     }
   ): Promise<ILetter | null> {
-    return Letter.findByIdAndUpdate(letterId, { $set: data }, { new: true, runValidators: true });
+    // 컨트롤러가 body에서 꺼낸 값은 대부분 undefined다. 그대로 $set 하면 authorName 같은 required 필드가
+    // null로 덮여 ValidationError(500)가 나므로 실제로 온 값만 남긴다.
+    const set = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
+    return Letter.findByIdAndUpdate(letterId, { $set: set }, { new: true, runValidators: true });
   }
 
   // 편지 삭제

@@ -180,7 +180,7 @@ router.get("/legacy/:id", optionalAuthenticate, letterIdValidation, letterContro
  * @desc    편지 업데이트
  * @access  Private
  */
-router.patch("/:id", authenticate, updateLetterValidation, letterController.updateLetter);
+router.patch("/:id", authenticate, contentSizeLimit(50000), validateHtmlContent, updateLetterValidation, letterController.updateLetter);
 
 /**
  * @route   DELETE /api/letters/:id
