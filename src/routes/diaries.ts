@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import jwt from "jsonwebtoken";
 import { body, param } from "express-validator";
 import Diary, { DECO_TYPES, DIARY_BINDINGS, DIARY_FONTS, DIARY_PAPERS } from "../models/Diary";
 import { authenticate } from "../middleware/auth";
@@ -7,6 +8,24 @@ import { contentSizeLimit, validateHtmlContent } from "../middleware/contentVali
 
 // ponytail: 컨트롤러/서비스 분리 없이 라우트 안에 핸들러. 로직이 커지면 diaryService로 뺀다.
 const router: Router = Router();
+
+// 관리자 인쇄용 열람: 관리자 API가 발급한 15분짜리 토큰(?t=)으로 소유자 세션 없이 조회. authenticate보다 앞에 둔다.
+router.get("/:diaryId/print-view", [param("diaryId").isMongoId(), validate], async (req: Request, res: Response) => {
+  try {
+    const decoded = jwt.verify(String(req.query.t || ""), process.env.JWT_SECRET!) as { type?: string; diaryId?: string };
+    if (decoded.type !== "diary-print" || decoded.diaryId !== req.params.diaryId) throw new Error("bad token");
+  } catch {
+    res.status(401).json({ success: false, error: "인쇄 링크가 유효하지 않거나 만료되었습니다." });
+    return;
+  }
+  const diary = await Diary.findById(req.params.diaryId);
+  if (!diary) {
+    res.status(404).json({ success: false, error: "다이어리를 찾을 수 없습니다." });
+    return;
+  }
+  res.json({ success: true, data: diary });
+});
+
 router.use(authenticate);
 
 const fail = (res: Response, status: number, error: string): void => {

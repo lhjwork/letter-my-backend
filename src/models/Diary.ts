@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from "mongoose";
 export const DIARY_PAPERS = ["lined", "grid", "dot", "blank", "cream"] as const;
 export const DIARY_FONTS = ["jangmi", "pen", "gaegu", "himelody"] as const;
 
-export const DECO_TYPES = ["sticker", "tape", "label"] as const;
+export const DECO_TYPES = ["sticker", "tape", "label", "letter"] as const; // letter: src=letterId, text=제목
 
 /** 데코 하나. x/y/w는 종이 폭 기준 % — 화면·인쇄 크기가 달라도 같은 자리 */
 export interface IDiaryDeco {

@@ -7,6 +7,7 @@ import adminUserRoutes from "./adminUserRoutes";
 import physicalLetterController from "../controllers/physicalLetterController";
 import { adminAuthLimiter } from "../middleware/rateLimiter";
 import Diary, { DIARY_PHYSICAL_STATUS } from "../models/Diary";
+import jwt from "jsonwebtoken";
 import { body, query } from "express-validator";
 import { validate } from "../middleware/validation";
 
@@ -60,6 +61,11 @@ router.get(
     res.json({ success: true, data: diaries });
   },
 );
+// 인쇄 뷰 열람 토큰 (15분). 커뮤니티 /diary/:id/print?t= 에서 사용
+router.post("/diaries/:diaryId/print-link", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_READ), async (req: import("express").Request, res: import("express").Response) => {
+  const token = jwt.sign({ type: "diary-print", diaryId: req.params.diaryId }, process.env.JWT_SECRET!, { expiresIn: "15m" });
+  res.json({ success: true, data: { token, expiresIn: 900 } });
+});
 router.patch(
   "/diaries/:diaryId/physical",
   adminAuthenticate,
