@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { body, param } from "express-validator";
-import Diary, { DIARY_FONTS, DIARY_PAPERS } from "../models/Diary";
+import Diary, { DECO_TYPES, DIARY_FONTS, DIARY_PAPERS } from "../models/Diary";
 import { authenticate } from "../middleware/auth";
 import { validate } from "../middleware/validation";
 import { contentSizeLimit, validateHtmlContent } from "../middleware/contentValidation";
@@ -62,10 +62,25 @@ router.patch("/:diaryId", [...diaryIdValidation, ...settingsValidation, validate
   res.json({ success: true, data: diary });
 });
 
+const MAX_DECOS = 20;
+const decosValidation = [
+  body("decos").optional().isArray({ max: MAX_DECOS }).withMessage(`데코는 페이지당 ${MAX_DECOS}개까지입니다.`),
+  body("decos.*.id").isString().isLength({ min: 1, max: 40 }),
+  body("decos.*.type").isIn(DECO_TYPES),
+  body("decos.*.src").optional().isString().isLength({ max: 40 }),
+  body("decos.*.x").isFloat({ min: -50, max: 150 }),
+  body("decos.*.y").isFloat({ min: -50, max: 200 }),
+  body("decos.*.w").isFloat({ min: 2, max: 100 }),
+  body("decos.*.rotate").optional().isFloat({ min: -180, max: 180 }),
+  body("decos.*.z").optional().isInt({ min: -1000, max: 1000 }),
+  body("decos.*.text").optional().isString().isLength({ max: 60 }),
+  body("decos.*.color").optional().isString().isLength({ max: 20 }),
+];
+
 // 날짜 페이지 저장 (upsert)
 router.put(
   "/:diaryId/pages/:date",
-  [param("diaryId").isMongoId(), param("date").matches(/^\d{4}-\d{2}-\d{2}$/), body("content").isString(), validate],
+  [param("diaryId").isMongoId(), param("date").matches(/^\d{4}-\d{2}-\d{2}$/), body("content").isString(), ...decosValidation, validate],
   contentSizeLimit(50000),
   validateHtmlContent,
   async (req: Request, res: Response) => {
@@ -76,9 +91,14 @@ router.put(
       fail(res, 400, "이 다이어리의 달에 속하지 않는 날짜입니다.");
       return;
     }
+    const { content, decos } = req.body;
     const page = diary.pages.find((p) => p.date === date);
-    if (page) page.content = req.body.content;
-    else diary.pages.push({ date, content: req.body.content });
+    if (page) {
+      page.content = content;
+      if (decos !== undefined) page.decos = decos;
+    } else {
+      diary.pages.push({ date, content, decos: decos ?? [] });
+    }
     await diary.save();
     res.json({ success: true, data: { date, savedAt: diary.updatedAt } });
   },
