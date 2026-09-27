@@ -6,6 +6,9 @@ import adminController from "../controllers/adminController";
 import adminUserRoutes from "./adminUserRoutes";
 import physicalLetterController from "../controllers/physicalLetterController";
 import { adminAuthLimiter } from "../middleware/rateLimiter";
+import Diary, { DIARY_PHYSICAL_STATUS } from "../models/Diary";
+import { body, query } from "express-validator";
+import { validate } from "../middleware/validation";
 
 const router: Router = Router();
 
@@ -41,6 +44,42 @@ router.put("/letters/:id/status", adminAuthenticate, requirePermission(PERMISSIO
 router.delete("/letters/:id", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_DELETE), adminController.deleteLetter);
 
 // ===== 실물 편지 관리 =====
+// ===== 다이어리 실물 제본 신청 =====
+router.get(
+  "/diaries/physical-requests",
+  adminAuthenticate,
+  requirePermission(PERMISSIONS.LETTERS_READ),
+  [query("status").optional().isIn(DIARY_PHYSICAL_STATUS), validate],
+  async (req: import("express").Request, res: import("express").Response) => {
+    const status = (req.query.status as string) || undefined;
+    const filter = status ? { "physical.status": status } : { "physical.status": { $ne: "none" } };
+    const diaries = await Diary.find(filter, { pages: 0 })
+      .populate("userId", "name realName email")
+      .sort({ "physical.requestedAt": -1 })
+      .limit(200);
+    res.json({ success: true, data: diaries });
+  },
+);
+router.patch(
+  "/diaries/:diaryId/physical",
+  adminAuthenticate,
+  requirePermission(PERMISSIONS.LETTERS_WRITE),
+  [body("status").optional().isIn(DIARY_PHYSICAL_STATUS), body("notes").optional().isString().isLength({ max: 500 }), validate],
+  async (req: import("express").Request, res: import("express").Response) => {
+    const diary = await Diary.findById(req.params.diaryId);
+    if (!diary) {
+      res.status(404).json({ success: false, error: "다이어리를 찾을 수 없습니다." });
+      return;
+    }
+    const { status, notes } = req.body;
+    if (status !== undefined) diary.physical.status = status;
+    if (notes !== undefined) diary.physical.notes = notes;
+    diary.physical.updatedAt = new Date();
+    await diary.save();
+    res.json({ success: true, data: diary.physical });
+  },
+);
+
 router.get("/physical-requests", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_READ), physicalLetterController.getPhysicalLetterRequests);
 router.patch("/physical-requests/:letterId", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_WRITE), physicalLetterController.updatePhysicalLetterStatus);
 

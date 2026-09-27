@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { body, param } from "express-validator";
-import Diary, { DECO_TYPES, DIARY_FONTS, DIARY_PAPERS } from "../models/Diary";
+import Diary, { DECO_TYPES, DIARY_BINDINGS, DIARY_FONTS, DIARY_PAPERS } from "../models/Diary";
 import { authenticate } from "../middleware/auth";
 import { validate } from "../middleware/validation";
 import { contentSizeLimit, validateHtmlContent } from "../middleware/contentValidation";
@@ -103,6 +103,36 @@ router.put(
     res.json({ success: true, data: { date, savedAt: diary.updatedAt } });
   },
 );
+
+// 실물 제본 신청 (주소 규칙은 편지 실물 신청과 동일)
+const physicalRequestValidation = [
+  body("binding").isIn(DIARY_BINDINGS).withMessage("제본 방식을 선택해주세요."),
+  body("copies").isInt({ min: 1, max: 5 }).withMessage("부수는 1-5권입니다."),
+  body("address.name").trim().isLength({ min: 2, max: 50 }).withMessage("받는 분 성함은 2-50자 이내여야 합니다."),
+  body("address.phone").matches(/^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/).withMessage("올바른 휴대폰 번호 형식이 아닙니다."),
+  body("address.zipCode").matches(/^[0-9]{5}$/).withMessage("우편번호는 5자리 숫자여야 합니다."),
+  body("address.address1").trim().isLength({ min: 5, max: 200 }).withMessage("주소는 5-200자 이내여야 합니다."),
+  body("address.address2").optional({ values: "falsy" }).trim().isLength({ max: 200 }),
+  body("address.memo").optional({ values: "falsy" }).trim().isLength({ max: 500 }),
+];
+router.post("/:diaryId/physical-request", [...diaryIdValidation, ...physicalRequestValidation, validate], async (req: Request, res: Response) => {
+  const diary = await ownDiary(req, res);
+  if (!diary) return;
+  if (diary.physical.status !== "none" && diary.physical.status !== "rejected") {
+    fail(res, 400, "이미 신청한 다이어리입니다.");
+    return;
+  }
+  const written = diary.pages.filter((p) => p.content.replace(/<[^>]*>/g, "").trim() || p.decos.length > 0).length;
+  if (written < 1) {
+    fail(res, 400, "쓴 페이지가 있어야 신청할 수 있습니다.");
+    return;
+  }
+  const { binding, copies, address } = req.body;
+  diary.physical = { status: "requested", binding, copies, address, requestedAt: new Date(), updatedAt: new Date() };
+  diary.status = "closed";
+  await diary.save();
+  res.status(201).json({ success: true, data: diary.physical });
+});
 
 router.delete("/:diaryId", diaryIdValidation, async (req: Request, res: Response) => {
   const diary = await ownDiary(req, res);
