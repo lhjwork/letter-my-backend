@@ -7,6 +7,7 @@ import testRoutes from "./tests";
 import addressRoutes from "./addressRoutes";
 import adminRoutes from "./adminRoutes";
 import adRoutes from "./adRoutes";
+import diaryRoutes from "./diaries";
 
 const router: Router = Router();
 
@@ -42,6 +43,9 @@ router.use("/admin", adminRoutes);
 
 // Ad routes (광고)
 router.use("/ads", adRoutes);
+
+// Diary routes (다이어리)
+router.use("/diaries", diaryRoutes);
 
 // Fallback for undefined routes
 router.use((_req, res) => {
