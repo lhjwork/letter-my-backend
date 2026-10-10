@@ -9,6 +9,14 @@ export // recipientAddresses 전체를 빼는 프로젝션. 하위 필드에 sel
 const WITHOUT_PII =
   "-recipientAddresses +recipientAddresses.sessionId +recipientAddresses.userAgent +recipientAddresses.ipAddress -shippingAddress -savedBy";
 
+export type ReplyCountRow = { _id: mongoose.Types.ObjectId; n: number };
+
+/** 집계 결과를 사연에 붙인다. 답장 없는 사연은 0. DB 없이 검증 가능하도록 순수 함수로 분리 */
+export function attachReplyCount<T extends { _id: unknown }>(stories: T[], counts: ReplyCountRow[]): (T & { replyCount: number })[] {
+  const byId = new Map(counts.map((c) => [String(c._id), c.n]));
+  return stories.map((s) => ({ ...s, replyCount: byId.get(String(s._id)) ?? 0 }));
+}
+
 class LetterService {
   // ID로 편지 조회
   async findById(letterId: string): Promise<ILetter | null> {
@@ -193,7 +201,7 @@ class LetterService {
   }
 
   // Featured Stories 조회 (메인 랜딩 페이지용 - 최신 4개)
-  async getFeaturedStories(): Promise<ILetter[]> {
+  async getFeaturedStories(): Promise<(ILetter & { replyCount: number })[]> {
     try {
       const stories = await Letter.find({
         type: LetterType.STORY,
@@ -203,10 +211,16 @@ class LetterService {
       })
         .sort({ createdAt: -1 })
         .limit(4)
-        .select("_id title content authorName category createdAt viewCount likeCount")
+        .select("_id title content recipientName authorName category createdAt viewCount likeCount")
         .lean();
 
-      return stories as ILetter[];
+      // 홈 카드 "답장 N" 배지용. 숨김·삭제된 답장은 세지 않는다
+      const counts = await Letter.aggregate<ReplyCountRow>([
+        { $match: { replyToId: { $in: stories.map((s) => s._id) }, status: { $nin: [LetterStatus.HIDDEN, LetterStatus.DELETED] } } },
+        { $group: { _id: "$replyToId", n: { $sum: 1 } } },
+      ]);
+
+      return attachReplyCount(stories as unknown as ILetter[], counts);
     } catch (error) {
       console.error("Featured stories fetch error:", error);
       throw error;
