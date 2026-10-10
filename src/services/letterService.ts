@@ -11,6 +11,20 @@ const WITHOUT_PII =
 
 export type ReplyCountRow = { _id: mongoose.Types.ObjectId; n: number };
 
+/** 사연 목록 카드 한 장에 필요한 필드. content 전체·조회수·좋아요 수는 내보내지 않는다 */
+export type StoryListItem = {
+  _id: mongoose.Types.ObjectId;
+  type: LetterType;
+  title?: string;
+  recipientName?: string;
+  authorName?: string;
+  isAnonymous?: boolean;
+  category?: LetterCategory;
+  createdAt: Date;
+  replyCount: number;
+  preview: string;
+};
+
 /**
  * 공개 응답용 직렬화. Letter 문서를 그대로 내보내는 경로(목록·전체·PATCH 응답)는 전부 이걸 거친다.
  * - userId 제거(공개 응답에 작성자 식별자 불필요)
@@ -243,8 +257,9 @@ class LetterService {
   }
 
   // 사연 목록 조회 (페이지네이션, 검색, 정렬, 카테고리 필터)
+  // 목록 카드에 필요한 필드만 내보낸다. 미리보기는 plainContent 앞 80자, replyCount 는 숨김·삭제 답장 제외.
   async getStories(params: { page: number; limit: number; search?: string; sort?: "latest" | "oldest" | "popular"; category?: string }): Promise<{
-    stories: ILetter[];
+    stories: StoryListItem[];
     pagination: {
       page: number;
       limit: number;
@@ -256,74 +271,44 @@ class LetterService {
   }> {
     const { page, limit, search, sort = "latest", category } = params;
 
-    // 기본 쿼리: type이 "story"인 것만
-    const query: any = { type: LetterType.STORY };
+    const query: Record<string, unknown> = { type: LetterType.STORY, isPublic: true, status: { $nin: [LetterStatus.HIDDEN, LetterStatus.DELETED] } };
+    if (category && category !== "전체보기") query.category = category;
+    // 제목·본문만 검색 (작성자명은 익명 사연 실명 노출 경로가 되므로 제외)
+    const q = safeSearch(search);
+    if (q) query.$or = [{ title: { $regex: q, $options: "i" } }, { plainContent: { $regex: q, $options: "i" } }];
 
-    // 카테고리 필터
-    if (category && category !== "전체보기") {
-      query.category = category;
-    }
-
-    // 검색 조건 - plainContent 필드 사용으로 HTML 태그 제외하고 검색
-    if (safeSearch(search)) {
-      query.$or = [
-        { title: { $regex: safeSearch(search), $options: "i" } },
-        { plainContent: { $regex: safeSearch(search), $options: "i" } }, // HTML이 아닌 일반 텍스트에서 검색
-        { authorName: { $regex: safeSearch(search), $options: "i" } },
-      ];
-    }
-
-    // 정렬 조건
-    let sortOption: any = {};
-    switch (sort) {
-      case "latest":
-        sortOption = { createdAt: -1 };
-        break;
-      case "oldest":
-        sortOption = { createdAt: 1 };
-        break;
-      case "popular":
-        sortOption = { viewCount: -1, likeCount: -1, createdAt: -1 };
-        break;
-      default:
-        sortOption = { createdAt: -1 };
-    }
-
+    // 인기순 = 좋아요 + 답장 수. 숫자는 클라이언트에 노출하지 않고 정렬에만 쓴다
+    const sortStage: Record<string, 1 | -1> = sort === "popular" ? { score: -1, createdAt: -1 } : sort === "oldest" ? { createdAt: 1 } : { createdAt: -1 };
     const skip = (page - 1) * limit;
 
-    const [stories, total] = await Promise.all([Letter.find(query).sort(sortOption).skip(skip).limit(limit).select("-__v").lean(), Letter.countDocuments(query)]);
+    const [rows, total] = await Promise.all([
+      Letter.aggregate<StoryListItem & { plainContent?: string; content?: string }>([
+        { $match: query },
+        {
+          $lookup: {
+            from: Letter.collection.name,
+            let: { id: "$_id" },
+            pipeline: [{ $match: { $expr: { $eq: ["$replyToId", "$$id"] }, status: { $nin: [LetterStatus.HIDDEN, LetterStatus.DELETED] } } }, { $count: "n" }],
+            as: "replies",
+          },
+        },
+        { $addFields: { replyCount: { $ifNull: [{ $first: "$replies.n" }, 0] } } },
+        { $addFields: { score: { $add: [{ $ifNull: ["$likeCount", 0] }, "$replyCount"] } } },
+        { $sort: sortStage },
+        { $skip: skip },
+        { $limit: limit },
+        { $project: { _id: 1, type: 1, title: 1, recipientName: 1, authorName: 1, isAnonymous: 1, category: 1, createdAt: 1, replyCount: 1, plainContent: 1, content: 1 } },
+      ]),
+      Letter.countDocuments(query),
+    ]);
 
     const totalPages = Math.ceil(total / limit);
-
     return {
-      stories: stories.map(toPublic) as ILetter[],
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      },
-    };
-  }
-
-  // 카테고리별 통계 조회
-  async getCategoryStats(): Promise<{
-    total: number;
-    categories: { category: string; count: number; percentage: string }[];
-  }> {
-    const stats = await Letter.aggregate([{ $match: { type: LetterType.STORY } }, { $group: { _id: "$category", count: { $sum: 1 } } }, { $sort: { count: -1 } }]);
-
-    const total = await Letter.countDocuments({ type: LetterType.STORY });
-
-    return {
-      total,
-      categories: stats.map((stat) => ({
-        category: stat._id || "기타",
-        count: stat.count,
-        percentage: ((stat.count / total) * 100).toFixed(1),
-      })),
+      stories: rows.map((r) => {
+        const { plainContent, content, ...rest } = toPublic(r);
+        return { ...rest, preview: (plainContent ?? extractPlainText(content ?? "")).replace(/\s+/g, " ").trim().slice(0, 80) };
+      }),
+      pagination: { page, limit, total, totalPages, hasNextPage: page < totalPages, hasPrevPage: page > 1 },
     };
   }
 

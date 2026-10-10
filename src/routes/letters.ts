@@ -104,13 +104,6 @@ router.get("/stories/featured", letterController.getFeaturedStories);
 router.get("/stories", letterController.getStories);
 
 /**
- * @route   GET /api/letters/categories/stats
- * @desc    카테고리별 사연 통계 조회
- * @access  Public
- */
-router.get("/categories/stats", letterController.getCategoryStats);
-
-/**
  * @route   POST /api/letters
  * @desc    편지 생성 (기존 방식 - 하위 호환성)
  * @access  Private

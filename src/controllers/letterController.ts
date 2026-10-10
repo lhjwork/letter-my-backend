@@ -269,7 +269,7 @@ export class LetterController {
       const page = parseInt(req.query.page as string) || 1;
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
       const search = (req.query.search as string) || "";
-      const sort = (req.query.sort as "latest" | "oldest" | "popular") || "latest";
+      const sort = (["latest", "oldest", "popular"].includes(req.query.sort as string) ? req.query.sort : "latest") as "latest" | "oldest" | "popular";
       const category = (req.query.category as string) || "";
 
       if (page < 1 || limit < 1) {
@@ -289,17 +289,6 @@ export class LetterController {
     } catch (error) {
       console.error("Error fetching stories:", error);
       res.status(500).json({ success: false, message: "사연 목록을 불러오는데 실패했습니다", meta: { timestamp: new Date().toISOString() } });
-    }
-  }
-
-  // 카테고리별 통계 조회 (GET /api/letters/categories/stats)
-  async getCategoryStats(_req: Request, res: Response): Promise<void> {
-    try {
-      const stats = await letterService.getCategoryStats();
-      res.status(200).json({ success: true, data: stats, meta: { timestamp: new Date().toISOString() } });
-    } catch (error) {
-      console.error("Error fetching category stats:", error);
-      res.status(500).json({ success: false, message: "통계 조회에 실패했습니다", meta: { timestamp: new Date().toISOString() } });
     }
   }
 
