@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
+import { ENVELOPES, Envelope } from "./Letter";
 
 // Draft Letter 상태
 export enum DraftStatus {
@@ -31,10 +32,15 @@ export interface IDraftLetter extends Document {
   // 편지 내용
   title: string;
   content: string;
+  /** 새 폼은 "text". 필드가 없는 예전 임시저장은 TipTap HTML 이라 기본값 html */
+  contentType: "text" | "html";
 
   // 편지 설정
   type: DraftType;
   category: string;
+  envelope: Envelope;
+  isAnonymous: boolean;
+  recipientName: string;
 
   // 자동 제목 (제목이 없을 때 내용 기반 생성)
   autoTitle: string;
@@ -89,6 +95,11 @@ const DraftLetterSchema = new Schema<IDraftLetter, IDraftLetterModel>(
       default: "",
       maxlength: 10000,
     },
+    contentType: {
+      type: String,
+      enum: ["text", "html"],
+      default: "html",
+    },
 
     // 편지 설정
     type: {
@@ -99,6 +110,21 @@ const DraftLetterSchema = new Schema<IDraftLetter, IDraftLetterModel>(
     category: {
       type: String,
       default: "기타",
+    },
+    envelope: {
+      type: String,
+      enum: ENVELOPES,
+      default: "seongsu",
+    },
+    isAnonymous: {
+      type: Boolean,
+      default: false,
+    },
+    recipientName: {
+      type: String,
+      default: "",
+      maxlength: 50,
+      trim: true,
     },
 
     // 자동 제목

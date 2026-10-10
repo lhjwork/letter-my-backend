@@ -10,7 +10,7 @@ class DraftLetterController {
    */
   async saveDraft(req: Request, res: Response): Promise<void> {
     try {
-      const { title, content, type, category, recipientAddresses, draftId } = req.body;
+      const { title, content, contentType, type, category, envelope, isAnonymous, recipientName, recipientAddresses, draftId } = req.body;
       const authorId = req.user?.userId;
 
       if (!authorId) {
@@ -25,8 +25,12 @@ class DraftLetterController {
       const requestData: IDraftLetterData = {
         title,
         content,
+        contentType,
         type,
         category,
+        envelope,
+        isAnonymous,
+        recipientName,
         recipientAddresses,
       };
 
@@ -56,7 +60,7 @@ class DraftLetterController {
   async updateDraft(req: Request, res: Response): Promise<void> {
     try {
       const { draftId } = req.params;
-      const { title, content, type, category, recipientAddresses } = req.body;
+      const { title, content, contentType, type, category, envelope, isAnonymous, recipientName, recipientAddresses } = req.body;
       const authorId = req.user?.userId;
 
       if (!authorId) {
@@ -71,8 +75,12 @@ class DraftLetterController {
       const requestData: IDraftLetterData = {
         title,
         content,
+        contentType,
         type,
         category,
+        envelope,
+        isAnonymous,
+        recipientName,
         recipientAddresses,
       };
 
@@ -222,7 +230,7 @@ class DraftLetterController {
   async publishDraft(req: Request, res: Response): Promise<void> {
     try {
       const { draftId } = req.params;
-      const { title, content, type, category, recipientAddresses } = req.body;
+      const { title, content, contentType, type, category, envelope, isAnonymous, recipientName, recipientAddresses } = req.body;
       const authorId = req.user?.userId;
       const userName = req.user?.name || "익명";
 
@@ -238,8 +246,12 @@ class DraftLetterController {
       const updateData = {
         title,
         content,
+        contentType,
         type,
         category,
+        envelope,
+        isAnonymous,
+        recipientName,
         recipientAddresses,
       };
 

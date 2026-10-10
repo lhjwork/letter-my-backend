@@ -1,12 +1,17 @@
 import DraftLetter, { IDraftLetter, DraftStatus, DraftType, IDraftRecipientAddress } from "../models/DraftLetter";
+import { Envelope } from "../models/Letter";
 import letterCreateService from "./letterCreateService";
 import mongoose from "mongoose";
 
 export interface IDraftLetterData {
   title?: string;
   content?: string;
+  contentType?: "text" | "html";
   type?: "friend" | "story";
   category?: string;
+  envelope?: Envelope;
+  isAnonymous?: boolean;
+  recipientName?: string;
   recipientAddresses?: IDraftRecipientAddress[];
 }
 
@@ -15,8 +20,12 @@ export interface IDraftLetterResult {
   title: string;
   autoTitle: string;
   content: string;
+  contentType: "text" | "html";
   type: string;
   category: string;
+  envelope: Envelope;
+  isAnonymous: boolean;
+  recipientName: string;
   wordCount: number;
   saveCount: number;
   lastSavedAt: Date;
@@ -88,8 +97,12 @@ class DraftLetterService {
       // 기존 임시저장 업데이트
       existingDraft.title = data.title !== undefined ? data.title : existingDraft.title;
       existingDraft.content = data.content !== undefined ? data.content : existingDraft.content;
+      if (data.contentType) existingDraft.contentType = data.contentType;
       existingDraft.type = data.type ? (data.type as DraftType) : existingDraft.type;
       existingDraft.category = data.category || existingDraft.category;
+      existingDraft.envelope = data.envelope || existingDraft.envelope;
+      if (data.isAnonymous !== undefined) existingDraft.isAnonymous = data.isAnonymous;
+      if (data.recipientName !== undefined) existingDraft.recipientName = data.recipientName;
       existingDraft.recipientAddresses = data.recipientAddresses || existingDraft.recipientAddresses;
       existingDraft.saveCount += 1;
 
@@ -100,8 +113,12 @@ class DraftLetterService {
         authorId,
         title: data.title || "",
         content: data.content || "",
+        contentType: data.contentType || "text",
         type: data.type ? (data.type as DraftType) : DraftType.FRIEND,
         category: data.category || "기타",
+        envelope: data.envelope || "seongsu",
+        isAnonymous: !!data.isAnonymous,
+        recipientName: data.recipientName || "",
         recipientAddresses: data.recipientAddresses || [],
       });
 
@@ -113,8 +130,12 @@ class DraftLetterService {
       title: draft.title,
       autoTitle: draft.autoTitle,
       content: draft.content,
+      contentType: draft.contentType,
       type: draft.type,
       category: draft.category,
+      envelope: draft.envelope,
+      isAnonymous: draft.isAnonymous,
+      recipientName: draft.recipientName,
       wordCount: draft.wordCount,
       saveCount: draft.saveCount,
       lastSavedAt: draft.lastSavedAt,
@@ -150,7 +171,7 @@ class DraftLetterService {
     const skip = (page - 1) * limit;
 
     const [drafts, total] = await Promise.all([
-      DraftLetter.find(filter).sort(sortOption).skip(skip).limit(limit).select("title autoTitle content type category wordCount saveCount lastSavedAt createdAt").lean(),
+      DraftLetter.find(filter).sort(sortOption).skip(skip).limit(limit).select("title autoTitle content contentType type category envelope isAnonymous recipientName wordCount saveCount lastSavedAt createdAt").lean(),
       DraftLetter.countDocuments(filter),
     ]);
 
@@ -262,8 +283,12 @@ class DraftLetterService {
     const publishData = {
       title: updateData?.title || draft.title || draft.autoTitle,
       content: updateData?.content || draft.content,
+      contentType: updateData?.contentType || draft.contentType,
       type: updateData?.type || draft.type,
       category: updateData?.category || draft.category,
+      envelope: updateData?.envelope || draft.envelope,
+      isAnonymous: updateData?.isAnonymous ?? draft.isAnonymous,
+      recipientName: updateData?.recipientName ?? draft.recipientName,
       recipientAddresses: (updateData?.recipientAddresses || draft.recipientAddresses).map((addr) => ({
         name: addr.name || "",
         phone: addr.phone || "",

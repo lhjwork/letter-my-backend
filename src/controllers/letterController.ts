@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import letterService from "../services/letterService";
+import letterService, { toPublic } from "../services/letterService";
 import letterCreateService from "../services/letterCreateService";
 import { LetterCategory } from "../models/Letter";
 
@@ -13,7 +13,7 @@ export class LetterController {
         return;
       }
 
-      const { title, content, type, category, ogTitle, ogPreviewText, aiGenerated, aiModel, recipientAddresses, replyToId } = req.body;
+      const { title, content, contentType, type, category, envelope, isAnonymous, recipientName, ogTitle, ogPreviewText, aiGenerated, aiModel, recipientAddresses, replyToId } = req.body;
 
       // 기본 검증
       if (!title || !content) {
@@ -59,8 +59,12 @@ export class LetterController {
       const result = await letterCreateService.createLetter(req.user.userId, user.name, {
         title,
         content,
+        contentType,
         type,
         category,
+        envelope,
+        isAnonymous,
+        recipientName,
         ogTitle,
         ogPreviewText,
         aiGenerated,
@@ -320,7 +324,7 @@ export class LetterController {
         letter.viewCount += 1; // 응답에 반영
       }
 
-      res.status(200).json({ success: true, data: letter, meta: { timestamp: new Date().toISOString() } });
+      res.status(200).json({ success: true, data: toPublic(letter), meta: { timestamp: new Date().toISOString() } });
     } catch (error) {
       next(error);
     }
@@ -516,7 +520,7 @@ export class LetterController {
       }
 
       const { id } = req.params;
-      const { title, content, authorName, category, ogPreviewMessage, ogBgColor, ogIllustration, ogFontSize, isPublic, ogTitle, ogPreviewText } = req.body;
+      const { title, content, contentType, category, envelope, isAnonymous, recipientName, ogPreviewMessage, ogBgColor, ogIllustration, ogFontSize, isPublic, ogTitle, ogPreviewText } = req.body;
 
       const existingLetter = await letterService.findById(id);
       if (!existingLetter) {
@@ -529,11 +533,23 @@ export class LetterController {
         return;
       }
 
+      // 익명 여부가 바뀌면 authorName 도 같이. 실명은 요청 body 가 아니라 계정에서
+      let authorName: string | undefined;
+      if (typeof isAnonymous === "boolean") {
+        const User = require("../models/User").default;
+        const user = await User.findById(req.user.userId).select("name").lean();
+        authorName = isAnonymous ? "익명" : user?.name || existingLetter.senderName || existingLetter.authorName;
+      }
+
       const letter = await letterService.updateLetter(id, {
         title,
         content,
+        contentType,
         authorName,
         category,
+        envelope,
+        isAnonymous,
+        recipientName,
         ogPreviewMessage,
         ogBgColor,
         ogIllustration,
@@ -543,7 +559,7 @@ export class LetterController {
         ogPreviewText,
       });
 
-      res.status(200).json({ success: true, data: letter, message: "편지가 성공적으로 수정되었습니다.", meta: { timestamp: new Date().toISOString() } });
+      res.status(200).json({ success: true, data: letter ? toPublic(letter) : null, message: "편지가 성공적으로 수정되었습니다.", meta: { timestamp: new Date().toISOString() } });
     } catch (error) {
       next(error);
     }

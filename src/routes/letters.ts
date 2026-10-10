@@ -37,9 +37,14 @@ const physicalLetterRequestValidation = [
 // 새로운 편지 생성 Validation
 const createLetterNewValidation = [
   body("title").trim().isLength({ min: 1, max: 100 }).withMessage("제목은 1-100자 이내여야 합니다."),
+  // 2000자는 글자 수 상한(태그 제외, letterCreateService 가 검사). 여기서는 HTML 포함 원문 크기만 막는다
   body("content").trim().isLength({ min: 1, max: 50000 }).withMessage("내용은 1-50000자 이내여야 합니다."),
   body("type").isIn(["story", "friend"]).withMessage("올바른 편지 타입을 선택해주세요."),
-  body("category").optional().trim(),
+  body("category").optional().isIn(["가족", "사랑", "우정", "성장", "위로", "추억", "감사", "기타"]).withMessage("Invalid category"),
+  body("contentType").optional().isIn(["text", "html"]).withMessage("contentType 은 text 또는 html 이어야 합니다."),
+  body("envelope").optional().isIn(["seongsu", "myeongdong"]).withMessage("봉투는 seongsu 또는 myeongdong 이어야 합니다."),
+  body("isAnonymous").optional().isBoolean().withMessage("isAnonymous 는 boolean 이어야 합니다.").toBoolean(),
+  body("recipientName").optional({ values: "falsy" }).trim().isLength({ max: 50 }).withMessage("받는 사람은 50자 이내여야 합니다."),
   body("ogTitle").optional().trim(),
   body("ogPreviewText").optional().trim(),
   body("aiGenerated").optional().isBoolean(),

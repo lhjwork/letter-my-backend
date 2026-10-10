@@ -18,6 +18,10 @@ export enum LetterCategory {
   OTHER = "기타",
 }
 
+// 봉투 (v8 쓰기 화면 선택지)
+export const ENVELOPES = ["seongsu", "myeongdong"] as const;
+export type Envelope = (typeof ENVELOPES)[number];
+
 // Letter 상태
 export enum LetterStatus {
   CREATED = "created",
@@ -131,6 +135,8 @@ export interface ILetter extends Document {
   recipientName?: string;
   savedBy: ISavedByEntry[];
   category: LetterCategory;
+  envelope: Envelope;
+  isAnonymous: boolean;
   status: LetterStatus;
   viewCount: number;
   likeCount: number;
@@ -228,6 +234,15 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
       enum: Object.values(LetterCategory),
       default: LetterCategory.OTHER,
       index: true,
+    },
+    envelope: {
+      type: String,
+      enum: ENVELOPES,
+      default: "seongsu",
+    },
+    isAnonymous: {
+      type: Boolean,
+      default: false,
     },
     status: {
       type: String,

@@ -11,6 +11,21 @@ const WITHOUT_PII =
 
 export type ReplyCountRow = { _id: mongoose.Types.ObjectId; n: number };
 
+/**
+ * 공개 응답용 직렬화. Letter 문서를 그대로 내보내는 경로(목록·전체·PATCH 응답)는 전부 이걸 거친다.
+ * - userId 제거(공개 응답에 작성자 식별자 불필요)
+ * - isAnonymous 면 senderName/authorName 을 "익명" 으로. DB 에는 실명이 남아 관리자 실물 발송에 쓴다.
+ */
+export function toPublic<T extends { userId?: unknown; isAnonymous?: boolean; senderName?: string; authorName?: string; toObject?: () => unknown }>(letter: T): T {
+  const o = (typeof letter.toObject === "function" ? letter.toObject() : { ...letter }) as T;
+  delete (o as { userId?: unknown }).userId;
+  if (o.isAnonymous) {
+    o.senderName = "익명";
+    o.authorName = "익명";
+  }
+  return o;
+}
+
 /** 집계 결과를 사연에 붙인다. 답장 없는 사연은 0. DB 없이 검증 가능하도록 순수 함수로 분리 */
 export function attachReplyCount<T extends { _id: unknown }>(stories: T[], counts: ReplyCountRow[]): (T & { replyCount: number })[] {
   const byId = new Map(counts.map((c) => [String(c._id), c.n]));
@@ -150,7 +165,7 @@ class LetterService {
       Letter.find(query).skip(skip).limit(limit).sort({ createdAt: -1 }).select(`${WITHOUT_PII} -__v`).lean(),
       Letter.countDocuments(query),
     ]);
-    return { letters, total, page, totalPages: Math.ceil(total / limit) };
+    return { letters: letters.map(toPublic) as ILetter[], total, page, totalPages: Math.ceil(total / limit) };
   }
 
   // 편지 생성
@@ -281,7 +296,7 @@ class LetterService {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      stories: stories as ILetter[],
+      stories: stories.map(toPublic) as ILetter[],
       pagination: {
         page,
         limit,
@@ -323,8 +338,12 @@ class LetterService {
     data: {
       title?: string;
       content?: string;
+      contentType?: "text" | "html";
       authorName?: string;
       category?: LetterCategory;
+      envelope?: string;
+      isAnonymous?: boolean;
+      recipientName?: string;
       ogPreviewMessage?: string;
       ogBgColor?: string;
       ogIllustration?: string;
@@ -336,7 +355,15 @@ class LetterService {
   ): Promise<ILetter | null> {
     // 컨트롤러가 body에서 꺼낸 값은 대부분 undefined다. 그대로 $set 하면 authorName 같은 required 필드가
     // null로 덮여 ValidationError(500)가 나므로 실제로 온 값만 남긴다.
-    const set = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
+    const set: Record<string, unknown> = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
+    // 본문이 바뀌면 contentType 은 입력 경로가 알려준 값을 따른다. 안 보내면(레거시) 추측
+    if (typeof data.content === "string") {
+      const html = data.contentType ? data.contentType === "html" : isHtmlContent(data.content);
+      set.content = html ? sanitizeHtmlContent(data.content) : data.content.trim();
+      set.contentType = html ? "html" : "text";
+      set.plainContent = html ? extractPlainText(set.content as string) : set.content;
+      if ((set.plainContent as string).length > 2000) throw new Error("내용은 2000자 이내여야 합니다.");
+    }
     return Letter.findByIdAndUpdate(letterId, { $set: set }, { new: true, runValidators: true });
   }
 

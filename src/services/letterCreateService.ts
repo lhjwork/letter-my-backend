@@ -1,12 +1,20 @@
-import Letter, { LetterType, LetterStatus } from "../models/Letter";
+import Letter, { LetterType, LetterStatus, Envelope } from "../models/Letter";
 import mongoose from "mongoose";
-import { sanitizeHtmlContent, extractPlainText, generatePreviewText, isHtmlContent, textToHtml } from "../utils/htmlProcessor";
+import { sanitizeHtmlContent, extractPlainText, generatePreviewText, isHtmlContent } from "../utils/htmlProcessor";
+
+/** 편지 본문 상한(글자 수, 태그 제외). 프런트 textarea maxLength 와 같은 값 */
+export const LETTER_CONTENT_MAX = 2000;
 
 export interface CreateLetterData {
   title: string;
   content: string;
+  /** 입력 경로가 정한다. 새 쓰기 폼은 항상 "text". 없으면(레거시 임시저장) 추측 */
+  contentType?: "text" | "html";
   type: "story" | "friend";
   category?: string;
+  envelope?: Envelope;
+  isAnonymous?: boolean;
+  recipientName?: string;
   ogTitle?: string;
   ogPreviewText?: string;
   aiGenerated?: boolean;
@@ -57,7 +65,10 @@ class LetterCreateService {
     }
 
     // 3. HTML 콘텐츠 처리
-    const processedContent = this.processContent(data.content);
+    const processedContent = this.processContent(data.content, data.contentType);
+    if (processedContent.plainContent.length > LETTER_CONTENT_MAX) {
+      throw new Error(`내용은 ${LETTER_CONTENT_MAX}자 이내여야 합니다.`);
+    }
 
     // 4. 편지 생성
     const letter = new Letter({
@@ -67,9 +78,12 @@ class LetterCreateService {
       content: processedContent.content,
       contentType: processedContent.contentType,
       plainContent: processedContent.plainContent,
-      authorName: userName,
+      authorName: data.isAnonymous ? "익명" : userName,
       senderName: userName,
+      recipientName: data.recipientName?.trim() || undefined,
       category: data.category || "기타",
+      envelope: data.envelope || "seongsu",
+      isAnonymous: !!data.isAnonymous,
       status: LetterStatus.CREATED,
       // URL 공유 관련 설정
       isPublic: data.type === "story", // 사연은 공개, 편지는 비공개
@@ -174,10 +188,15 @@ class LetterCreateService {
       _id: letter._id,
       title: letter.title,
       content: letter.content,
+      contentType: letter.contentType,
       type: letter.type,
-      senderId: letter.userId?._id,
-      senderName: (letter.userId as any)?.name || letter.authorName,
+      // 작성자 식별자는 내보내지 않는다(익명 글 대조 방지). 본인 여부만 서버가 계산
+      isAuthor: !!viewerId && letter.userId?._id?.toString() === viewerId,
+      senderName: letter.isAnonymous ? "익명" : (letter.userId as any)?.name || letter.authorName,
+      recipientName: letter.recipientName,
       category: letter.category,
+      envelope: letter.envelope,
+      isAnonymous: letter.isAnonymous,
       ogTitle: letter.ogTitle,
       ogPreviewText: letter.ogPreviewText,
       createdAt: letter.createdAt,
@@ -231,8 +250,8 @@ class LetterCreateService {
       throw new Error("제목은 100자 이내여야 합니다.");
     }
 
-    if (data.content.trim().length > 10000) {
-      throw new Error("내용은 10,000자 이내여야 합니다.");
+    if (data.content.trim().length > 50000) {
+      throw new Error("내용이 너무 깁니다.");
     }
 
     if (!["story", "friend"].includes(data.type)) {
@@ -300,14 +319,17 @@ class LetterCreateService {
    * @param content - 원본 콘텐츠
    * @returns 처리된 콘텐츠 정보
    */
-  private processContent(content: string): {
+  private processContent(
+    content: string,
+    declared?: "text" | "html"
+  ): {
     content: string;
     contentType: "text" | "html";
     plainContent: string;
     previewText: string;
   } {
-    // HTML 콘텐츠인지 확인
-    const isHtml = isHtmlContent(content);
+    // 입력 경로가 알려준 형식을 우선. 없을 때만 추측(레거시)
+    const isHtml = declared ? declared === "html" : isHtmlContent(content);
 
     let processedContent: string;
     let contentType: "text" | "html";
@@ -319,14 +341,14 @@ class LetterCreateService {
       contentType = "html";
       plainContent = extractPlainText(processedContent);
     } else {
-      // 일반 텍스트를 HTML로 변환 (줄바꿈 처리)
-      processedContent = textToHtml(content.trim());
-      contentType = "html";
-      plainContent = content.trim();
+      // 일반 텍스트(textarea) 는 그대로 저장. 읽기 화면이 contentType 으로 줄바꿈을 살린다
+      processedContent = content.trim();
+      contentType = "text";
+      plainContent = processedContent;
     }
 
     // 미리보기 텍스트 생성
-    const previewText = generatePreviewText(processedContent);
+    const previewText = contentType === "html" ? generatePreviewText(processedContent) : plainContent.length > 60 ? plainContent.slice(0, 60) + "..." : plainContent;
 
     const result = {
       content: processedContent,

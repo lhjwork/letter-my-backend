@@ -15,6 +15,10 @@ const saveDraftValidation = [
   body("content").optional().trim().isLength({ max: 10000 }).withMessage("내용은 10,000자 이내여야 합니다."),
   body("type").optional().isIn(["friend", "story"]).withMessage("올바른 편지 타입을 선택해주세요."),
   body("category").optional().trim().isLength({ max: 50 }).withMessage("카테고리는 50자 이내여야 합니다."),
+  body("contentType").optional().isIn(["text", "html"]).withMessage("contentType 은 text 또는 html 이어야 합니다."),
+  body("envelope").optional().isIn(["seongsu", "myeongdong"]).withMessage("봉투는 seongsu 또는 myeongdong 이어야 합니다."),
+  body("isAnonymous").optional().isBoolean().withMessage("isAnonymous 는 boolean 이어야 합니다.").toBoolean(),
+  body("recipientName").optional({ values: "falsy" }).trim().isLength({ max: 50 }).withMessage("받는 사람은 50자 이내여야 합니다."),
   body("draftId").optional().isMongoId().withMessage("올바른 임시저장 ID가 아닙니다."),
   // recipientAddresses 검증
   body("recipientAddresses").optional().isArray().withMessage("수신자 주소는 배열이어야 합니다."),
@@ -39,6 +43,10 @@ const publishDraftValidation = [
   body("content").optional().trim().isLength({ min: 1, max: 10000 }).withMessage("내용은 1-10,000자 이내여야 합니다."),
   body("type").optional().isIn(["friend", "story"]).withMessage("올바른 편지 타입을 선택해주세요."),
   body("category").optional().trim().isLength({ max: 50 }).withMessage("카테고리는 50자 이내여야 합니다."),
+  body("contentType").optional().isIn(["text", "html"]).withMessage("contentType 은 text 또는 html 이어야 합니다."),
+  body("envelope").optional().isIn(["seongsu", "myeongdong"]).withMessage("봉투는 seongsu 또는 myeongdong 이어야 합니다."),
+  body("isAnonymous").optional().isBoolean().withMessage("isAnonymous 는 boolean 이어야 합니다.").toBoolean(),
+  body("recipientName").optional({ values: "falsy" }).trim().isLength({ max: 50 }).withMessage("받는 사람은 50자 이내여야 합니다."),
   validate,
 ];
 
