@@ -6,10 +6,12 @@ import recipientLetterController from "../controllers/recipientLetterController"
 import { authenticate, optionalAuthenticate } from "../middleware/auth";
 import { updateLetterValidation, letterIdValidation } from "../middleware/letterValidation";
 import { contentSizeLimit, validateHtmlContent } from "../middleware/contentValidation";
-import { body, param } from "express-validator";
+import { body, param, query } from "express-validator";
 import { validate } from "../middleware/validation";
 import { letterCreateLimiter, physicalRequestLimiter, commentLimiter } from "../middleware/rateLimiter";
 import { COMMENT_MAX } from "../models/Comment";
+import { getMyRecords } from "../controllers/myRecordsController";
+import { RECORD_FLOWS, RECORD_TABS } from "../services/myRecordsService";
 
 const router: Router = Router();
 
@@ -119,6 +121,31 @@ router.post("/", authenticate, letterCreateLimiter, contentSizeLimit(50000), val
  * @access  Private
  */
 router.get("/my/stories", authenticate, letterController.getMyStories);
+
+/**
+ * @route   GET /api/letters/my/physical-requests
+ * @desc    내가 쓴 마음 편지에 들어온 실물 신청 수 + 최근 1건 (이름·구 단위 지역만)
+ * @access  Private
+ */
+router.get("/my/physical-requests", authenticate, recipientLetterController.getMyRequestSummary);
+
+/**
+ * @route   GET /api/letters/my/records
+ * @desc    마이페이지 내 기록 (보낸 편지·받은 편지·나의 사연 최신순 + 구분별 개수)
+ * @access  Private
+ * @query   tab=all|sent|received|stories, flow=all|story|heart, limit=1~60
+ */
+router.get(
+  "/my/records",
+  authenticate,
+  [
+    query("tab").optional().isIn(RECORD_TABS).withMessage("tab 값이 올바르지 않습니다."),
+    query("flow").optional().isIn(RECORD_FLOWS).withMessage("flow 값이 올바르지 않습니다."),
+    query("limit").optional().isInt({ min: 1, max: 60 }).withMessage("limit 은 1~60 이어야 합니다."),
+    validate,
+  ],
+  getMyRecords
+);
 
 /**
  * @route   GET /api/letters/my

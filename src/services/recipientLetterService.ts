@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import Letter, { IRecipientAddress } from "../models/Letter";
+import Letter, { IRecipientAddress, LetterStatus, LetterType } from "../models/Letter";
 import mongoose from "mongoose";
 
 /** 김하늘 → 김*늘, 김하 → 김*, 남궁하늘 → 남**늘 */
@@ -274,6 +274,41 @@ class RecipientLetterService {
     const totalRequests = letter.recipientAddresses.filter((addr: any) => addr.isPhysicalRequested).length;
 
     return { letterId, totalRequests, stats: letter.physicalLetterStats };
+  }
+
+  /**
+   * 우편함 "실물 편지 신청 현황": 내가 쓴 마음 편지들에 들어온 신청 수와 가장 최근 신청 1건.
+   * 작성자에게는 받는 분 이름·지역(구 단위)까지만.
+   */
+  async getAuthorRequestSummary(authorId: string) {
+    const [row] = await Letter.aggregate<{ total: { n: number }[]; latest: any[] }>([
+      { $match: { userId: new mongoose.Types.ObjectId(authorId), type: LetterType.FRIEND, status: { $ne: LetterStatus.DELETED }, "recipientAddresses.isPhysicalRequested": true } },
+      { $unwind: "$recipientAddresses" },
+      { $match: { "recipientAddresses.isPhysicalRequested": true } },
+      { $sort: { "recipientAddresses.physicalRequestDate": -1 } },
+      {
+        $facet: {
+          total: [{ $count: "n" }],
+          latest: [{ $limit: 1 }, { $project: { title: 1, envelope: 1, r: "$recipientAddresses" } }],
+        },
+      },
+    ]);
+    const l = row?.latest[0];
+    return {
+      total: row?.total[0]?.n ?? 0,
+      latest: l
+        ? {
+            letterId: String(l._id),
+            letterTitle: l.title,
+            envelope: l.envelope,
+            requestId: l.r.requestId,
+            name: l.r.name,
+            region: maskAddress(l.r.address1),
+            status: l.r.physicalStatus,
+            requestedAt: l.r.physicalRequestDate,
+          }
+        : null,
+    };
   }
 
   /**

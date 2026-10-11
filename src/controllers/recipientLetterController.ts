@@ -90,6 +90,20 @@ class RecipientLetterController {
   }
 
   /**
+   * 우편함 실물 편지 신청 현황 (작성자 기준)
+   * GET /api/letters/my/physical-requests
+   */
+  async getMyRequestSummary(req: Request, res: Response): Promise<void> {
+    try {
+      const data = await recipientLetterService.getAuthorRequestSummary(req.user!.userId);
+      res.json({ success: true, data });
+    } catch (error: unknown) {
+      console.error("실물 편지 신청 현황 조회 실패:", error);
+      res.status(500).json({ success: false, message: "신청 현황을 불러오지 못했습니다." });
+    }
+  }
+
+  /**
    * 작성자용 수신자 목록 조회
    * GET /api/letters/:letterId/recipients
    */

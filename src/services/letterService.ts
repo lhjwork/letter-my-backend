@@ -159,9 +159,13 @@ class LetterService {
     ]);
 
     const totalPages = Math.ceil(total / limit);
+    const counts = await Letter.aggregate<ReplyCountRow>([
+      { $match: { replyToId: { $in: stories.map((s) => s._id) }, status: { $nin: [LetterStatus.HIDDEN, LetterStatus.DELETED] } } },
+      { $group: { _id: "$replyToId", n: { $sum: 1 } } },
+    ]);
 
     return {
-      data: stories as ILetter[],
+      data: attachReplyCount(stories as unknown as ILetter[], counts),
       pagination: {
         page,
         limit,
@@ -495,8 +499,8 @@ class LetterService {
 
     switch (filter) {
       case "sent":
-        // 내가 작성한 편지
-        queryFilter = { userId, type: LetterType.FRIEND };
+        // 내가 작성한 편지 (사연에 단 답장 포함, 삭제한 것 제외)
+        queryFilter = { userId, type: LetterType.FRIEND, status: { $ne: LetterStatus.DELETED } };
         break;
       case "received":
         // 내가 저장한(받은) 편지
@@ -519,7 +523,8 @@ class LetterService {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .select("-__v -savedBy")
+        // 신청자 주소·연락처는 작성자 목록에 싣지 않는다(작성자는 편지 상세에서 구 단위까지만 본다)
+        .select("-__v -savedBy -recipientAddresses")
         .populate("userId", "name email image")
         .lean(),
       Letter.countDocuments(queryFilter),
@@ -527,9 +532,17 @@ class LetterService {
 
     const totalPages = Math.ceil(total / limit);
 
+    // 답장이면 사연 제목을 붙인다(우편함 "‘사연 제목’에 쓴 답장"). 사연이 지워졌어도 답장임은 유지
+    const storyIds = letters.map((l: any) => l.replyToId).filter(Boolean);
+    const storyTitles = new Map(
+      storyIds.length ? (await Letter.find({ _id: { $in: storyIds } }).select("title").lean()).map((s) => [String(s._id), s.title]) : []
+    );
+
     // 각 편지에 direction 필드 추가
     const lettersWithDirection = letters.map((letter: any) => ({
       ...letter,
+      replyTo: letter.replyToId ? { _id: String(letter.replyToId), title: storyTitles.get(String(letter.replyToId)) ?? "" } : undefined,
+      physicalRequested: (letter.physicalLetterStats?.totalRequests ?? 0) > 0,
       direction: letter.userId?._id?.toString() === userId || letter.userId?.toString() === userId
         ? "sent"
         : "received",

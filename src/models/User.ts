@@ -37,7 +37,7 @@ export interface IAddress {
   zipCode: string;
   address: string;
   addressDetail?: string;
-  phone: string;
+  phone?: string;
   tel?: string;
   isDefault: boolean;
   lastUsedAt?: Date;
@@ -136,7 +136,6 @@ const AddressSchema = new Schema<IAddress>(
     },
     phone: {
       type: String,
-      required: true,
       trim: true,
     },
     tel: {

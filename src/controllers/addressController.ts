@@ -123,7 +123,7 @@ export const createAddress = async (req: Request, res: Response): Promise<void> 
 
   const newAddress = {
     _id: new mongoose.Types.ObjectId(),
-    addressName,
+    addressName: addressName || String(recipientName).slice(0, 20),
     recipientName,
     zipCode,
     address,
@@ -180,18 +180,17 @@ export const updateAddress = async (req: Request, res: Response): Promise<void> 
     });
   }
 
-  // 배송지 업데이트
-  user.addresses[addressIndex] = {
-    ...user.addresses[addressIndex],
-    addressName,
+  // 배송지 업데이트. 서브문서에 그대로 대입해야 _id·createdAt 이 유지된다(객체 스프레드는 몽구스 내부 필드를 복사함)
+  Object.assign(user.addresses[addressIndex], {
+    addressName: addressName || String(recipientName).slice(0, 20),
     recipientName,
     zipCode,
     address,
     addressDetail,
     phone,
     tel,
-    isDefault,
-  };
+    isDefault: !!isDefault,
+  });
 
   await user.save();
 

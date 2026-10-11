@@ -1,5 +1,6 @@
 import Like, { ILike } from "../models/Like";
-import Letter from "../models/Letter";
+import Letter, { LetterStatus } from "../models/Letter";
+import { attachReplyCount, type ReplyCountRow } from "./letterService";
 
 class LikeService {
   // 좋아요 추가
@@ -65,12 +66,23 @@ class LikeService {
     const skip = (page - 1) * limit;
 
     const [likes, total] = await Promise.all([
-      Like.find({ userId }).sort({ createdAt: -1 }).skip(skip).limit(limit).populate("letterId", "title authorName category viewCount likeCount createdAt type"),
+      Like.find({ userId }).sort({ createdAt: -1 }).skip(skip).limit(limit).populate("letterId", "title recipientName category createdAt type status plainContent").lean(),
       Like.countDocuments({ userId }),
     ]);
 
+    // 사연 목록(벽돌) 카드와 같은 모양: 미리보기 80자 + 답장 수. 숨김·삭제된 사연은 뺀다
+    const hiddenOrDeleted: string[] = [LetterStatus.HIDDEN, LetterStatus.DELETED];
+    const stories = likes
+      .map((like) => like.letterId as unknown as { _id: unknown; status?: string; plainContent?: string } | null)
+      .filter((l): l is NonNullable<typeof l> => !!l && !hiddenOrDeleted.includes(l.status ?? ""))
+      .map(({ plainContent, status: _status, ...l }) => ({ ...l, preview: (plainContent ?? "").replace(/\s+/g, " ").trim().slice(0, 80) }));
+    const counts = await Letter.aggregate<ReplyCountRow>([
+      { $match: { replyToId: { $in: stories.map((s) => s._id) }, status: { $nin: hiddenOrDeleted } } },
+      { $group: { _id: "$replyToId", n: { $sum: 1 } } },
+    ]);
+
     return {
-      likes: likes.map((like) => like.letterId).filter(Boolean),
+      likes: attachReplyCount(stories, counts),
       pagination: {
         page,
         limit,
