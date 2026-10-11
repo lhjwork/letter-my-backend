@@ -170,6 +170,9 @@ class RecipientLetterService {
     if (letter.replyToId) {
       throw new Error("답장은 실물 편지로 신청할 수 없습니다.");
     }
+    if (letter.type === "story") {
+      throw new Error("사연 편지는 실물 편지로 신청할 수 없습니다.");
+    }
 
     // 중복 확인
     const { isDuplicate, duplicateOf } = await this.checkDuplicate(letterId, phone, sessionId, userId);

@@ -19,7 +19,8 @@ const router: Router = Router();
 const createStoryValidation = [
   body("title").trim().notEmpty().withMessage("Title is required"),
   body("content").notEmpty().withMessage("Content is required"),
-  body("authorName").optional().trim(),
+  body("title").isLength({ max: 100 }).withMessage("제목은 100자 이내여야 합니다."),
+  body("authorName").optional().trim().isLength({ max: 30 }).withMessage("이름은 30자 이내여야 합니다."),
   body("category").optional().isIn(["가족", "사랑", "우정", "성장", "위로", "추억", "감사", "기타"]).withMessage("Invalid category"),
   validate,
 ];
@@ -36,6 +37,8 @@ const physicalLetterRequestValidation = [
     .withMessage("우편번호는 5자리 숫자여야 합니다."),
   body("address.address1").trim().isLength({ min: 5, max: 200 }).withMessage("주소는 5-200자 이내여야 합니다."),
   body("address.address2").optional().trim().isLength({ max: 200 }).withMessage("상세주소는 200자 이내여야 합니다."),
+  body("address.memo").optional().isString().isLength({ max: 500 }).withMessage("메모는 500자 이내여야 합니다."),
+  body("memo").optional().isString().isLength({ max: 500 }).withMessage("메모는 500자 이내여야 합니다."),
   validate,
 ];
 
@@ -89,9 +92,9 @@ router.get("/stats", authenticate, letterController.getLetterStats);
 /**
  * @route   POST /api/letters/story
  * @desc    사연 등록
- * @access  Public
+ * @access  Private (웹 화면은 쓰지 않는 경로. 익명 공개 글 생성을 막는다)
  */
-router.post("/story", letterCreateLimiter, contentSizeLimit(50000), validateHtmlContent, createStoryValidation, letterController.createStory);
+router.post("/story", authenticate, letterCreateLimiter, contentSizeLimit(50000), validateHtmlContent, createStoryValidation, letterController.createStory);
 
 /**
  * @route   GET /api/letters/stories/featured

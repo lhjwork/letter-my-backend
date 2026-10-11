@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import letterService, { toPublic } from "../services/letterService";
 import letterCreateService from "../services/letterCreateService";
+import { maskName, maskAddress } from "../services/recipientLetterService";
 import { LetterCategory } from "../models/Letter";
 
 // Letter Controller 클래스
@@ -666,7 +667,15 @@ export class LetterController {
 
       res.status(200).json({
         success: true,
-        data: letter.recipientAddresses,
+        // 작성자에게도 신청자 연락처·상세주소·메모는 주지 않는다(이름·구 단위만, 4b0689c 결정)
+        data: letter.recipientAddresses.map((a: { _id: unknown; name: string; address1: string; physicalStatus?: string; addedAt?: Date; requestId?: string }) => ({
+          _id: a._id,
+          requestId: a.requestId,
+          name: maskName(a.name),
+          address: maskAddress(a.address1),
+          status: a.physicalStatus,
+          addedAt: a.addedAt,
+        })),
         meta: { timestamp: new Date().toISOString() },
       });
     } catch (error) {
