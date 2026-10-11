@@ -302,18 +302,13 @@ class RecipientLetterService {
       letterTitle: letter.title,
       authorName: letter.authorName,
       totalRequests: physicalRequests.length,
+      // 작성자는 승인 판단에 필요한 이름·지역(구 단위)만. 연락처·상세 주소·메모는 발송하는 관리자 화면에만
       recipients: physicalRequests.map((req: any) => ({
         requestId: req.requestId,
         name: req.name,
-        phone: req.phone,
-        zipCode: req.zipCode,
-        address1: req.address1,
-        address2: req.address2,
-        fullAddress: `(${req.zipCode}) ${req.address1} ${req.address2}`.trim(),
+        region: maskAddress(req.address1),
         status: req.physicalStatus,
         requestedAt: req.physicalRequestDate,
-        memo: req.memo,
-        sessionId: req.sessionId?.substring(0, 8) + "...", // 보안을 위해 일부만 표시
       })),
       stats: {
         total: letter.physicalLetterStats.totalRequests,
