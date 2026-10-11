@@ -167,6 +167,8 @@ class PhysicalLetterService {
           },
           physicalNotes: "$recipientAddresses.memo",
           requestId: "$recipientAddresses.requestId",
+          // 사연 답장 신청이면 원래 사연 id (마음 편지 신청과 구분)
+          replyToId: "$replyToId",
         },
       },
 

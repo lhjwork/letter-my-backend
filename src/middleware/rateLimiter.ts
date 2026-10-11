@@ -83,3 +83,17 @@ export const commentLimiter = rateLimit({
     error: { message: "댓글을 너무 자주 남기고 있어요. 잠시 후 다시 시도해주세요." },
   },
 });
+
+/**
+ * 1:1 문의 작성 제한: 1시간에 10회
+ */
+export const inquiryLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: { message: "문의를 너무 자주 남기고 있어요. 잠시 후 다시 시도해주세요." },
+  },
+});

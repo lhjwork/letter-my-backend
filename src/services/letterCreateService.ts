@@ -226,8 +226,6 @@ class LetterCreateService {
       ogPreviewText: letter.ogPreviewText,
       createdAt: letter.createdAt,
       viewCount: letter.viewCount,
-      likeCount: letter.likeCount,
-      aiMetadata: letter.aiMetadata,
       isPublic: letter.isPublic,
       // 실물 신청 현황. 답장은 사연자 본인 신청뿐이라 남에게 보이면 사연자의 신청 여부가 드러난다 → 본인에게만
       ...(!letter.replyToId || isStoryOwner
@@ -441,8 +439,8 @@ class LetterCreateService {
           $gte: new Date(today.getFullYear(), today.getMonth(), 1),
         },
       }),
-      Letter.countDocuments({ userId, type: "story" }),
-      Letter.countDocuments({ userId, type: "friend" }),
+      Letter.countDocuments({ userId, type: LetterType.STORY }),
+      Letter.countDocuments({ userId, type: LetterType.FRIEND }),
     ]);
 
     const dailyLimit = parseInt(process.env.LETTER_LIMIT_PER_DAY || "20");

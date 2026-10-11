@@ -1,5 +1,5 @@
 import { safeSearch } from "../utils/search";
-import User from "../models/User";
+import User, { UserStatus } from "../models/User";
 import Letter from "../models/Letter";
 import mongoose from "mongoose";
 
@@ -328,7 +328,7 @@ class AdminUserService {
           },
         },
       ]),
-      User.find({ status: "active" }).sort({ createdAt: -1 }).limit(5).select("name email createdAt").lean(),
+      User.find({ status: UserStatus.ACTIVE }).sort({ createdAt: -1 }).limit(5).select("name email createdAt").lean(),
     ]);
 
     const stats = userStats[0] || {

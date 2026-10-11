@@ -1,7 +1,9 @@
 import { safeSearch } from "../utils/search";
 import Admin, { IAdmin, AdminRole, AdminStatus, Permission, ROLE_PERMISSIONS } from "../models/Admin";
 import User from "../models/User";
-import Letter from "../models/Letter";
+import Letter, { LetterType } from "../models/Letter";
+import { isAdminEmail } from "../utils/adminUser";
+import { extractPlainText } from "../utils/htmlProcessor";
 
 interface AdminQueryParams {
   page?: number;
@@ -133,8 +135,8 @@ class AdminService {
     // 편지 통계
     const [totalLetters, storyCount, letterCount, todayLetters] = await Promise.all([
       Letter.countDocuments(),
-      Letter.countDocuments({ type: "story" }),
-      Letter.countDocuments({ type: "letter" }),
+      Letter.countDocuments({ type: LetterType.STORY }),
+      Letter.countDocuments({ type: LetterType.FRIEND }),
       Letter.countDocuments({ createdAt: { $gte: todayStart } }),
     ]);
 
@@ -262,8 +264,24 @@ class AdminService {
     };
   }
 
+  /** 답장이면 레터 답장 여부(isAdminReply)를 붙인다. 작성자 이메일은 내보내지 않는다 */
   async getLetterById(id: string) {
-    return Letter.findById(id);
+    const letter = await Letter.findById(id).populate("userId", "email").lean();
+    if (!letter) return null;
+    const user = letter.userId as unknown as { _id?: unknown; email?: string } | null;
+    return { ...letter, userId: user?._id ?? letter.userId, ...(letter.replyToId ? { isAdminReply: isAdminEmail(user?.email) } : {}) };
+  }
+
+  /** 사연에 달린 답장 전부(숨김·삭제 포함). 사연이 없거나 사연이 아니면 null */
+  async getStoryReplies(storyId: string) {
+    const story = await Letter.findById(storyId).select("type").lean();
+    if (!story || story.type !== LetterType.STORY) return null;
+    const rows = await Letter.find({ replyToId: storyId })
+      .sort({ createdAt: -1 })
+      .select("_id authorName isAnonymous status adoptedAt createdAt plainContent content contentType userId")
+      .populate("userId", "email")
+      .lean();
+    return rows.map((r) => toReplyRow({ ...r, email: (r.userId as unknown as { email?: string } | null)?.email }));
   }
 
   async updateLetter(id: string, data: Record<string, unknown>) {
@@ -289,13 +307,41 @@ class AdminService {
 
   /** 답장 채택 토글. 답장(replyToId 있는 편지)에만. 같은 사연에 복수 채택 허용 */
   async toggleAdopt(replyId: string) {
-    const reply = await Letter.findById(replyId).select("replyToId adoptedAt");
+    const reply = await Letter.findById(replyId).select("replyToId adoptedAt userId").populate("userId", "email");
     if (!reply) return null;
     if (!reply.replyToId) throw new Error("답장이 아닌 편지는 채택할 수 없습니다");
+    if (isAdminEmail((reply.userId as unknown as { email?: string } | null)?.email)) throw new Error("레터 답장은 채택 대상이 아닙니다");
     reply.adoptedAt = reply.adoptedAt ? undefined : new Date();
     await reply.save();
     return { _id: String(reply._id), isAdopted: !!reply.adoptedAt, adoptedAt: reply.adoptedAt ?? null };
   }
+}
+
+/** 관리자 답장 목록 한 줄. 본문은 앞 80자만 */
+export function toReplyRow(r: {
+  _id: unknown;
+  authorName?: string;
+  isAnonymous?: boolean;
+  status: string;
+  adoptedAt?: Date | null;
+  createdAt: Date;
+  plainContent?: string;
+  content?: string;
+  contentType?: string;
+  email?: string;
+}) {
+  const text = (r.contentType === "html" && r.content ? extractPlainText(r.content) : r.plainContent || r.content || "").replace(/\s+/g, " ").trim();
+  return {
+    _id: String(r._id),
+    authorName: r.authorName || "익명",
+    isAnonymous: !!r.isAnonymous,
+    isAdminReply: isAdminEmail(r.email),
+    isAdopted: !!r.adoptedAt,
+    adoptedAt: r.adoptedAt ?? null,
+    status: r.status,
+    createdAt: r.createdAt,
+    preview: text.length > 80 ? `${text.slice(0, 80)}…` : text,
+  };
 }
 
 export default new AdminService();

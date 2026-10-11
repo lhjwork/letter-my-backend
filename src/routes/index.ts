@@ -7,6 +7,8 @@ import testRoutes from "./tests";
 import addressRoutes from "./addressRoutes";
 import adminRoutes from "./adminRoutes";
 import adRoutes from "./adRoutes";
+import noticeRoutes from "./notices";
+import inquiryRoutes from "./inquiries";
 
 const router: Router = Router();
 
@@ -42,6 +44,12 @@ router.use("/admin", adminRoutes);
 
 // Ad routes (광고)
 router.use("/ads", adRoutes);
+
+// 공지 (공개)
+router.use("/notices", noticeRoutes);
+
+// 1:1 문의 (로그인)
+router.use("/inquiries", inquiryRoutes);
 
 
 // Fallback for undefined routes

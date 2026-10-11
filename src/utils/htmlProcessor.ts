@@ -80,7 +80,8 @@ export function extractPlainText(htmlContent: string): string {
  * OG 미리보기 텍스트 생성
  */
 export function generatePreviewText(htmlContent: string, maxLength: number = 60): string {
-  const plainText = extractPlainText(htmlContent);
+  // 미리보기는 한 줄: 줄바꿈을 공백으로(그냥 지우면 "됐습니다.누군가에게"처럼 문장이 붙는다)
+  const plainText = extractPlainText(htmlContent).replace(/\s+/g, " ");
   return plainText.length > maxLength ? plainText.slice(0, maxLength) + "..." : plainText;
 }
 

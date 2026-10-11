@@ -233,6 +233,20 @@ class AdminController {
     }
   }
 
+  async getStoryReplies(req: Request, res: Response): Promise<void> {
+    try {
+      const replies = await adminService.getStoryReplies(req.params.id);
+      if (!replies) {
+        res.status(404).json({ success: false, message: "사연을 찾을 수 없습니다" });
+        return;
+      }
+      res.json({ success: true, data: replies });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "답장 목록 조회 실패";
+      res.status(500).json({ success: false, message });
+    }
+  }
+
   async adoptReply(req: Request, res: Response): Promise<void> {
     try {
       const result = await adminService.toggleAdopt(req.params.id);

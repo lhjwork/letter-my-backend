@@ -242,7 +242,7 @@ class LetterService {
         type: LetterType.STORY,
         isPublic: true,
         // status가 hidden이나 deleted가 아닌 모든 사연 포함
-        status: { $nin: ["hidden", "deleted"] },
+        status: { $nin: [LetterStatus.HIDDEN, LetterStatus.DELETED] },
       })
         .sort({ createdAt: -1 })
         .limit(4)

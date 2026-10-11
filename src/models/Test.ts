@@ -67,7 +67,7 @@ TestSchema.index({ status: 1, priority: -1, createdBy: 1 });
 
 // Static 메서드: 상태로 검색
 TestSchema.statics.findByStatus = function (status: string): Promise<ITest[]> {
-  return this.find({ status }).sort({ priority: -1, createdAt: -1 });
+  return this.find({ status: status as ITest["status"] }).sort({ priority: -1, createdAt: -1 });
 };
 
 // Static 메서드: 우선순위로 검색
