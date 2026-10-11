@@ -166,6 +166,10 @@ class RecipientLetterService {
     if (!letter) {
       throw new Error("편지를 찾을 수 없습니다.");
     }
+    // 사연에 단 답장은 실물 신청 대상이 아니다(사연 흐름의 실물은 관리자가 처리)
+    if (letter.replyToId) {
+      throw new Error("답장은 실물 편지로 신청할 수 없습니다.");
+    }
 
     // 중복 확인
     const { isDuplicate, duplicateOf } = await this.checkDuplicate(letterId, phone, sessionId, userId);

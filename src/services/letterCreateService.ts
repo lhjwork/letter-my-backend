@@ -139,7 +139,7 @@ class LetterCreateService {
       throw new Error("올바르지 않은 편지 ID입니다.");
     }
 
-    const letter = await Letter.findById(letterId).populate("userId", "name email image").lean();
+    const letter = await Letter.findById(letterId).populate("userId", "name email image").populate("replyToId", "title").lean();
 
     if (!letter) {
       throw new Error("편지를 찾을 수 없습니다.");
@@ -200,7 +200,12 @@ class LetterCreateService {
       type: letter.type,
       // 작성자 식별자는 내보내지 않는다(익명 글 대조 방지). 본인 여부만 서버가 계산
       isAuthor: !!viewerId && letter.userId?._id?.toString() === viewerId,
-      senderName: letter.isAnonymous ? "익명" : (letter.userId as any)?.name || letter.authorName,
+      // 답장은 목록 카드와 같은 이름(authorName)을 쓴다
+      senderName: letter.isAnonymous ? "익명" : letter.replyToId ? letter.authorName || "익명" : (letter.userId as any)?.name || letter.authorName,
+      // 사연 답장이면 원래 사연과 배지 정보(답장 읽기 화면용)
+      replyTo: letter.replyToId ? { _id: String((letter.replyToId as any)._id ?? letter.replyToId), title: (letter.replyToId as any).title ?? "" } : undefined,
+      isAdminReply: letter.replyToId ? isAdminEmail((letter.userId as any)?.email) : undefined,
+      isAdopted: letter.replyToId ? !!letter.adoptedAt : undefined,
       recipientName: letter.recipientName,
       category: letter.category,
       envelope: letter.envelope,
