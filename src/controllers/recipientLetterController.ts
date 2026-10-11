@@ -41,8 +41,13 @@ class RecipientLetterController {
       res.status(201).json({
         success: true,
         message,
+        // 신청자 세션·IP 해시·UA 같은 내부 필드는 내보내지 않는다
         data: {
-          ...result,
+          requestId: result.requestId,
+          letterId: result.letterId,
+          status: result.status,
+          needsApproval: result.needsApproval,
+          isDuplicate: !!result.isDuplicate,
           trackingInfo: {
             requestId: result.requestId,
             statusCheckUrl: `/api/letters/physical-requests/${result.requestId}/status`,

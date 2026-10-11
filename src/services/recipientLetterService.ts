@@ -96,6 +96,8 @@ class RecipientLetterService {
       letterId: letter._id.toString(),
       letterTitle: letter.title || letter.ogTitle || "편지",
       status: request.physicalStatus,
+      // 거절 시 작성자가 적은 사유(processApproval 이 memo 에 "거절 사유: " 접두어로 저장)
+      rejectionReason: request.physicalStatus === "rejected" && request.memo?.startsWith("거절 사유: ") ? request.memo.slice(7) : null,
       recipientInfo: {
         name: request.name,
         address: `${request.address1}${request.address2 ? ` ${request.address2}` : ""}`.trim(),
@@ -382,7 +384,6 @@ class RecipientLetterService {
       requestId,
       letterId: letter._id.toString(),
       letterTitle: letter.ogTitle || letter.title,
-      letterAuthor: letter.authorName,
       status: request.physicalStatus,
       requestedAt: request.physicalRequestDate,
       statusHistory: {
