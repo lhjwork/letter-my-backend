@@ -1,17 +1,52 @@
 name: Deploy
-
+# 빌드는 GitHub 러너에서, 서버(self-hosted 러너)는 이미지를 받아 재시작만 한다
 on:
   push:
     branches: [main]
   workflow_dispatch:
-
 concurrency:
-  group: deploy
-  cancel-in-progress: false
-
+  group: deploy-backend
+  cancel-in-progress: true
+permissions:
+  contents: read
+  packages: write
+env:
+  IMAGE: ghcr.io/lhjwork/letter-my-backend
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE }}:latest,${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
   deploy:
+    needs: build
     runs-on: self-hosted
     steps:
-      - name: Deploy
-        run: /home/ubuntu/letter-projects/deploy.sh backend
+      - name: Pull & restart
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -e
+          cd /home/ubuntu/letter-projects
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+          docker pull "$IMAGE:$SHA"
+          docker logout ghcr.io
+          # 서버 compose 에 image: 가 있든 없든, compose 가 띄우는 이미지 이름에 이번 커밋 이미지를 붙인다
+          TARGET=$(docker compose config --images backend)
+          docker tag "$IMAGE:$SHA" "$TARGET"
+          docker compose up -d --no-build backend
+          docker image prune -f
