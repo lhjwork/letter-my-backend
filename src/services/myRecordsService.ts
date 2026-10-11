@@ -70,7 +70,7 @@ export function toRecordItem(row: RecordRow, userId: string, replyCount = 0, adm
     badge = physical ? { text: "실물 신청됨", tone: "green" } : null; // 링크 공유 여부는 추적하지 않아 배지 없음
   } else {
     label = "받은 · 마음 편지";
-    badge = { text: "읽음", tone: "muted" };
+    badge = null; // 받은 편지는 늘 읽은 상태라 배지가 정보가 없다
   }
 
   return {

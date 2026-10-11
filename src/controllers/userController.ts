@@ -97,15 +97,13 @@ export class UserController {
         return;
       }
       if (message === "Name already exists") {
-        sendBadRequest(res, "이미 사용 중인 닉네임입니다");
+        sendBadRequest(res, "이미 쓰고 있는 닉네임이에요.");
         return;
       }
       if (message.startsWith(NAME_CHANGE_LOCKED)) {
         const nextAt = new Date(message.slice(NAME_CHANGE_LOCKED.length));
-        sendBadRequest(
-          res,
-          `닉네임은 한 달에 한 번만 변경할 수 있습니다. ${nextAt.toLocaleDateString("ko-KR")}부터 변경할 수 있어요`
-        );
+        const md = nextAt.toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric" });
+        sendBadRequest(res, `${md}부터 바꿀 수 있어요.`);
         return;
       }
       next(error);
