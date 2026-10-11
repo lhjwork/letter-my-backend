@@ -38,6 +38,10 @@ export interface RecordItem {
   badge: { text: string; tone: Tone } | null;
   recipientName?: string;
   title: string;
+  /** 답장이면 원래 사연 제목(우편함 "받은 답장" 카드가 길이에 맞춰 자른다) */
+  storyTitle?: string;
+  /** 받은 답장을 실물 편지로 신청했는지(신청은 사연자 본인만 가능) */
+  physical?: boolean;
   createdAt: string;
 }
 
@@ -50,6 +54,7 @@ export function toRecordItem(row: RecordRow, userId: string, replyCount = 0, adm
   const flow = row.type === LetterType.STORY || isReply ? "story" : "heart";
 
   let title = row.title;
+  let physical: boolean | undefined;
   let label: string;
   let badge: RecordItem["badge"];
   if (kind === "story") {
@@ -63,6 +68,8 @@ export function toRecordItem(row: RecordRow, userId: string, replyCount = 0, adm
     } else {
       label = "받은 · 사연 답장";
       badge = adminIds.has(String(row.userId)) ? { text: "레터의 답장", tone: "brick" } : { text: "채택", tone: "green" };
+      if (row.storyTitle) title = `‘${row.storyTitle}’에 온 답장`;
+      physical = (row.physicalLetterStats?.totalRequests ?? 0) > 0;
     }
   } else if (kind === "sent") {
     label = "보낸 · 마음 편지";
@@ -81,6 +88,8 @@ export function toRecordItem(row: RecordRow, userId: string, replyCount = 0, adm
     badge,
     recipientName: row.recipientName || undefined,
     title,
+    storyTitle: isReply ? row.storyTitle : undefined,
+    physical,
     createdAt: new Date(row.createdAt).toISOString(),
   };
 }
@@ -133,8 +142,8 @@ class MyRecordsService {
     // 나의 사연 카드 "답장 N". 숨김·삭제 답장은 세지 않는다
     const storyIds = rows.filter((r) => r.type === LetterType.STORY).map((r) => r._id);
     const adminSet = new Set(adminIds.map(String));
-    // 내가 쓴 답장 카드 제목 "‘사연 제목’에 쓴 답장"
-    const myReplyTargets = rows.filter((r) => r.replyToId && String(r.userId) === userId).map((r) => r.replyToId!);
+    // 답장 카드 제목 "‘사연 제목’에 쓴 답장"(내가 쓴) / "‘사연 제목’에 온 답장"(받은)
+    const myReplyTargets = rows.filter((r) => r.replyToId).map((r) => r.replyToId!);
     const storyTitles = myReplyTargets.length ? await Letter.find({ _id: { $in: myReplyTargets } }).select("title").lean() : [];
     const titleMap = new Map(storyTitles.map((t) => [String(t._id), t.title]));
     for (const r of rows) if (r.replyToId) r.storyTitle = titleMap.get(String(r.replyToId));

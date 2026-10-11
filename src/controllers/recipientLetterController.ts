@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import recipientLetterService, { IPhysicalRequestData } from "../services/recipientLetterService";
 import { getErrorMessage } from "../utils/response";
+import { AppError } from "../middleware/errorHandler";
 
 class RecipientLetterController {
   /**
@@ -58,7 +59,8 @@ class RecipientLetterController {
     } catch (error: unknown) {
       console.error("실물 편지 신청 실패:", error);
       const message = getErrorMessage(error);
-      res.status(400).json({
+      // 사연 답장 자격(401·403·404)은 서비스가 정한 코드 그대로, 나머지 입력 오류는 400
+      res.status(error instanceof AppError ? error.statusCode : 400).json({
         success: false,
         error: message || "실물 편지 신청에 실패했습니다.",
       });

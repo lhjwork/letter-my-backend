@@ -22,6 +22,8 @@ assert.deepEqual([myReply.kind, myReply.flow, myReply.label, myReply.badge?.text
 
 const gotReply = toRecordItem({ ...base, type: "friend", userId: other, replyToId: other, adoptedAt: new Date() }, me);
 assert.deepEqual([gotReply.kind, gotReply.label, gotReply.badge?.text, gotReply.title], ["received", "받은 · 사연 답장", "채택", "t"]);
+const titled = toRecordItem({ ...base, type: "friend", userId: other, replyToId: other, adoptedAt: new Date(), storyTitle: "이사 첫날", physicalLetterStats: { totalRequests: 1 } }, me);
+assert.deepEqual([titled.title, titled.storyTitle, titled.physical], ["‘이사 첫날’에 온 답장", "이사 첫날", true]);
 const letterReply = toRecordItem({ ...base, type: "friend", userId: other, replyToId: other }, me, 0, new Set([other]));
 assert.deepEqual([letterReply.kind, letterReply.badge?.text, letterReply.badge?.tone], ["received", "레터의 답장", "brick"]);
 

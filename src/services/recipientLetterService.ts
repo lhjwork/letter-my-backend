@@ -1,6 +1,9 @@
 import crypto from "crypto";
 import Letter, { IRecipientAddress, LetterStatus, LetterType } from "../models/Letter";
 import mongoose from "mongoose";
+import User from "../models/User";
+import { isAdminEmail } from "../utils/adminUser";
+import { AppError } from "../middleware/errorHandler";
 
 /** 김하늘 → 김*늘, 김하 → 김*, 남궁하늘 → 남**늘 */
 export function maskName(name = ""): string {
@@ -13,6 +16,17 @@ export function maskName(name = ""): string {
 /** "서울 성동구 성수이로 1" → "서울 성동구" (시·도 + 시·군·구까지만) */
 export function maskAddress(address1 = ""): string {
   return address1.trim().split(/\s+/).slice(0, 2).join(" ");
+}
+
+/**
+ * 사연 답장 실물 신청 자격. 원래 사연을 남긴 본인만, 레터(관리자) 답장이거나 채택된 답장만.
+ * 막히면 [상태 코드, 문구], 되면 null. DB 없이 검사(src/tests/replyPhysical.test.ts)
+ */
+export function replyPhysicalBlock(viewerId: string | undefined, storyOwnerId: string | undefined, isAdminReply: boolean, adopted: boolean): [number, string] | null {
+  if (!viewerId) return [401, "로그인하고 신청해 주세요."];
+  if (!storyOwnerId || viewerId !== storyOwnerId) return [403, "사연을 남긴 분만 이 답장을 실물 편지로 받을 수 있어요."];
+  if (!isAdminReply && !adopted) return [400, "레터의 답장이나 채택된 답장만 실물 편지로 받을 수 있어요."];
+  return null;
 }
 
 export interface IPhysicalRequestData {
@@ -166,12 +180,22 @@ class RecipientLetterService {
     if (!letter) {
       throw new Error("편지를 찾을 수 없습니다.");
     }
-    // 사연에 단 답장은 실물 신청 대상이 아니다(사연 흐름의 실물은 관리자가 처리)
-    if (letter.replyToId) {
-      throw new Error("답장은 실물 편지로 신청할 수 없습니다.");
-    }
     if (letter.type === "story") {
       throw new Error("사연 편지는 실물 편지로 신청할 수 없습니다.");
+    }
+    // 마음 편지는 작성자 승인(autoApprove 면 바로 승인). 사연 답장은 사연자 본인이 레터·채택 답장만 신청하고 승인 단계 없이 관리자 처리 목록으로
+    let needsApproval = !letter.authorSettings.autoApprove;
+    if (letter.replyToId) {
+      if (letter.status === LetterStatus.HIDDEN || letter.status === LetterStatus.DELETED) {
+        throw new AppError("편지를 찾을 수 없습니다.", 404);
+      }
+      const [story, author] = await Promise.all([
+        Letter.findById(letter.replyToId).select("userId").lean(),
+        letter.userId ? User.findById(letter.userId).select("email").lean() : null,
+      ]);
+      const block = replyPhysicalBlock(userId, story?.userId ? String(story.userId) : undefined, isAdminEmail(author?.email), !!letter.adoptedAt);
+      if (block) throw new AppError(block[1], block[0]);
+      needsApproval = false;
     }
 
     // 중복 확인
@@ -200,8 +224,8 @@ class RecipientLetterService {
           isDuplicate: true,
           duplicateOf,
         } as any,
-        needsApproval: !letter.authorSettings.autoApprove,
-        status: "requested",
+        needsApproval,
+        status: needsApproval ? "requested" : "approved",
         isDuplicate: true,
         duplicateOf,
       };
@@ -226,7 +250,7 @@ class RecipientLetterService {
       // 실물 편지 신청 정보
       isPhysicalRequested: true,
       physicalRequestDate: new Date(),
-      physicalStatus: letter.authorSettings.autoApprove ? "approved" : "requested",
+      physicalStatus: needsApproval ? "requested" : "approved",
       sessionId,
       userAgent,
       ipAddress: this.hashIP(ipAddress),
@@ -242,7 +266,7 @@ class RecipientLetterService {
 
     // 통계 업데이트
     letter.physicalLetterStats.totalRequests += 1;
-    if (letter.authorSettings.autoApprove) {
+    if (!needsApproval) {
       letter.physicalLetterStats.approvedRequests += 1;
     } else {
       letter.physicalLetterStats.pendingRequests += 1;
@@ -254,7 +278,7 @@ class RecipientLetterService {
       requestId,
       letterId: letter._id.toString(),
       recipientInfo: newRecipientAddress as IRecipientAddress,
-      needsApproval: !letter.authorSettings.autoApprove,
+      needsApproval,
       status: newRecipientAddress.physicalStatus!,
       isDuplicate: false,
     };

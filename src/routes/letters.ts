@@ -277,10 +277,11 @@ router.get("/physical-requests/:requestId/status", recipientLetterController.get
 
 /**
  * @route   POST /api/letters/:letterId/physical-request
- * @desc    실물 편지 신청 (로그인 없이 가능)
+ * @desc    실물 편지 신청 (마음 편지는 로그인 없이, 사연 답장은 사연자 본인 로그인 필요)
  * @access  Public
  */
-router.post("/:letterId/physical-request", physicalRequestLimiter, physicalLetterRequestValidation, recipientLetterController.requestPhysicalLetter);
+// optionalAuthenticate: 마음 편지는 로그인 없이도 신청, 사연 답장은 서비스가 req.user 로 사연자 본인인지 확인
+router.post("/:letterId/physical-request", physicalRequestLimiter, optionalAuthenticate, param("letterId").isMongoId().withMessage("올바르지 않은 편지 ID입니다."), physicalLetterRequestValidation, recipientLetterController.requestPhysicalLetter);
 
 /**
  * @route   GET /api/letters/:letterId/physical-request/:requestId

@@ -139,7 +139,7 @@ class LetterCreateService {
       throw new Error("올바르지 않은 편지 ID입니다.");
     }
 
-    const letter = await Letter.findById(letterId).populate("userId", "name email image").populate("replyToId", "title").lean();
+    const letter = await Letter.findById(letterId).populate("userId", "name email image").populate("replyToId", "title userId").lean();
 
     if (!letter) {
       throw new Error("편지를 찾을 수 없습니다.");
@@ -188,6 +188,14 @@ class LetterCreateService {
       // 에러가 발생해도 편지 조회는 계속 진행
     }
 
+    // 사연 답장: 보는 사람이 원래 사연을 남긴 본인인지, 실물로 받을 수 있는 답장(레터 답장·채택)인지, 이미 신청했는지
+    const isAdminReply = letter.replyToId ? isAdminEmail((letter.userId as any)?.email) : undefined;
+    const storyOwnerId = letter.replyToId ? (letter.replyToId as any).userId?.toString() : undefined;
+    const isStoryOwner = !!viewerId && !!storyOwnerId && storyOwnerId === viewerId;
+    const myRequest = isStoryOwner
+      ? letter.recipientAddresses.find((a: any) => a.isPhysicalRequested && a.requesterType === "authenticated" && a.requesterId === viewerId && a.physicalStatus !== "rejected")
+      : undefined;
+
     const commentCount = letter.type === LetterType.STORY ? await Comment.countDocuments({ letterId: letter._id }) : 0;
 
     // 응답 데이터 구성
@@ -204,8 +212,12 @@ class LetterCreateService {
       senderName: letter.isAnonymous ? "익명" : letter.replyToId ? letter.authorName || "익명" : (letter.userId as any)?.name || letter.authorName,
       // 사연 답장이면 원래 사연과 배지 정보(답장 읽기 화면용)
       replyTo: letter.replyToId ? { _id: String((letter.replyToId as any)._id ?? letter.replyToId), title: (letter.replyToId as any).title ?? "" } : undefined,
-      isAdminReply: letter.replyToId ? isAdminEmail((letter.userId as any)?.email) : undefined,
+      isAdminReply,
       isAdopted: letter.replyToId ? !!letter.adoptedAt : undefined,
+      isStoryOwner: letter.replyToId ? isStoryOwner : undefined,
+      canRequestPhysical: letter.replyToId ? isStoryOwner && (!!isAdminReply || !!letter.adoptedAt) : undefined,
+      // 본인 신청만. requestId 는 신청한 본인에게만 내려가 상태 페이지 링크에 쓴다
+      myPhysicalRequest: myRequest ? { requestId: myRequest.requestId, status: myRequest.physicalStatus } : undefined,
       recipientName: letter.recipientName,
       category: letter.category,
       envelope: letter.envelope,
@@ -217,19 +229,15 @@ class LetterCreateService {
       likeCount: letter.likeCount,
       aiMetadata: letter.aiMetadata,
       isPublic: letter.isPublic,
-      // 새로운 시스템에서 가져온 실물 편지 정보 (기존 Letter 모델 필드 무시)
-      physicalRequested: physicalLetterInfo.physicalRequested,
-      physicalStatus: physicalLetterInfo.physicalStatus,
-      physicalRequestDate: physicalLetterInfo.physicalRequestDate,
-      totalPhysicalRequests: physicalLetterInfo.totalRequests,
-      // 디버깅용 정보
-      _debug: {
-        letterId: letter._id.toString(),
-        originalPhysicalRequested: letter.physicalRequested,
-        originalPhysicalStatus: letter.physicalStatus,
-        newPhysicalRequested: physicalLetterInfo.physicalRequested,
-        newPhysicalStatus: physicalLetterInfo.physicalStatus,
-      },
+      // 실물 신청 현황. 답장은 사연자 본인 신청뿐이라 남에게 보이면 사연자의 신청 여부가 드러난다 → 본인에게만
+      ...(!letter.replyToId || isStoryOwner
+        ? {
+            physicalRequested: physicalLetterInfo.physicalRequested,
+            physicalStatus: physicalLetterInfo.physicalStatus,
+            physicalRequestDate: physicalLetterInfo.physicalRequestDate,
+            totalPhysicalRequests: physicalLetterInfo.totalRequests,
+          }
+        : {}),
     };
   }
 
