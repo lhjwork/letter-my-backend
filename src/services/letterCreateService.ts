@@ -238,12 +238,14 @@ class LetterCreateService {
     }
     const rows = await Letter.find({ replyToId: storyId, status: { $nin: [LetterStatus.HIDDEN, LetterStatus.DELETED] } })
       .sort({ createdAt: -1 })
-      .select("_id title ogPreviewText plainContent authorName isAnonymous adoptedAt createdAt userId")
+      .select("_id title ogPreviewText plainContent content contentType authorName isAnonymous adoptedAt createdAt userId")
       .populate("userId", "email")
       .lean();
     const replies = rows.map((r) => {
-      const { userId, adoptedAt, ...rest } = r;
+      const { userId, adoptedAt, content, contentType, ...rest } = r;
       const email = (userId as { email?: string } | null)?.email;
+      // 예전 HTML 답장은 저장된 plainContent 에 단락 경계가 없어 문장이 붙는다 → 읽을 때 다시 추출
+      if (contentType === "html" && content) rest.plainContent = extractPlainText(content);
       return { ...rest, authorName: r.isAnonymous ? "익명" : r.authorName, isAdminReply: isAdminEmail(email), isAdopted: !!adoptedAt };
     });
     return [...replies.filter((r) => r.isAdminReply), ...replies.filter((r) => !r.isAdminReply)];
