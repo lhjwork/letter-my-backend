@@ -2,6 +2,19 @@ import crypto from "crypto";
 import Letter, { IRecipientAddress } from "../models/Letter";
 import mongoose from "mongoose";
 
+/** 김하늘 → 김*늘, 김하 → 김*, 남궁하늘 → 남**늘 */
+export function maskName(name = ""): string {
+  const s = [...name.trim()];
+  if (s.length <= 1) return s.join("");
+  if (s.length === 2) return `${s[0]}*`;
+  return s[0] + "*".repeat(s.length - 2) + s[s.length - 1];
+}
+
+/** "서울 성동구 성수이로 1" → "서울 성동구" (시·도 + 시·군·구까지만) */
+export function maskAddress(address1 = ""): string {
+  return address1.trim().split(/\s+/).slice(0, 2).join(" ");
+}
+
 export interface IPhysicalRequestData {
   name: string;
   phone?: string;
@@ -98,9 +111,10 @@ class RecipientLetterService {
       status: request.physicalStatus,
       // 거절 시 작성자가 적은 사유(processApproval 이 memo 에 "거절 사유: " 접두어로 저장)
       rejectionReason: request.physicalStatus === "rejected" && request.memo?.startsWith("거절 사유: ") ? request.memo.slice(7) : null,
+      // 링크만 알면 열리는 공개 페이지라 이름·주소는 가린다(김*늘 · 서울 성동구)
       recipientInfo: {
-        name: request.name,
-        address: `${request.address1}${request.address2 ? ` ${request.address2}` : ""}`.trim(),
+        name: maskName(request.name),
+        address: maskAddress(request.address1),
       },
       statusHistory: {
         requested: statusHistory.requested,
