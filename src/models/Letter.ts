@@ -323,7 +323,7 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
     recipientAddresses: [
       {
         name: { type: String, required: true },
-        phone: { type: String, required: true },
+        phone: { type: String }, // 실물 신청 연락처는 선택
         zipCode: { type: String, required: true },
         address1: { type: String, required: true },
         address2: { type: String },

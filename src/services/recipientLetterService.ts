@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 
 export interface IPhysicalRequestData {
   name: string;
-  phone: string;
+  phone?: string;
   zipCode: string;
   address1: string;
   address2?: string;
@@ -131,8 +131,9 @@ class RecipientLetterService {
     if (!name || typeof name !== "string") {
       throw new Error("받는 분 성함은 필수입니다.");
     }
-    if (!phone || typeof phone !== "string") {
-      throw new Error("전화번호는 필수입니다.");
+    // 연락처는 선택. 있으면 정규화해 중복 판정에도 쓴다
+    if (phone != null && typeof phone !== "string") {
+      throw new Error("전화번호 형식이 올바르지 않습니다.");
     }
     if (!zipCode || typeof zipCode !== "string") {
       throw new Error("우편번호는 필수입니다.");
@@ -406,7 +407,8 @@ class RecipientLetterService {
   /**
    * 전화번호 정규화
    */
-  private normalizePhoneNumber(phone: string): string {
+  private normalizePhoneNumber(phone?: string): string {
+    if (!phone) return "";
     return phone.replace(/[^0-9]/g, "").replace(/^(\d{3})(\d{4})(\d{4})$/, "$1-$2-$3");
   }
 
@@ -421,10 +423,10 @@ class RecipientLetterService {
   /**
    * 중복 신청 확인
    */
-  private async checkDuplicate(letterId: string, phone: string, sessionId?: string, userId?: string): Promise<{ isDuplicate: boolean; duplicateOf?: string }> {
-    // 1. 같은 편지에 같은 전화번호로 신청한 기록 확인
+  private async checkDuplicate(letterId: string, phone: string | undefined, sessionId?: string, userId?: string): Promise<{ isDuplicate: boolean; duplicateOf?: string }> {
+    // 1. 같은 편지에 같은 전화번호로 신청한 기록 확인(연락처를 적은 경우만)
     const normalizedPhone = this.normalizePhoneNumber(phone);
-    const existingByPhone = await Letter.findOne({
+    const existingByPhone = normalizedPhone && await Letter.findOne({
       _id: letterId,
       "recipientAddresses.phone": normalizedPhone,
       "recipientAddresses.isPhysicalRequested": true,

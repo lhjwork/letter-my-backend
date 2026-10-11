@@ -26,6 +26,7 @@ const createStoryValidation = [
 const physicalLetterRequestValidation = [
   body("address.name").trim().isLength({ min: 2, max: 50 }).withMessage("받는 분 성함은 2-50자 이내여야 합니다."),
   body("address.phone")
+    .optional({ values: "falsy" }) // 연락처는 선택(2026-10-11)
     .matches(/^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/)
     .withMessage("올바른 휴대폰 번호 형식이 아닙니다."),
   body("address.zipCode")
