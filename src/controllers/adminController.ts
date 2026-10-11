@@ -233,6 +233,20 @@ class AdminController {
     }
   }
 
+  async adoptReply(req: Request, res: Response): Promise<void> {
+    try {
+      const result = await adminService.toggleAdopt(req.params.id);
+      if (!result) {
+        res.status(404).json({ success: false, message: "편지를 찾을 수 없습니다" });
+        return;
+      }
+      res.json({ success: true, data: result, message: result.isAdopted ? "답장을 채택했습니다" : "채택을 취소했습니다" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "채택 처리 실패";
+      res.status(400).json({ success: false, message });
+    }
+  }
+
   async deleteLetter(req: Request, res: Response): Promise<void> {
     try {
       const letter = await adminService.deleteLetter(req.params.id);

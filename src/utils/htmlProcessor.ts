@@ -68,7 +68,12 @@ export function sanitizeHtmlContent(htmlContent: string): string {
  */
 export function extractPlainText(htmlContent: string): string {
   const $ = cheerio.load(htmlContent);
-  return $.text().trim();
+  // 단락 경계를 줄바꿈으로 보존(없으면 <p>…</p><p>…</p> 가 한 덩어리로 붙는다). 빈 줄은 최대 1개(연속 \n 2개)
+  $("p,div,br,li").after("\n");
+  return $.text()
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /**

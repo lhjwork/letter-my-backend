@@ -286,6 +286,16 @@ class AdminService {
   async deleteLetter(id: string) {
     return Letter.findByIdAndDelete(id);
   }
+
+  /** 답장 채택 토글. 답장(replyToId 있는 편지)에만. 같은 사연에 복수 채택 허용 */
+  async toggleAdopt(replyId: string) {
+    const reply = await Letter.findById(replyId).select("replyToId adoptedAt");
+    if (!reply) return null;
+    if (!reply.replyToId) throw new Error("답장이 아닌 편지는 채택할 수 없습니다");
+    reply.adoptedAt = reply.adoptedAt ? undefined : new Date();
+    await reply.save();
+    return { _id: String(reply._id), isAdopted: !!reply.adoptedAt, adoptedAt: reply.adoptedAt ?? null };
+  }
 }
 
 export default new AdminService();

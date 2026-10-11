@@ -91,7 +91,14 @@ export class LetterController {
             errorType: "RATE_LIMIT_EXCEEDED",
             meta: { timestamp: new Date().toISOString() },
           });
-        } else if (error.message.includes("필수") || error.message.includes("유효하지")) {
+        } else if (error.message.includes("찾을 수 없")) {
+          res.status(404).json({
+            success: false,
+            message: error.message,
+            errorType: "NOT_FOUND",
+            meta: { timestamp: new Date().toISOString() },
+          });
+        } else if (error.message.includes("필수") || error.message.includes("유효하지") || error.message.includes("이내")) {
           res.status(400).json({
             success: false,
             message: error.message,

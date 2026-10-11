@@ -1,13 +1,15 @@
 import { Router } from "express";
 import letterController from "../controllers/letterController";
 import likeController from "../controllers/likeController";
+import commentController from "../controllers/commentController";
 import recipientLetterController from "../controllers/recipientLetterController";
 import { authenticate, optionalAuthenticate } from "../middleware/auth";
 import { updateLetterValidation, letterIdValidation } from "../middleware/letterValidation";
 import { contentSizeLimit, validateHtmlContent } from "../middleware/contentValidation";
-import { body } from "express-validator";
+import { body, param } from "express-validator";
 import { validate } from "../middleware/validation";
-import { letterCreateLimiter, physicalRequestLimiter } from "../middleware/rateLimiter";
+import { letterCreateLimiter, physicalRequestLimiter, commentLimiter } from "../middleware/rateLimiter";
+import { COMMENT_MAX } from "../models/Comment";
 
 const router: Router = Router();
 
@@ -158,6 +160,33 @@ router.get("/", letterController.getAllLetters);
  * @access  Public
  */
 router.get("/:letterId/replies", letterController.getReplies);
+
+/**
+ * @route   GET /api/letters/:letterId/comments
+ * @desc    사연 댓글 목록 (오래된 순, 기본 5개, limit ≤ 20)
+ * @access  Public (로그인 시 isMine 계산)
+ */
+router.get("/:letterId/comments", optionalAuthenticate, commentController.list);
+
+/**
+ * @route   POST /api/letters/:letterId/comments
+ * @desc    사연 댓글 작성 (1~100자, 공개 사연에만)
+ * @access  Private
+ */
+router.post(
+  "/:letterId/comments",
+  authenticate,
+  commentLimiter,
+  [param("letterId").isMongoId().withMessage("유효하지 않은 사연 ID입니다."), body("content").isString().trim().isLength({ min: 1, max: COMMENT_MAX }).withMessage(`댓글은 1-${COMMENT_MAX}자 이내여야 합니다.`), validate],
+  commentController.create
+);
+
+/**
+ * @route   DELETE /api/letters/:letterId/comments/:commentId
+ * @desc    댓글 삭제 (본인 또는 관리자)
+ * @access  Private
+ */
+router.delete("/:letterId/comments/:commentId", authenticate, commentController.remove);
 
 /**
  * @route   GET /api/letters/:letterId

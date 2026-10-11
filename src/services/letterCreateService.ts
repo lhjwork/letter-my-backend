@@ -1,9 +1,13 @@
 import Letter, { LetterType, LetterStatus, Envelope } from "../models/Letter";
+import Comment from "../models/Comment";
 import mongoose from "mongoose";
+import { isAdminEmail } from "../utils/adminUser";
 import { sanitizeHtmlContent, extractPlainText, generatePreviewText, isHtmlContent } from "../utils/htmlProcessor";
 
 /** 편지 본문 상한(글자 수, 태그 제외). 프런트 textarea maxLength 와 같은 값 */
 export const LETTER_CONTENT_MAX = 2000;
+/** 사연 답장 본문 상한(사연 상세 답장 쓰기 폼 카운터와 같은 값) */
+export const REPLY_CONTENT_MAX = 1000;
 
 export interface CreateLetterData {
   title: string;
@@ -66,8 +70,9 @@ class LetterCreateService {
 
     // 3. HTML 콘텐츠 처리
     const processedContent = this.processContent(data.content, data.contentType);
-    if (processedContent.plainContent.length > LETTER_CONTENT_MAX) {
-      throw new Error(`내용은 ${LETTER_CONTENT_MAX}자 이내여야 합니다.`);
+    const contentMax = data.replyToId ? REPLY_CONTENT_MAX : LETTER_CONTENT_MAX;
+    if (processedContent.plainContent.length > contentMax) {
+      throw new Error(`내용은 ${contentMax}자 이내여야 합니다.`);
     }
 
     // 4. 편지 생성
@@ -183,9 +188,12 @@ class LetterCreateService {
       // 에러가 발생해도 편지 조회는 계속 진행
     }
 
+    const commentCount = letter.type === LetterType.STORY ? await Comment.countDocuments({ letterId: letter._id }) : 0;
+
     // 응답 데이터 구성
     return {
       _id: letter._id,
+      commentCount,
       title: letter.title,
       content: letter.content,
       contentType: letter.contentType,
@@ -221,16 +229,24 @@ class LetterCreateService {
   }
 
   /**
-   * 사연에 달린 답장 목록 (공개 목록용 최소 필드)
+   * 사연에 달린 답장 목록 (공개 목록용 최소 필드). 관리자(레터) 답장이 먼저, 나머지는 최신순.
+   * 작성자 식별자는 내보내지 않고 isAdminReply/isAdopted 만 계산한다
    */
   async getReplies(storyId: string) {
     if (!mongoose.Types.ObjectId.isValid(storyId)) {
       throw new Error("올바르지 않은 편지 ID입니다.");
     }
-    return Letter.find({ replyToId: storyId, status: { $nin: [LetterStatus.HIDDEN, LetterStatus.DELETED] } })
+    const rows = await Letter.find({ replyToId: storyId, status: { $nin: [LetterStatus.HIDDEN, LetterStatus.DELETED] } })
       .sort({ createdAt: -1 })
-      .select("_id title ogPreviewText plainContent authorName createdAt")
+      .select("_id title ogPreviewText plainContent authorName isAnonymous adoptedAt createdAt userId")
+      .populate("userId", "email")
       .lean();
+    const replies = rows.map((r) => {
+      const { userId, adoptedAt, ...rest } = r;
+      const email = (userId as { email?: string } | null)?.email;
+      return { ...rest, authorName: r.isAnonymous ? "익명" : r.authorName, isAdminReply: isAdminEmail(email), isAdopted: !!adoptedAt };
+    });
+    return [...replies.filter((r) => r.isAdminReply), ...replies.filter((r) => !r.isAdminReply)];
   }
 
   /**

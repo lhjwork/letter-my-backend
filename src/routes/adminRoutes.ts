@@ -39,6 +39,8 @@ router.get("/letters/:id", adminAuthenticate, requirePermission(PERMISSIONS.LETT
 router.put("/letters/:id", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_WRITE), adminController.updateLetter);
 router.put("/letters/:id/status", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_WRITE), adminController.updateLetterStatus);
 router.delete("/letters/:id", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_DELETE), adminController.deleteLetter);
+// 답장 채택 토글 (답장에만)
+router.patch("/letters/:id/adopt", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_WRITE), adminController.adoptReply);
 
 // ===== 실물 편지 관리 =====
 router.get("/physical-requests", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_READ), physicalLetterController.getPhysicalLetterRequests);

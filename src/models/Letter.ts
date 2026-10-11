@@ -167,6 +167,8 @@ export interface ILetter extends Document {
   aiMetadata: IAIMetadata;
   // 사연 답장인 경우 원본 사연 ID
   replyToId?: mongoose.Types.ObjectId;
+  // 답장에만 의미. 관리자가 채택한 시각(사연자에게 전달되는 답장)
+  adoptedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -393,6 +395,7 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
       ref: "Letter",
       index: true,
     },
+    adoptedAt: Date,
     hiddenAt: Date,
     hiddenReason: String,
     deletedAt: Date,

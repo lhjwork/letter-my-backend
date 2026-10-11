@@ -69,3 +69,17 @@ export const adminAuthLimiter = rateLimit({
     error: { message: "관리자 로그인 시도가 너무 많습니다. 15분 후 다시 시도해주세요." },
   },
 });
+
+/**
+ * 댓글 작성 제한: 1분에 10회
+ */
+export const commentLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: { message: "댓글을 너무 자주 남기고 있어요. 잠시 후 다시 시도해주세요." },
+  },
+});

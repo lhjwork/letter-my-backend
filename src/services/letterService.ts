@@ -1,6 +1,7 @@
 import { safeSearch } from "../utils/search";
 import Letter, { ILetter, OgImageType, LetterType, LetterCategory, LetterStatus } from "../models/Letter";
 import mongoose from "mongoose";
+import Comment from "../models/Comment";
 import { sanitizeHtmlContent, extractPlainText, generatePreviewText, isHtmlContent, textToHtml } from "../utils/htmlProcessor";
 
 // Letter Service 클래스
@@ -22,6 +23,7 @@ export type StoryListItem = {
   category?: LetterCategory;
   createdAt: Date;
   replyCount: number;
+  commentCount: number;
   preview: string;
 };
 
@@ -293,11 +295,13 @@ class LetterService {
           },
         },
         { $addFields: { replyCount: { $ifNull: [{ $first: "$replies.n" }, 0] } } },
+        { $lookup: { from: Comment.collection.name, let: { id: "$_id" }, pipeline: [{ $match: { $expr: { $eq: ["$letterId", "$$id"] } } }, { $count: "n" }], as: "comments" } },
+        { $addFields: { commentCount: { $ifNull: [{ $first: "$comments.n" }, 0] } } },
         { $addFields: { score: { $add: [{ $ifNull: ["$likeCount", 0] }, "$replyCount"] } } },
         { $sort: sortStage },
         { $skip: skip },
         { $limit: limit },
-        { $project: { _id: 1, type: 1, title: 1, recipientName: 1, authorName: 1, isAnonymous: 1, category: 1, createdAt: 1, replyCount: 1, plainContent: 1, content: 1 } },
+        { $project: { _id: 1, type: 1, title: 1, recipientName: 1, authorName: 1, isAnonymous: 1, category: 1, createdAt: 1, replyCount: 1, commentCount: 1, plainContent: 1, content: 1 } },
       ]),
       Letter.countDocuments(query),
     ]);
