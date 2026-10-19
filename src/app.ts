@@ -10,6 +10,7 @@ import { specs } from "./config/swagger";
 import routes from "./routes";
 import { errorHandler } from "./middleware/errorHandler";
 import { setupDraftCleanupJob } from "./jobs/cleanupDrafts";
+import { setupPrivacyRetentionJob } from "./jobs/privacyRetention";
 
 // 하드코딩 폴백 대신 부팅마다 랜덤 (MemoryStore 라 재시작 시 세션이 어차피 사라짐). SESSION_SECRET 설정 권장.
 const sessionSecret = process.env.SESSION_SECRET || process.env.JWT_SECRET || crypto.randomBytes(32).toString("hex");
@@ -174,6 +175,7 @@ app.use(errorHandler);
 // Setup cron jobs
 if (process.env.NODE_ENV === "production") {
   setupDraftCleanupJob();
+  setupPrivacyRetentionJob();
 }
 
 export default app;
