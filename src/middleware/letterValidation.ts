@@ -25,7 +25,7 @@ export const updateLetterValidation = [
   body("authorName").optional().isString().withMessage("Author name must be a string"),
   body("category").optional().isIn(["가족", "사랑", "우정", "성장", "위로", "추억", "감사", "기타"]).withMessage("Invalid category"),
   body("contentType").optional().isIn(["text", "html"]).withMessage("contentType 은 text 또는 html 이어야 합니다."),
-  body("envelope").optional().isIn(["seongsu", "myeongdong"]).withMessage("봉투는 seongsu 또는 myeongdong 이어야 합니다."),
+  body("envelope").optional().isIn(["seongsu", "myeongdong", "letter"]).withMessage("봉투는 seongsu, myeongdong, letter 중 하나여야 합니다."),
   body("isAnonymous").optional().isBoolean().withMessage("isAnonymous 는 boolean 이어야 합니다.").toBoolean(),
   body("recipientName").optional({ values: "falsy" }).trim().isLength({ max: 50 }).withMessage("받는 사람은 50자 이내여야 합니다."),
   body("ogPreviewMessage").optional().isString().withMessage("ogPreviewMessage must be a string"),

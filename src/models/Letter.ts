@@ -19,7 +19,7 @@ export enum LetterCategory {
 }
 
 // 봉투 (v8 쓰기 화면 선택지)
-export const ENVELOPES = ["seongsu", "myeongdong"] as const;
+export const ENVELOPES = ["seongsu", "myeongdong", "letter"] as const;
 export type Envelope = (typeof ENVELOPES)[number];
 
 // Letter 상태
