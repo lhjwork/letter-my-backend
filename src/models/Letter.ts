@@ -240,7 +240,7 @@ const LetterSchema = new Schema<ILetter, ILetterModel>(
     envelope: {
       type: String,
       enum: ENVELOPES,
-      default: "seongsu",
+      default: "letter",
     },
     isAnonymous: {
       type: Boolean,

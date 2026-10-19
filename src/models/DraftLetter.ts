@@ -114,7 +114,7 @@ const DraftLetterSchema = new Schema<IDraftLetter, IDraftLetterModel>(
     envelope: {
       type: String,
       enum: ENVELOPES,
-      default: "seongsu",
+      default: "letter",
     },
     isAnonymous: {
       type: Boolean,
