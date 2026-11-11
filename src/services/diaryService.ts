@@ -88,17 +88,19 @@ const LINE_CHARS = 39;
 export const MAX_DAY_SHEETS = 3;
 
 /**
- * 글자 폭(한글 음절 = 4, 1/4칸 단위). 네 글씨체 실측(QA 4·5 합본, 438px 칸)에서 음절보다 넓던 것만 넓게 센다(여유 포함):
- * 한글 낱자(ㅋ·ㅠ)·전각 문자·CJK 기호·화살표·도형·♡★ 등 = 5(1.25칸, 펜 "ㅋ"×10+띄어쓰기가 한 줄 3묶음이 안 됨),
- * 대시(— 등, 개구 1.33칸) = 6, 그 밖의 일반 구두점(“ ” … 등) = 5
+ * 글자 폭(한글 음절 = 20, 1/20칸 단위). 네 글씨체 실측(QA 4·5 합본 1·2차, 438px 칸)에서 음절보다 넓던 것만 넓게 센다(여유 포함):
+ * 한자 = 22(1.1칸, "漢"×936 이 25줄), 가나 = 26(1.3칸, 실측 약 1.24),
+ * 한글 낱자(ㅋ·ㅠ)·전각 문자·CJK 기호(、。)·화살표·도형(♡★) 등 = 25(1.25칸, 펜 "ㅋ"×10+띄어쓰기가 한 줄 3묶음이 안 됨),
+ * 대시(— 등, 개구 1.33칸)·말줄임표(…, 개구 1.3칸 넘음) = 30, 그 밖의 일반 구두점(“ ” 등) = 25
  */
 function charWidth(c: number): number {
-  if (c >= 0x2010 && c <= 0x2015) return 6;
-  if (c === 0x2e3a || c === 0x2e3b) return 6;
-  if (c >= 0x2016 && c <= 0x206f) return 5;
-  if (c >= 0x2190 && c <= 0x2bff) return 5;
-  if ((c >= 0x1100 && c <= 0x11ff) || (c >= 0x3000 && c <= 0x303f) || (c >= 0x3130 && c <= 0x318f) || (c >= 0xa960 && c <= 0xa97f) || (c >= 0xd7b0 && c <= 0xd7ff) || (c >= 0xff00 && c <= 0xffef)) return 5;
-  return 4;
+  if ((c >= 0x2010 && c <= 0x2015) || c === 0x2026 || c === 0x2e3a || c === 0x2e3b) return 30;
+  if ((c >= 0x3040 && c <= 0x30ff) || (c >= 0x31f0 && c <= 0x31ff)) return 26;
+  if ((c >= 0x3400 && c <= 0x4dbf) || (c >= 0x4e00 && c <= 0x9fff) || (c >= 0xf900 && c <= 0xfaff)) return 22;
+  if (c >= 0x2016 && c <= 0x206f) return 25;
+  if (c >= 0x2190 && c <= 0x2bff) return 25;
+  if ((c >= 0x1100 && c <= 0x11ff) || (c >= 0x3000 && c <= 0x303f) || (c >= 0x3130 && c <= 0x318f) || (c >= 0xa960 && c <= 0xa97f) || (c >= 0xd7b0 && c <= 0xd7ff) || (c >= 0xff00 && c <= 0xffef)) return 25;
+  return 20;
 }
 
 /**
@@ -108,7 +110,7 @@ function charWidth(c: number): number {
  */
 export function daySheetsRaw(text: string): number {
   let sheets = 1;
-  const LINE = LINE_CHARS * 4;
+  const LINE = LINE_CHARS * 20;
   let n = 0;
   let line = 1;
   let col = 0;

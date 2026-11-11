@@ -163,6 +163,13 @@ assert.equal(daySheetCount("—".repeat(625)), 2);
 assert.equal(daySheetCount("♡".repeat(745)), 2);
 assert.equal(daySheetCount(("ㅋ".repeat(10) + " ").repeat(48)), 1);
 assert.equal(daySheetCount(("ㅋ".repeat(10) + " ").repeat(49)), 2);
+// 가나·한자·말줄임표: 프런트 check 와 같은 사례
+assert.equal(daySheetCount("あ".repeat(720)), 1);
+assert.equal(daySheetCount("あ".repeat(721)), 2);
+assert.equal(daySheetCount("漢".repeat(840)), 1);
+assert.equal(daySheetCount("漢".repeat(841)), 2);
+assert.equal(daySheetCount("…".repeat(624)), 1);
+assert.equal(daySheetCount("…".repeat(625)), 2);
 // PUT days 검증: 3,000자 안이어도 3장(72줄)을 넘치면 받지 않는다
 assert.equal(dayTextFits("\n".repeat(71)), true);
 assert.equal(dayTextFits("\n".repeat(80) + "끝"), false);
