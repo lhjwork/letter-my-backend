@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import mongoose from "mongoose";
 import Diary from "../models/Diary";
-import { applyAdminPhysicalStatus, isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent, lastAttached, toDiarySummary, daySheetCount, dropShrunkDecos } from "../services/diaryService";
+import { habitDayUpdate, mergeHabits, withHabitIds, applyAdminPhysicalStatus, isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent, lastAttached, toDiarySummary, daySheetCount, dropShrunkDecos } from "../services/diaryService";
 
 const userId = new mongoose.Types.ObjectId();
 const base = { userId, title: "11월의 기록", month: "2026-11" };
@@ -38,7 +38,32 @@ assert.ok(new Diary({ ...base, decos: [...twenty, deco(20)] }).validateSync()?.e
 const ev = (n: number) => Array.from({ length: n }, (_, i) => ({ date: "2026-11-14", text: `일정${i}` }));
 assert.equal(new Diary({ ...base, monthly: { events: ev(3) } }).validateSync(), undefined);
 assert.ok(new Diary({ ...base, monthly: { events: ev(4) } }).validateSync()?.errors["monthly.events"], "하루 4개 거부");
-assert.ok(new Diary({ ...base, goals: { habits: Array.from({ length: 5 }, () => ({ name: "물" })) } }).validateSync()?.errors["goals.habits"], "습관 5개 거부");
+assert.ok(new Diary({ ...base, goals: { habits: Array.from({ length: 5 }, (_, i) => ({ id: `h${i}`, name: "물" })) } }).validateSync()?.errors["goals.habits"], "습관 5개 거부");
+assert.ok(new Diary({ ...base, goals: { habits: [{ name: "물" }] } }).validateSync()?.errors["goals.habits.0.id"], "습관 id 필수");
+
+// 습관: id 로 짝짓기. 체크한 날은 서버 값 유지, 새 id 는 빈 기록, 빠진 id 는 기록째 삭제
+const H = [
+  { id: "a", name: "물 한 잔", days: [1, 2, 3] },
+  { id: "b", name: "걷기", days: [3] },
+];
+assert.deepEqual(mergeHabits(H, [{ id: "b", name: "걷기" }, { id: "c", name: "물 한 잔" }]), [
+  { id: "b", name: "걷기", days: [3] },
+  { id: "c", name: "물 한 잔", days: [] },
+], "지우고 같은 이름 새로 = 빈 기록");
+const twins = [
+  { id: "s1", name: "산책", days: [1] },
+  { id: "s2", name: "산책", days: [2] },
+];
+assert.deepEqual(mergeHabits(twins, [{ id: "s2", name: "산책" }]), [{ id: "s2", name: "산책", days: [2] }], "같은 이름 둘 중 첫째 지우기");
+assert.deepEqual(mergeHabits(H, [{ id: "b", name: "걷기 40분" }])?.[0].days, [3], "이름 바꿔도 기록 유지");
+assert.equal(mergeHabits(H, [{ id: "a", name: "x" }, { id: "a", name: "y" }]), null, "id 중복 거부");
+// 지운 뒤 다른 습관 체크: id 하나만 겨눈다(순서·이름과 무관)
+assert.deepEqual(habitDayUpdate("b", 5, true), { update: { $addToSet: { "goals.habits.$[h].days": 5 } }, arrayFilters: [{ "h.id": "b" }] });
+assert.deepEqual(habitDayUpdate("s2", 2, false).update, { $pull: { "goals.habits.$[h].days": 2 } });
+// 옛 데이터 정규화
+assert.equal(withHabitIds(H), null, "다 있으면 그대로");
+const norm = withHabitIds([{ name: "물", days: [1] } as unknown as (typeof H)[number], H[1]])!;
+assert.ok(norm[0].id && norm[1].id === "b" && norm[0].days[0] === 1, "없는 id 만 붙임");
 
 // 구성: 부분집합 → 고정 순서
 assert.deepEqual(normalizeSections(["review", "daily", "first"]), ["first", "daily", "review"]);

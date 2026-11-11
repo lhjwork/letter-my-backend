@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import Diary, { IDiary, DIARY_SECTIONS, DiarySection } from "../models/Diary";
+import Diary, { IDiary, IDiaryHabit, DIARY_SECTIONS, DiarySection } from "../models/Diary";
 import Letter from "../models/Letter";
 import { recordScopes, attachStoryTitles, toRecordItem, RecordRow } from "./myRecordsService";
 import { extractPlainText } from "../utils/htmlProcessor";
@@ -122,6 +122,27 @@ export function dropShrunkDecos<T extends { page: string }>(decos: T[], date: st
   });
 }
 
+/** id 없는 옛 습관에 id 를 붙인다. 바뀐 게 없으면 null */
+export function withHabitIds(habits: IDiaryHabit[]): IDiaryHabit[] | null {
+  if (habits.every((h) => h.id)) return null;
+  return habits.map((h) => ({ id: h.id || new mongoose.Types.ObjectId().toString(), name: h.name, days: [...h.days] }));
+}
+
+/**
+ * goals 통째 저장의 습관: 이름·순서만 받은 값, 체크한 날은 서버 값을 id 로 이어 받는다.
+ * 새 id 는 빈 기록, 빠진 id 는 기록째 지워진다. id 가 겹치면 null(400)
+ */
+export function mergeHabits(server: IDiaryHabit[], incoming: { id: string; name: string }[]): IDiaryHabit[] | null {
+  if (new Set(incoming.map((h) => h.id)).size !== incoming.length) return null;
+  return incoming.map((h) => ({ id: h.id, name: h.name, days: [...(server.find((s) => s.id === h.id)?.days ?? [])] }));
+}
+
+/** 습관 한 칸 켜기·끄기(원자적). id 가 맞는 습관 하나만 */
+export function habitDayUpdate(habitId: string, day: number, on: boolean) {
+  const path = "goals.habits.$[h].days";
+  return { update: on ? { $addToSet: { [path]: day } } : { $pull: { [path]: day } }, arrayFilters: [{ "h.id": habitId }] };
+}
+
 /** 쓴 흔적이 있어야 제본 신청 가능 */
 export function hasContent(d: Pick<IDiary, "days" | "decos" | "monthly" | "weeks">): boolean {
   const weekFilled = d.weeks.some((w) => w.plans.length || w.todos.length || w.line.trim());
@@ -212,6 +233,12 @@ class DiaryService {
   private async own(userId: string, id: string) {
     const d = await Diary.findOne({ _id: id, userId });
     if (!d) throw new DiaryError(404, "다이어리를 찾을 수 없습니다.");
+    // 옛 데이터 정규화: id 없는 습관에 id 를 붙여 바로 저장(다른 칸 검증과 상관없이 이 배열만)
+    const habits = withHabitIds(d.goals.habits);
+    if (habits) {
+      await Diary.updateOne({ _id: d._id }, { $set: { "goals.habits": habits } });
+      d.set("goals.habits", habits);
+    }
     return d;
   }
 
@@ -257,8 +284,25 @@ class DiaryService {
       }
       const base = SECTION_DEFAULTS[name];
       const v = value as Record<string, unknown>;
+      if (name === "goals") {
+        const habits = mergeHabits(d.goals.habits, (v.habits as { id: string; name: string }[] | undefined) ?? []);
+        if (!habits) throw new DiaryError(400, "같은 습관이 두 번 있어요.");
+        v.habits = habits;
+      }
       d.set(name, Object.fromEntries(Object.keys(base).map((k) => [k, v[k] ?? base[k as keyof typeof base]])));
     });
+  }
+
+  /** 습관 한 칸(그 달 날짜). 지워진 습관이면 404 */
+  async setHabitDay(userId: string, id: string, habitId: string, day: number, on: boolean) {
+    const d = await this.own(userId, id);
+    if (isLocked(d)) throw new DiaryError(423, FORBIDDEN_LOCKED);
+    if (!d.sections.includes("goals")) throw new DiaryError(400, "이 다이어리에 없는 구성입니다.");
+    if (day > daysIn(d.month)) throw new DiaryError(400, "이 달에 없는 날짜입니다.");
+    const { update, arrayFilters } = habitDayUpdate(habitId, day, on);
+    // 잠금 조건을 필터에 다시 넣어 읽은 뒤 신청돼도 쓰지 않는다
+    const r = await Diary.updateOne({ _id: d._id, userId, status: "writing", "physical.status": { $in: ["none", "rejected"] }, "goals.habits.id": habitId }, update, { arrayFilters });
+    if (!r.matchedCount) throw new DiaryError(404, "습관을 찾을 수 없어요.");
   }
 
   putWeek(userId: string, id: string, week: number, value: { plans: { date: string }[]; todos: object[]; line: string }) {

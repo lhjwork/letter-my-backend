@@ -54,6 +54,12 @@ class DiaryController {
       sendSuccess(res, { [name]: d.get(name), updatedAt: d.updatedAt });
     });
 
+  setHabitDay = (req: Request, res: Response) =>
+    run(res, async () => {
+      await diaryService.setHabitDay(uid(req), id(req), String(req.params.habitId), Number(req.params.day), req.body.on);
+      sendSuccess(res, null);
+    });
+
   putWeek = (req: Request, res: Response) =>
     run(res, async () => {
       const week = Number(req.params.week);

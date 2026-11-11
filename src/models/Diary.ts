@@ -62,6 +62,13 @@ export interface IDiaryDay {
   letters: { letterId: mongoose.Types.ObjectId; style: (typeof LETTER_STYLES)[number] }[];
 }
 
+/** 습관: id 는 안 바뀌는 식별자(프런트가 만들어 보낸다). 체크한 날은 PUT habits/:habitId/days/:day 로만 바뀐다 */
+export interface IDiaryHabit {
+  id: string;
+  name: string;
+  days: number[];
+}
+
 export interface IDiary extends Document {
   userId: mongoose.Types.ObjectId;
   title: string;
@@ -72,7 +79,7 @@ export interface IDiary extends Document {
   sections: DiarySection[];
   first: { owner: string; resolutions: string[]; word: string; toMe: string };
   monthly: { events: { date: string; text: string }[]; memo: string };
-  goals: { goals: Check[]; todos: Check[]; habits: { name: string; days: number[] }[]; wishes: string[] };
+  goals: { goals: Check[]; todos: Check[]; habits: IDiaryHabit[]; wishes: string[] };
   weeks: { week: number; plans: { date: string; text: string }[]; todos: Check[]; line: string }[];
   days: IDiaryDay[];
   letters: { quotes: { text: string; by: string; date: string }[] };
@@ -154,7 +161,7 @@ const DiarySchema = new Schema<IDiary>(
     goals: {
       goals: list(check(DIARY_LIMITS.itemText), 5),
       todos: list(check(DIARY_LIMITS.itemText), 8),
-      habits: list({ _id: false, name: { type: String, required: true, trim: true, maxlength: 10 }, days: { type: [{ type: Number, min: 1, max: 31 }], default: [] } }, 4),
+      habits: list({ _id: false, id: { type: String, required: true, maxlength: 40 }, name: { type: String, required: true, trim: true, maxlength: 10 }, days: { type: [{ type: Number, min: 1, max: 31 }], default: [] } }, 4),
       wishes: list({ type: String, trim: true, maxlength: DIARY_LIMITS.itemText }, 4),
     },
     weeks: list(

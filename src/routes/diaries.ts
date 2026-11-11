@@ -55,9 +55,9 @@ const sectionRules = {
     ...checks("goals", 5),
     ...checks("todos", 8),
     arr("habits", 4),
+    body("habits.*.id").isString().isLength({ min: 1, max: 40 }),
     body("habits.*.name").isString().trim().isLength({ min: 1, max: 10 }).withMessage("습관 이름은 1-10자입니다."),
-    body("habits.*.days").optional().isArray({ max: 31 }),
-    body("habits.*.days.*").isInt({ min: 1, max: 31 }).toInt(),
+    // 체크한 날(days)은 받지 않는다(서버 값 유지). 한 칸씩은 PUT /:id/habits/:habitId/days/:day
     arr("wishes", 4),
     text("wishes.*", DIARY_LIMITS.itemText, false),
   ],
@@ -68,6 +68,13 @@ for (const [name, rules] of Object.entries(sectionRules)) {
   /** PATCH /api/diaries/:id/section/{first|monthly|goals|letters|review} */
   router.patch(`/:id/section/${name}`, [idParam, ...rules, validate], diaryController.setSection(name as keyof typeof sectionRules));
 }
+
+/** PUT /api/diaries/:id/habits/:habitId/days/:day — 습관 한 칸 켜기·끄기 { on } */
+router.put(
+  "/:id/habits/:habitId/days/:day",
+  [idParam, param("habitId").isString().isLength({ min: 1, max: 40 }), param("day").isInt({ min: 1, max: 31 }).toInt(), body("on").isBoolean({ strict: true }), validate],
+  diaryController.setHabitDay,
+);
 
 /** PUT /api/diaries/:id/weeks/:week */
 router.put(
