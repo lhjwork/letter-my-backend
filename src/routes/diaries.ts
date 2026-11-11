@@ -4,7 +4,7 @@ import diaryController from "../controllers/diaryController";
 import { authenticate } from "../middleware/auth";
 import { validate } from "../middleware/validation";
 import { physicalRequestLimiter } from "../middleware/rateLimiter";
-import { dayTextFits, MAX_DAY_SHEETS } from "../services/diaryService";
+import { dayTextFits, FIELD_CHARS, fitsLines, MAX_DAY_SHEETS, quotesFit, REGRET_LINES, SCENE_CHARS, TO_NEXT_LINES } from "../services/diaryService";
 import { DECO_TYPES, DIARY_BINDINGS, DIARY_COVERS, DIARY_FONTS, DIARY_LIMITS, DIARY_PAPERS, DIARY_WEATHERS, LETTER_STYLES } from "../models/Diary";
 
 const router: Router = Router();
@@ -62,8 +62,21 @@ export const sectionRules = {
     arr("wishes", 4),
     text("wishes.*", DIARY_LIMITS.itemText, false),
   ],
-  letters: [arr("quotes", 4), body("quotes.*.text").isString().trim().isLength({ min: 1, max: 60 }), text("quotes.*.by", 20), body("quotes.*.date").optional({ values: "falsy" }).matches(DATE)],
-  review: [arr("good", 3), text("good.*", 40, false), text("regret", 60), text("scene", 40), text("toNext", 300)],
+  // 글자 수와 별도로 종이 칸 줄 수 안에 드는지(프런트 lib/diary-pages textLines 와 같은 셈)
+  letters: [
+    arr("quotes", 4),
+    body("quotes").optional().custom(quotesFit).withMessage("남기고 싶은 문장은 한 쪽 안에 들어가야 해요."),
+    body("quotes.*.text").isString().trim().isLength({ min: 1, max: 60 }),
+    text("quotes.*.by", 20),
+    body("quotes.*.date").optional({ values: "falsy" }).matches(DATE).isISO8601({ strict: true }).withMessage("없는 날짜예요."),
+  ],
+  review: [
+    arr("good", 3),
+    text("good.*", 40, false).custom(fitsLines(FIELD_CHARS, 1)).withMessage("한 줄 안에 써 주세요."),
+    text("regret", 60).custom(fitsLines(FIELD_CHARS, REGRET_LINES)).withMessage(`${REGRET_LINES}줄 안에 써 주세요.`),
+    text("scene", 40).custom(fitsLines(SCENE_CHARS, 1)).withMessage("한 줄 안에 써 주세요."),
+    text("toNext", 300).custom(fitsLines(FIELD_CHARS, TO_NEXT_LINES)).withMessage(`${TO_NEXT_LINES}줄 안에 써 주세요.`),
+  ],
 };
 for (const [name, rules] of Object.entries(sectionRules)) {
   /** PATCH /api/diaries/:id/section/{first|monthly|goals|letters|review} */

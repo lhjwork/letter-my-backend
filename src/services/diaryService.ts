@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import Diary, { IDiary, IDiaryHabit, DIARY_SECTIONS, DiarySection } from "../models/Diary";
-import Letter, { LetterStatus } from "../models/Letter";
+import Letter from "../models/Letter";
 import { recordScopes, attachStoryTitles, toRecordItem, RecordRow } from "./myRecordsService";
 import { extractPlainText } from "../utils/htmlProcessor";
 
@@ -112,16 +112,32 @@ function charWidth(c: number): number {
 const WORD_END = /[ \t\n、。，．！？」』）〉》】〕｡､]/;
 export function daySheetsRaw(text: string): number {
   let sheets = 1;
-  const LINE = LINE_CHARS * 20;
+  const b = lineWalker(text, LINE_CHARS);
   let n = 0;
   let line = 1;
-  let col = 0;
   for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    const nl = ch === "\n";
-    const sp = ch === " " || ch === "\t";
-    const w = charWidth(text.charCodeAt(i));
-    if (!nl && !sp) {
+    if (b.wrap(i)) line++;
+    if (n === SHEET_CHARS || line > SHEET_LINES) {
+      sheets++;
+      n = 0;
+      line = 1;
+      b.reset();
+    }
+    n++;
+    if (text[i] === "\n") line++;
+    b.put(i);
+  }
+  return sheets;
+}
+
+/** 그리디 줄바꿈 한 글자씩(프런트 lib/diary-pages lineWalker 와 같은 식). wrap(i): i 앞에서 줄이 바뀌면 true, put(i): 글자를 놓는다 */
+function lineWalker(text: string, lineChars: number) {
+  const LINE = lineChars * 20;
+  let col = 0;
+  return {
+    wrap(i: number): boolean {
+      const ch = text[i];
+      if (ch === "\n" || ch === " " || ch === "\t") return false;
       // 어절 첫 글자: 남은 칸에 어절이 안 들어가면 줄을 넘긴다
       if (col > 0 && (i === 0 || WORD_END.test(text[i - 1]))) {
         let wide = 0;
@@ -130,30 +146,49 @@ export function daySheetsRaw(text: string): number {
           if (WORD_END.test(text[j])) break;
         }
         if (col + wide > LINE) {
-          line++;
           col = 0;
+          return true;
         }
       }
       // 한 줄보다 긴 어절은 칸 끝에서 쪼갠다
-      if (col > 0 && col + w > LINE) {
-        line++;
+      if (col > 0 && col + charWidth(text.charCodeAt(i)) > LINE) {
         col = 0;
+        return true;
       }
-    }
-    if (n === SHEET_CHARS || line > SHEET_LINES) {
-      sheets++;
-      n = 0;
-      line = 1;
+      return false;
+    },
+    put(i: number) {
+      col = text[i] === "\n" ? 0 : Math.min(LINE, col + charWidth(text.charCodeAt(i))); // 줄 끝 공백은 매달린다
+    },
+    reset() {
       col = 0;
-    }
-    n++;
-    if (nl) {
-      line++;
-      col = 0;
-    } else col = Math.min(LINE, col + w); // 줄 끝 공백은 매달린다
-  }
-  return sheets;
+    },
+  };
 }
+
+/** 글이 lineChars 자 폭 칸에서 차지하는 줄 수(빈 글 1줄). 프런트 textLines 와 같은 식 */
+export function textLines(text: string, lineChars: number): number {
+  const b = lineWalker(text, lineChars);
+  let line = 1;
+  for (let i = 0; i < text.length; i++) {
+    if (b.wrap(i)) line++;
+    if (text[i] === "\n") line++;
+    b.put(i);
+  }
+  return line;
+}
+
+// 이 달의 편지·돌아보기 칸 — 프런트 lib/diary-pages FIELD_CHARS 등과 같은 값(1440 칸 실측, 가장 넓은 개구 - 여유 1자)
+export const FIELD_CHARS = 17;
+export const SCENE_CHARS = 11;
+export const PAGE_LINES = 13;
+export const REGRET_LINES = 3;
+export const TO_NEXT_LINES = 10;
+/** 값이 글이면 칸 줄 수 안에 드는지(글이 아니면 다른 규칙이 막는다) */
+export const fitsLines = (chars: number, lines: number) => (v: unknown) => typeof v !== "string" || textLines(v, chars) <= lines;
+/** 남기고 싶은 문장들(문장마다 글 줄 + 누가 줄)이 오른쪽 쪽 13줄 안에 드는지 */
+export const quotesFit = (quotes: unknown) =>
+  !Array.isArray(quotes) || quotes.reduce((n: number, q) => n + (typeof q?.text === "string" ? textLines(q.text, FIELD_CHARS) : 1) + 1, 0) <= PAGE_LINES;
 
 /** PUT days 검증: 글자 수(3,000자)와 별도로 3장 안에 드는지(줄바꿈 많은 글). 프런트 editDay 와 같은 한도 */
 export const dayTextFits = (text: unknown) => typeof text !== "string" || daySheetsRaw(text) <= MAX_DAY_SHEETS;
@@ -244,14 +279,6 @@ async function letterCards(userId: string, extra: object, limit: number) {
     ...toRecordItem(r, userId, 0, admins),
     content: r.contentType === "html" ? extractPlainText(r.content) : r.content,
   }));
-}
-
-const isReceivedHeart = (c: { kind: string; flow: string }) => c.kind === "received" && c.flow === "heart";
-
-/** 받은 마음 편지에만 replied(답장했는지)를 단다. 나머지 카드는 그대로 */
-export function markReplied<T extends { _id: string; kind: string; flow: string }>(cards: T[], repliedIds: string[]): (T & { replied?: boolean })[] {
-  const done = new Set(repliedIds);
-  return cards.map((c) => (isReceivedHeart(c) ? { ...c, replied: done.has(c._id) } : c));
 }
 
 // ===== DB =====
@@ -397,13 +424,7 @@ class DiaryService {
   async attachableLetters(userId: string, id: string) {
     const d = await this.own(userId, id);
     // ponytail: 최근 50통 고정. 더 필요하면 커서 페이지네이션
-    const cards = await letterCards(userId, { createdAt: { $lt: monthEnd(d.month) } }, 50);
-    // 받은 마음 편지에 내가 답장했는지(이 달의 편지 "아직 답장 못 한 편지")
-    const heart = cards.filter(isReceivedHeart).map((c) => c._id);
-    const replied = heart.length
-      ? await Letter.distinct("replyToId", { userId: new mongoose.Types.ObjectId(userId), replyToId: { $in: heart }, status: { $ne: LetterStatus.DELETED } })
-      : [];
-    return markReplied(cards, replied.map(String));
+    return letterCards(userId, { createdAt: { $lt: monthEnd(d.month) } }, 50);
   }
 
   async requestPhysical(userId: string, id: string, input: Pick<IDiary["physical"], "binding" | "copies" | "address">) {
