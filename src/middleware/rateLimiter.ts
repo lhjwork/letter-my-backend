@@ -1,4 +1,8 @@
 import rateLimit from "express-rate-limit";
+import type { Request } from "express";
+
+/** 다이어리 신청 횟수를 세는 키: 로그인 사용자 id (테스트: src/tests/diary.test.ts) */
+export const diaryPhysicalKey = (req: Request): string => `diary-physical:${req.user!.userId}`;
 
 /**
  * 일반 API 요청 제한: 15분에 100회
@@ -53,6 +57,22 @@ export const physicalRequestLimiter = rateLimit({
   message: {
     success: false,
     error: { message: "실물 편지 신청 횟수를 초과했습니다. 잠시 후 다시 시도해주세요." },
+  },
+});
+
+/**
+ * 다이어리 책으로 받기 신청 제한: 사용자마다 1시간에 5회. authenticate 뒤에 둔다.
+ * 프런트 서버 액션이 백엔드를 직접 불러 IP 가 모두 같으므로 IP 가 아니라 사용자 id 로 센다
+ */
+export const diaryPhysicalLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: diaryPhysicalKey,
+  message: {
+    success: false,
+    error: { message: "책으로 받기 신청 횟수를 초과했습니다. 한 시간 뒤 다시 시도해주세요." },
   },
 });
 

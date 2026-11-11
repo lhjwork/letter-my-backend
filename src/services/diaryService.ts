@@ -453,6 +453,8 @@ class DiaryService {
     if (!mongoose.Types.ObjectId.isValid(id)) throw new DiaryError(404, "다이어리를 찾을 수 없습니다.");
     const d = await Diary.findById(id);
     if (!d) throw new DiaryError(404, "다이어리를 찾을 수 없습니다.");
+    // 신청한 적 없는 다이어리는 관리자가 상태를 만들 수 없다(주소 없이 잠기지 않게). print-link 와 같은 409
+    if ((d.physical?.status ?? "none") === "none") throw new DiaryError(409, "책으로 받기 신청이 없는 다이어리입니다.");
     if (input.status !== undefined) {
       const next = applyAdminPhysicalStatus(input.status);
       if (!next) throw new DiaryError(400, "신청 전 상태로 되돌릴 수 없습니다.");

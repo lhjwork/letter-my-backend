@@ -3,7 +3,7 @@ import { body, param, query } from "express-validator";
 import diaryController from "../controllers/diaryController";
 import { authenticate } from "../middleware/auth";
 import { validate } from "../middleware/validation";
-import { physicalRequestLimiter } from "../middleware/rateLimiter";
+import { diaryPhysicalLimiter } from "../middleware/rateLimiter";
 import { dayTextFits, FIELD_CHARS, fitsLines, MAX_DAY_SHEETS, quotesFit, REGRET_LINES, SCENE_CHARS, TO_NEXT_LINES } from "../services/diaryService";
 import { DECO_TYPES, DIARY_BINDINGS, DIARY_COVERS, DIARY_FONTS, DIARY_LIMITS, DIARY_PAPERS, DIARY_WEATHERS, LETTER_STYLES } from "../models/Diary";
 
@@ -162,6 +162,6 @@ export const physicalRules = [
 ];
 
 /** POST /api/diaries/:id/physical — 책으로 받기 신청(이후 잠금) */
-router.post("/:id/physical", physicalRequestLimiter, [idParam, ...physicalRules, validate], diaryController.requestPhysical);
+router.post("/:id/physical", diaryPhysicalLimiter, [idParam, ...physicalRules, validate], diaryController.requestPhysical);
 
 export default router;

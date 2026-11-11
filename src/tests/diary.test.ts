@@ -10,6 +10,7 @@ import { physicalRules, sectionRules } from "../routes/diaries";
 import diaryController from "../controllers/diaryController";
 import diaryService from "../services/diaryService";
 import jwt from "jsonwebtoken";
+import { diaryPhysicalKey } from "../middleware/rateLimiter";
 import { validationResult } from "express-validator";
 
 const userId = new mongoose.Types.ObjectId();
@@ -273,6 +274,24 @@ const check = async (name: keyof typeof sectionRules, body: object) => {
   assert.equal((await open(sign({ userId: String(userId), diaryId: pid }))).code, 401, "로그인 토큰 등 다른 종류");
   assert.equal((await open(jwt.sign({ type: "diary-print", diaryId: pid }, "other-secret"))).code, 401, "서명 다름");
   assert.equal((await open("")).code, 401);
+
+  // 관리자 상태 변경: 신청 없는 다이어리는 409(저장하지 않음), 신청한 것은 바뀐다
+  const plain = new Diary({ ...base, days: [day("가")] });
+  let saved = 0;
+  plain.save = (async () => void saved++) as never;
+  printed.save = (async () => void saved++) as never;
+  (Diary as unknown as { findById: unknown }).findById = async (x: string) => (x === pid ? printed : x === String(plain._id) ? plain : null);
+  await assert.rejects(() => diaryService.updatePhysical(String(plain._id), { status: "requested" }), (e: { status?: number }) => e.status === 409, "신청 없음 → 409");
+  await assert.rejects(() => diaryService.updatePhysical(String(plain._id), { notes: "메모만" }), (e: { status?: number }) => e.status === 409);
+  assert.equal(plain.physical.status, "none");
+  assert.equal(plain.status, "writing");
+  assert.equal(saved, 0);
+  assert.equal((await diaryService.updatePhysical(pid, { status: "approved" })).status, "approved");
+  assert.equal(saved, 1);
+  // 신청 횟수는 사용자 id 로 센다(같은 IP 라도 사람마다 따로)
+  const key = (userId: string) => diaryPhysicalKey({ ip: "::1", user: { userId } } as never);
+  assert.notEqual(key("u1"), key("u2"));
+  assert.equal(key("u1"), key("u1"));
   (Diary as unknown as { findById: unknown }).findById = findById;
 
   console.log("diary.test.ts ok");
