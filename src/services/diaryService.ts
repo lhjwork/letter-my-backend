@@ -86,9 +86,17 @@ export function hasContent(d: Pick<IDiary, "days" | "decos" | "monthly" | "weeks
   return d.days.some((x) => x.text.trim() || x.letters.length) || d.decos.length > 0 || d.monthly.events.length > 0 || weekFilled;
 }
 
-/** 책장 카드: 본문 대신 날짜별 글자 수(쪽 수는 프런트 lib/diary-pages.ts 가 계산) */
-export function toDiarySummary(d: IDiary) {
+/** 가장 최근 날짜에 붙인 편지(그날 마지막 것). 붙인 시각은 저장하지 않아 날짜 기준 */
+export function lastAttached(d: Pick<IDiary, "days">): { date: string; letterId: string } | null {
+  const day = [...d.days].filter((x) => x.letters.length).sort((a, b) => b.date.localeCompare(a.date))[0];
+  return day ? { date: day.date, letterId: String(day.letters[day.letters.length - 1].letterId) } : null;
+}
+
+/** 책장 카드: 본문 대신 날짜별 글자 수(쪽 수는 프런트 lib/diary-pages.ts 가 계산). titles: 편지 id → 제목(list 가 한 번에 조회) */
+export function toDiarySummary(d: IDiary, titles: Map<string, string> = new Map()) {
   const last = [...d.days].filter((x) => x.text.trim()).sort((a, b) => b.date.localeCompare(a.date))[0];
+  const attached = lastAttached(d);
+  const lastTitle = attached && titles.get(attached.letterId);
   return {
     _id: String(d._id),
     title: d.title,
@@ -101,6 +109,7 @@ export function toDiarySummary(d: IDiary) {
     physicalStatus: d.physical?.status ?? "none",
     days: d.days.map((x) => ({ date: x.date, chars: x.text.length, letters: x.letters.length })),
     lastDay: last ? { date: last.date, text: last.text.slice(0, 120) } : null,
+    lastLetter: attached && lastTitle ? { date: attached.date, title: lastTitle } : null,
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
   };
@@ -142,7 +151,11 @@ const FORBIDDEN_LOCKED = "책으로 신청한 다이어리는 고칠 수 없어�
 class DiaryService {
   async list(userId: string) {
     const rows = await Diary.find({ userId }).select("title month cover paper font sections status physical.status days createdAt updatedAt").sort({ month: -1 });
-    return rows.map(toDiarySummary);
+    // 최근 붙인 편지 제목: 권마다 한 통씩 모아 한 번에 조회(소유자 범위 안의 편지만 제목이 나온다)
+    const ids = [...new Set(rows.map((d) => lastAttached(d)?.letterId).filter((x): x is string => !!x))];
+    const cards = ids.length ? await letterCards(userId, { _id: { $in: ids } }, ids.length) : [];
+    const titles = new Map(cards.map((c) => [String(c._id), c.title]));
+    return rows.map((d) => toDiarySummary(d, titles));
   }
 
   async create(userId: string, input: Pick<IDiary, "title" | "month"> & Partial<Pick<IDiary, "cover" | "paper" | "font" | "sections">>) {

@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import mongoose from "mongoose";
 import Diary from "../models/Diary";
-import { applyAdminPhysicalStatus, isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent } from "../services/diaryService";
+import { applyAdminPhysicalStatus, isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent, lastAttached, toDiarySummary } from "../services/diaryService";
 
 const userId = new mongoose.Types.ObjectId();
 const base = { userId, title: "11월의 기록", month: "2026-11" };
@@ -92,5 +92,21 @@ assert.equal(hasContent(new Diary({ ...base, weeks: [{ week: 1, line: "  " }] })
 assert.equal(hasContent(new Diary({ ...base, weeks: [{ week: 1, line: "잘 버텼다" }] })), true);
 assert.equal(hasContent(new Diary({ ...base, weeks: [{ week: 2, todos: [{ text: "장보기" }] }] })), true);
 assert.equal(hasContent(new Diary({ ...base, weeks: [{ week: 1, plans: [{ date: "2026-11-02", text: "치과" }] }] })), true);
+
+// 책장 "어제는 '…'을 붙였어요": 가장 최근 날짜의 마지막 편지, 제목 모르면(권한 밖·삭제) null
+const [l1, l2, l3] = [0, 1, 2].map(() => new mongoose.Types.ObjectId());
+const withLetters = new Diary({
+  ...base,
+  days: [
+    { date: "2026-11-02", text: "", letters: [{ letterId: l1 }] },
+    { date: "2026-11-10", text: "", letters: [{ letterId: l2, style: "note" }, { letterId: l3 }] },
+    { date: "2026-11-11", text: "오늘은 편지 없음" },
+  ],
+});
+assert.deepEqual(lastAttached(withLetters), { date: "2026-11-10", letterId: String(l3) });
+assert.equal(lastAttached(new Diary({ ...base, days: [day("글만")] })), null);
+assert.deepEqual(toDiarySummary(withLetters, new Map([[String(l3), "엄마의 답장"]])).lastLetter, { date: "2026-11-10", title: "엄마의 답장" });
+assert.equal(toDiarySummary(withLetters).lastLetter, null, "제목 모르면 줄 없음");
+assert.equal(toDiarySummary(new Diary(base)).lastLetter, null);
 
 console.log("diary.test.ts ok");
