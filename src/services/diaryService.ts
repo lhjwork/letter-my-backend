@@ -46,14 +46,19 @@ export function dateInMonth(date: string, month: string): boolean {
 const firstDow = (month: string) => new Date(month + "-01T00:00:00Z").getUTCDay();
 const daysIn = (month: string) => new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 0)).getUTCDate();
 
-/** 일요일 시작 달력 기준 주 수(4~6) */
+/** 그 달 첫 월요일의 날짜(1~7) */
+const firstMonday = (month: string) => 1 + ((8 - firstDow(month)) % 7);
+
+/** 주 수 = 그 달의 월요일 수(4~5). week N = N번째 월요일~일요일, 첫 월요일 앞 날짜는 1주, 달 끝에서 잘림 */
 export function weeksInMonth(month: string): number {
-  return Math.ceil((firstDow(month) + daysIn(month)) / 7);
+  return Math.floor((daysIn(month) - firstMonday(month)) / 7) + 1;
 }
 
-/** 날짜가 그 달 몇째 주인지(1부터, 일요일 시작) */
+/** 날짜가 그 달 몇째 주인지(1부터, 월요일 시작, 첫 월요일 앞은 1주) */
 export function weekOf(date: string): number {
-  return Math.ceil((firstDow(date.slice(0, 7)) + Number(date.slice(8, 10))) / 7);
+  const m1 = firstMonday(date.slice(0, 7));
+  const d = Number(date.slice(8, 10));
+  return d < m1 ? 1 : Math.floor((d - m1) / 7) + 1;
 }
 
 const PAGE_SECTION: Record<string, DiarySection> = { first: "first", monthly: "monthly", goals: "goals", letters: "letters", review: "review" };

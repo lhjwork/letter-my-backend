@@ -52,10 +52,16 @@ assert.ok(new Diary({ ...base, sections: [] }).validateSync()?.errors.sections, 
 assert.equal(dateInMonth("2026-11-30", "2026-11"), true);
 assert.equal(dateInMonth("2026-11-31", "2026-11"), false, "없는 날");
 assert.equal(dateInMonth("2026-12-01", "2026-11"), false, "다른 달");
-assert.equal(weeksInMonth("2026-11"), 5, "2026-11 은 일요일 시작 5주");
-assert.equal(weeksInMonth("2026-08"), 6, "2026-08 은 토요일 시작 6주");
-assert.equal(weekOf("2026-11-07"), 1);
-assert.equal(weekOf("2026-11-08"), 2);
+// 주 = 월요일 시작, 주 수 = 그 달 월요일 수, 첫 월요일 앞은 1주
+assert.equal(weeksInMonth("2026-11"), 5, "2026-11 월요일 5개(2·9·16·23·30)");
+for (const [d, w] of [["01", 1], ["02", 1], ["08", 1], ["09", 2], ["29", 4], ["30", 5]] as const) assert.equal(weekOf(`2026-11-${d}`), w, `11/${d}`);
+assert.equal(weeksInMonth("2026-12"), 4, "2026-12 월요일 4개(7·14·21·28)");
+for (const [d, w] of [["01", 1], ["06", 1], ["07", 1], ["13", 1], ["14", 2], ["28", 4], ["31", 4]] as const) assert.equal(weekOf(`2026-12-${d}`), w, `12/${d}`);
+assert.equal(weeksInMonth("2026-06"), 5, "1일이 월요일(2026-06-01)");
+assert.equal(weekOf("2026-06-07"), 1);
+assert.equal(weekOf("2026-06-08"), 2);
+assert.equal(weeksInMonth("2027-02"), 4, "2027-02 월요일 1·8·15·22");
+assert.equal(isValidPageKey("week-5", "2026-12", ["weekly"]), false, "12월은 4주");
 const all = ["first", "monthly", "goals", "weekly", "daily", "letters", "review"];
 for (const k of ["first", "monthly", "goals", "letters", "review", "week-5", "day-2026-11-03", "day-2026-11-03-2", "day-2026-11-03-3"]) assert.equal(isValidPageKey(k, "2026-11", all), true, k);
 for (const k of ["week-6", "week-0", "day-2026-11-31", "day-2026-11-03-4", "day-2026-12-01", "cover", "toc"]) assert.equal(isValidPageKey(k, "2026-11", all), false, k);
