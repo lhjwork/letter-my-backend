@@ -145,6 +145,16 @@ assert.equal(daySheetCount(("가".repeat(39) + "\n").repeat(23) + "가".repeat(3
 assert.equal(daySheetCount("가".repeat(5000)), 3);
 assert.equal(daySheetCount(Array.from({ length: 30 }, (_, i) => `줄${i}`).join("\n")), 2, "24줄 넘으면 다음 장");
 assert.equal(daySheetCount(("가".repeat(40) + "\n").repeat(12) + "끝"), 2, "39자 넘는 줄은 두 줄");
+// 어절 단위 줄바꿈(keep-all): 프런트 check 와 같은 사례
+const words = (k: number, n: number) => ("가".repeat(k) + " ").repeat(n);
+assert.equal(daySheetCount(words(8, 96)), 1, "8자 어절 96개 = 24줄");
+assert.equal(daySheetCount(words(8, 97)), 2);
+assert.equal(daySheetCount(words(15, 48)), 1, "15자 어절 한 줄 2개");
+assert.equal(daySheetCount(words(15, 49)), 2);
+assert.equal(daySheetCount(words(20, 24)), 1, "20자 어절 한 줄 1개");
+assert.equal(daySheetCount(words(20, 25)), 2);
+assert.equal(daySheetCount(words(50, 12)), 1, "50자 어절 = 두 줄");
+assert.equal(daySheetCount(words(50, 13)), 2);
 // PUT days 검증: 3,000자 안이어도 3장(72줄)을 넘치면 받지 않는다
 assert.equal(dayTextFits("\n".repeat(71)), true);
 assert.equal(dayTextFits("\n".repeat(80) + "끝"), false);

@@ -87,17 +87,32 @@ const SHEET_LINES = 24;
 const LINE_CHARS = 39;
 export const MAX_DAY_SHEETS = 3;
 
-/** 하루 글이 차지하는 인쇄 장 수(넘침 포함, 자르지 않음). 한 장 1,000자 또는 24줄(줄바꿈, 39자 넘는 줄은 접힘)까지 */
+/**
+ * 하루 글이 차지하는 인쇄 장 수(넘침 포함, 자르지 않음). 한 장 1,000자 또는 24줄까지.
+ * 줄은 꽉 찬 칸 CSS(pre-wrap · keep-all · overflow-wrap:anywhere) 흉내: 남은 칸에 안 드는 어절은 다음 줄, 39자 넘는 어절은 쪼갬, 줄 끝 공백은 매달림
+ */
 export function daySheetsRaw(text: string): number {
   let sheets = 1;
   let n = 0;
   let line = 1;
   let col = 0;
-  for (const ch of text.split("")) {
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
     const nl = ch === "\n";
-    if (!nl && col === LINE_CHARS) {
-      line++;
-      col = 0;
+    const sp = ch === " " || ch === "\t";
+    if (!nl && !sp) {
+      if (col > 0 && (i === 0 || /[ \t\n]/.test(text[i - 1]))) {
+        let end = i;
+        while (end < text.length && !/[ \t\n]/.test(text[end])) end++;
+        if (col + (end - i) > LINE_CHARS) {
+          line++;
+          col = 0;
+        }
+      }
+      if (col === LINE_CHARS) {
+        line++;
+        col = 0;
+      }
     }
     if (n === SHEET_CHARS || line > SHEET_LINES) {
       sheets++;
@@ -109,7 +124,7 @@ export function daySheetsRaw(text: string): number {
     if (nl) {
       line++;
       col = 0;
-    } else col++;
+    } else col = Math.min(LINE_CHARS, col + 1);
   }
   return sheets;
 }
