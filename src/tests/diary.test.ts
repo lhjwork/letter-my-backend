@@ -5,7 +5,9 @@
 import assert from "node:assert/strict";
 import mongoose from "mongoose";
 import Diary from "../models/Diary";
-import { habitDayUpdate, mergeHabits, withHabitIds, applyAdminPhysicalStatus, isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent, lastAttached, toDiarySummary, daySheetCount, dropShrunkDecos, dayTextFits } from "../services/diaryService";
+import { habitDayUpdate, mergeHabits, withHabitIds, applyAdminPhysicalStatus, isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent, lastAttached, toDiarySummary, daySheetCount, dropShrunkDecos, dayTextFits, markReplied } from "../services/diaryService";
+import { sectionRules } from "../routes/diaries";
+import { validationResult } from "express-validator";
 
 const userId = new mongoose.Types.ObjectId();
 const base = { userId, title: "11월의 기록", month: "2026-11" };
@@ -188,4 +190,31 @@ assert.equal(toDiarySummary(new Diary({ ...base, days: [day("가".repeat(1500))]
 const pages = ["day-2026-11-03", "day-2026-11-03-2", "day-2026-11-03-3", "day-2026-11-04-2", "monthly"].map((page) => ({ page }));
 assert.deepEqual(dropShrunkDecos(pages, "2026-11-03", "가".repeat(1500)).map((x) => x.page), ["day-2026-11-03", "day-2026-11-03-2", "day-2026-11-04-2", "monthly"]);
 assert.deepEqual(dropShrunkDecos(pages, "2026-11-03", "").map((x) => x.page), ["day-2026-11-03", "day-2026-11-04-2", "monthly"]);
-console.log("diary.test.ts ok");
+// 받은 마음 편지에만 답장 여부
+const card = (_id: string, kind: string, flow: string) => ({ _id, kind, flow });
+assert.deepEqual(
+  markReplied([card("a", "received", "heart"), card("b", "received", "heart"), card("c", "received", "story"), card("d", "sent", "heart")], ["a", "c"]).map((c) => c.replied),
+  [true, false, undefined, undefined],
+);
+
+// PATCH section/letters·review 검증(이 달의 편지·돌아보기)
+const check = async (name: keyof typeof sectionRules, body: object) => {
+  const req = { body, params: {}, query: {}, headers: {} };
+  for (const r of sectionRules[name]) await r.run(req);
+  return validationResult(req).isEmpty();
+};
+(async () => {
+  assert.equal(await check("letters", { quotes: [{ text: "네 글씨 보니 좋더라.", by: "엄마", date: "2026-11-03" }, { text: "천천히 가도 도착은 해.", by: "", date: "" }] }), true);
+  assert.equal(await check("letters", { quotes: [{ text: "  ", by: "엄마" }] }), false, "빈 문장 거부");
+  assert.equal(await check("letters", { quotes: [{ text: "가".repeat(61) }] }), false, "61자 거부");
+  assert.equal(await check("letters", { quotes: [{ text: "가", date: "11월 3일" }] }), false, "날짜 형식");
+  assert.equal(await check("letters", { quotes: Array.from({ length: 5 }, () => ({ text: "가" })) }), false, "5개 거부");
+  assert.equal(await check("review", { good: ["이사 집을 정했다", "", ""], regret: "가".repeat(60), scene: "성수 팝업 날", toNext: "가".repeat(300) }), true);
+  assert.equal(await check("review", { good: ["a", "b", "c", "d"] }), false, "좋았던 일 4개 거부");
+  assert.equal(await check("review", { toNext: "가".repeat(301) }), false, "301자 거부");
+  assert.equal(await check("review", { scene: "가".repeat(41) }), false);
+  console.log("diary.test.ts ok");
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import Diary, { IDiary, IDiaryHabit, DIARY_SECTIONS, DiarySection } from "../models/Diary";
-import Letter from "../models/Letter";
+import Letter, { LetterStatus } from "../models/Letter";
 import { recordScopes, attachStoryTitles, toRecordItem, RecordRow } from "./myRecordsService";
 import { extractPlainText } from "../utils/htmlProcessor";
 
@@ -246,6 +246,14 @@ async function letterCards(userId: string, extra: object, limit: number) {
   }));
 }
 
+const isReceivedHeart = (c: { kind: string; flow: string }) => c.kind === "received" && c.flow === "heart";
+
+/** 받은 마음 편지에만 replied(답장했는지)를 단다. 나머지 카드는 그대로 */
+export function markReplied<T extends { _id: string; kind: string; flow: string }>(cards: T[], repliedIds: string[]): (T & { replied?: boolean })[] {
+  const done = new Set(repliedIds);
+  return cards.map((c) => (isReceivedHeart(c) ? { ...c, replied: done.has(c._id) } : c));
+}
+
 // ===== DB =====
 
 /** 섹션 통째 교체 시 빠진 칸은 빈 값. 모르는 키는 버린다 */
@@ -389,7 +397,13 @@ class DiaryService {
   async attachableLetters(userId: string, id: string) {
     const d = await this.own(userId, id);
     // ponytail: 최근 50통 고정. 더 필요하면 커서 페이지네이션
-    return letterCards(userId, { createdAt: { $lt: monthEnd(d.month) } }, 50);
+    const cards = await letterCards(userId, { createdAt: { $lt: monthEnd(d.month) } }, 50);
+    // 받은 마음 편지에 내가 답장했는지(이 달의 편지 "아직 답장 못 한 편지")
+    const heart = cards.filter(isReceivedHeart).map((c) => c._id);
+    const replied = heart.length
+      ? await Letter.distinct("replyToId", { userId: new mongoose.Types.ObjectId(userId), replyToId: { $in: heart }, status: { $ne: LetterStatus.DELETED } })
+      : [];
+    return markReplied(cards, replied.map(String));
   }
 
   async requestPhysical(userId: string, id: string, input: Pick<IDiary["physical"], "binding" | "copies" | "address">) {

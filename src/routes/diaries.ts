@@ -44,7 +44,7 @@ router.delete("/:id", [idParam, validate], diaryController.remove);
 router.patch("/:id/settings", [idParam, ...settings(false), validate], diaryController.updateSettings);
 
 // ===== 섹션 통째 교체 =====
-const sectionRules = {
+export const sectionRules = {
   first: [text("owner", 20), arr("resolutions", 3), text("resolutions.*", 40, false), text("word", 10), text("toMe", 60)],
   monthly: [
     arr("events", 31 * DIARY_LIMITS.eventsPerDay),
