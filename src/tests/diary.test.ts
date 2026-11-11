@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import mongoose from "mongoose";
 import Diary from "../models/Diary";
-import { isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent } from "../services/diaryService";
+import { applyAdminPhysicalStatus, isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent } from "../services/diaryService";
 
 const userId = new mongoose.Types.ObjectId();
 const base = { userId, title: "11월의 기록", month: "2026-11" };
@@ -66,11 +66,25 @@ assert.equal(monthEnd("2026-12").toISOString(), "2026-12-31T15:00:00.000Z", "KST
 assert.equal(isLocked({ status: "writing", physical: { status: "none" } }), false);
 assert.equal(isLocked({ status: "closed", physical: { status: "none" } }), true);
 assert.equal(isLocked({ status: "writing", physical: { status: "requested" } }), true);
-assert.equal(isLocked({ status: "writing", physical: { status: "rejected" } }), true);
+assert.equal(isLocked({ status: "writing", physical: { status: "rejected" } }), false, "반려되면 다시 열림");
+assert.equal(isLocked({ status: "closed", physical: { status: "rejected" } }), true);
+assert.equal(isLocked({ status: "writing", physical: { status: "printing" } }), true);
+
+// 관리자 상태 변경: none 금지, rejected → writing, 그 외 closed
+assert.equal(applyAdminPhysicalStatus("none"), null);
+assert.deepEqual(applyAdminPhysicalStatus("rejected"), { physical: "rejected", status: "writing" });
+assert.deepEqual(applyAdminPhysicalStatus("printing"), { physical: "printing", status: "closed" });
+const rejected = applyAdminPhysicalStatus("rejected")!;
+assert.equal(isLocked({ status: rejected.status!, physical: { status: rejected.physical } }), false, "반려 적용 후 열림");
 
 // 제본 신청 조건
 assert.equal(hasContent(new Diary(base)), false);
 assert.equal(hasContent(new Diary({ ...base, days: [day("오늘")] })), true);
 assert.equal(hasContent(new Diary({ ...base, days: [day("   ")] })), false);
+assert.equal(hasContent(new Diary({ ...base, weeks: [{ week: 1 }] })), false, "빈 주는 내용 아님");
+assert.equal(hasContent(new Diary({ ...base, weeks: [{ week: 1, line: "  " }] })), false);
+assert.equal(hasContent(new Diary({ ...base, weeks: [{ week: 1, line: "잘 버텼다" }] })), true);
+assert.equal(hasContent(new Diary({ ...base, weeks: [{ week: 2, todos: [{ text: "장보기" }] }] })), true);
+assert.equal(hasContent(new Diary({ ...base, weeks: [{ week: 1, plans: [{ date: "2026-11-02", text: "치과" }] }] })), true);
 
 console.log("diary.test.ts ok");

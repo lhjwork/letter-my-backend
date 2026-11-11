@@ -89,7 +89,7 @@ class DiaryController {
   printView = (req: Request, res: Response) =>
     run(res, async () => {
       try {
-        const t = jwt.verify(String(req.query.t || ""), process.env.JWT_SECRET!) as { type?: string; diaryId?: string };
+        const t = jwt.verify(String(req.query.t || ""), process.env.JWT_SECRET!, { algorithms: ["HS256"] }) as { type?: string; diaryId?: string };
         if (t.type !== "diary-print" || t.diaryId !== id(req)) throw new Error("bad token");
       } catch {
         return void sendUnauthorized(res, "인쇄 링크가 유효하지 않거나 만료되었습니다.");
@@ -102,7 +102,8 @@ class DiaryController {
 
   adminPrintLink = (req: Request, res: Response) =>
     run(res, async () => {
-      const token = jwt.sign({ type: "diary-print", diaryId: id(req) }, process.env.JWT_SECRET!, { expiresIn: "15m" });
+      await diaryService.assertPrintable(id(req));
+      const token = jwt.sign({ type: "diary-print", diaryId: id(req) }, process.env.JWT_SECRET!, { expiresIn: "15m", algorithm: "HS256" });
       sendSuccess(res, { token, expiresIn: 900 });
     });
 

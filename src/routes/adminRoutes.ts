@@ -60,7 +60,7 @@ router.patch("/physical-requests/:letterId", adminAuthenticate, requirePermissio
 const diaryId = [param("id").isMongoId().withMessage("유효하지 않은 ID입니다."), validate];
 router.get("/diaries/physical-requests", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_READ), [query("status").optional().isIn(DIARY_PHYSICAL_STATUS), validate], diaryController.adminList);
 // 인쇄 열람 토큰(15분). 커뮤니티 /diary/:id/print?t= 가 GET /api/diaries/:id/print-view?t= 로 조회
-router.post("/diaries/:id/print-link", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_READ), diaryId, diaryController.adminPrintLink);
+router.post("/diaries/:id/print-link", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_WRITE), diaryId, diaryController.adminPrintLink);
 router.patch(
   "/diaries/:id/physical",
   adminAuthenticate,

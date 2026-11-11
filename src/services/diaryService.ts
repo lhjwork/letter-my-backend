@@ -16,9 +16,16 @@ export class DiaryError extends Error {
 
 // ===== 순수 함수 (src/tests/diary.test.ts) =====
 
-/** 제본 신청 후·닫힌 다이어리는 읽기만 */
+/** 제본 신청 후는 읽기만. 신청 전(none)·반려(rejected)이고 writing 이면 열림 */
 export function isLocked(d: { status: string; physical?: { status?: string } }): boolean {
-  return d.status === "closed" || (d.physical?.status ?? "none") !== "none";
+  const p = d.physical?.status ?? "none";
+  return !(d.status === "writing" && (p === "none" || p === "rejected"));
+}
+
+/** 관리자 상태 변경 결과. none 으로 되돌리기는 금지(null), rejected 면 다시 쓸 수 있게 writing */
+export function applyAdminPhysicalStatus(next: string): { physical: string; status?: "writing" | "closed" } | null {
+  if (next === "none") return null;
+  return next === "rejected" ? { physical: next, status: "writing" } : { physical: next, status: "closed" };
 }
 
 /** 구성 부분집합 → 고정 순서로 정렬. 비었거나 모르는 값·중복이면 null */
@@ -70,7 +77,8 @@ export function monthEnd(month: string): Date {
 
 /** 쓴 흔적이 있어야 제본 신청 가능 */
 export function hasContent(d: Pick<IDiary, "days" | "decos" | "monthly" | "weeks">): boolean {
-  return d.days.some((x) => x.text.trim() || x.letters.length) || d.decos.length > 0 || d.monthly.events.length > 0 || d.weeks.length > 0;
+  const weekFilled = d.weeks.some((w) => w.plans.length || w.todos.length || w.line.trim());
+  return d.days.some((x) => x.text.trim() || x.letters.length) || d.decos.length > 0 || d.monthly.events.length > 0 || weekFilled;
 }
 
 /** 책장 카드: 본문 대신 날짜별 글자 수(쪽 수는 프런트 lib/diary-pages.ts 가 계산) */
@@ -209,7 +217,7 @@ class DiaryService {
       if (!dateInMonth(date, d.month)) throw new DiaryError(400, "이 달에 없는 날짜입니다.");
       const ids = [...new Set(value.letters.map((l) => l.letterId))];
       if (ids.length !== value.letters.length) throw new DiaryError(400, "같은 편지를 두 번 붙일 수 없어요.");
-      if (ids.length && (await letterCards(userId, { _id: { $in: ids } }, ids.length)).length !== ids.length) throw new DiaryError(400, "붙일 수 없는 편지입니다.");
+      if (ids.length && (await letterCards(userId, { _id: { $in: ids }, createdAt: { $lt: monthEnd(d.month) } }, ids.length)).length !== ids.length) throw new DiaryError(400, "붙일 수 없는 편지입니다.");
       const rest = d.days.filter((x) => x.date !== date);
       const empty = !value.text.trim() && !value.thanks.trim() && !value.weather && !value.letters.length;
       d.set("days", (empty ? rest : [...rest, { date, ...value }]).sort((a, b) => a.date.localeCompare(b.date)));
@@ -256,17 +264,32 @@ class DiaryService {
     if (!mongoose.Types.ObjectId.isValid(id)) throw new DiaryError(404, "다이어리를 찾을 수 없습니다.");
     const d = await Diary.findById(id);
     if (!d) throw new DiaryError(404, "다이어리를 찾을 수 없습니다.");
-    if (input.status !== undefined) d.physical.status = input.status;
+    if (input.status !== undefined) {
+      const next = applyAdminPhysicalStatus(input.status);
+      if (!next) throw new DiaryError(400, "신청 전 상태로 되돌릴 수 없습니다.");
+      d.physical.status = input.status;
+      if (next.status) d.status = next.status;
+    }
     if (input.notes !== undefined) d.physical.notes = input.notes;
     d.physical.updatedAt = new Date();
     await d.save();
     return d.physical;
   }
 
+  /** 인쇄 링크는 신청된 다이어리만 */
+  async assertPrintable(id: string) {
+    const d = await Diary.findById(id).select("physical.status");
+    if (!d) throw new DiaryError(404, "다이어리를 찾을 수 없습니다.");
+    if (d.physical.status === "none") throw new DiaryError(409, "책으로 받기 신청이 없는 다이어리입니다.");
+  }
+
+  /** 인쇄 열람: 배송지는 빼고 */
   async printView(id: string) {
     const d = await Diary.findById(id);
     if (!d) throw new DiaryError(404, "다이어리를 찾을 수 없습니다.");
-    return this.withLetters(d);
+    const v = await this.withLetters(d);
+    const { address: _address, ...physical } = v.physical; // eslint-disable-line @typescript-eslint/no-unused-vars
+    return { ...v, physical };
   }
 }
 

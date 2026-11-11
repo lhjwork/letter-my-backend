@@ -3,6 +3,7 @@ import { body, param, query } from "express-validator";
 import diaryController from "../controllers/diaryController";
 import { authenticate } from "../middleware/auth";
 import { validate } from "../middleware/validation";
+import { physicalRequestLimiter } from "../middleware/rateLimiter";
 import { DECO_TYPES, DIARY_BINDINGS, DIARY_COVERS, DIARY_FONTS, DIARY_LIMITS, DIARY_PAPERS, DIARY_WEATHERS, LETTER_STYLES } from "../models/Diary";
 
 const router: Router = Router();
@@ -129,6 +130,7 @@ router.get("/:id/attachable-letters", [idParam, validate], diaryController.attac
 /** POST /api/diaries/:id/physical — 책으로 받기 신청(이후 잠금). 주소 규칙은 편지 실물 신청과 동일 */
 router.post(
   "/:id/physical",
+  physicalRequestLimiter,
   [
     idParam,
     body("binding").isIn(DIARY_BINDINGS).withMessage("제본 방식을 선택해주세요."),

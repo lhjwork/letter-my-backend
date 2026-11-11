@@ -3,7 +3,7 @@
  * 실행: npx ts-node-dev --transpile-only src/tests/privacyRetention.test.ts
  */
 import assert from "node:assert/strict";
-import { cutoffFrom, expiredAddress, expiredInquiry, purgeAddressUpdate, PURGED } from "../jobs/privacyRetention";
+import { cutoffFrom, expiredAddress, expiredDiaryAddress, purgeDiaryAddressUpdate, expiredInquiry, purgeAddressUpdate, PURGED } from "../jobs/privacyRetention";
 
 const now = new Date("2026-10-20T00:00:00Z");
 const cutoff = cutoffFrom(now);
@@ -19,6 +19,13 @@ assert.equal(a.address1.$ne, PURGED);
 const set = purgeAddressUpdate.$set;
 for (const k of ["name", "phone", "zipCode", "address1", "address2", "memo"]) assert.ok(`recipientAddresses.$[r].${k}` in set, k);
 for (const k of ["sessionId", "userAgent", "ipAddress"]) assert.ok(`recipientAddresses.$[r].${k}` in purgeAddressUpdate.$unset, k);
+
+// 다이어리 배송지: Letter 와 같은 끝난 상태·기간
+const da = expiredDiaryAddress(cutoff);
+assert.deepEqual(da["physical.status"].$in, ["rejected", "sent", "delivered"]);
+assert.equal(da["physical.requestedAt"].$lt, cutoff);
+assert.equal(da["physical.address.address1"].$ne, PURGED);
+for (const k of ["name", "phone", "zipCode", "address1", "address2", "memo"]) assert.ok(`physical.address.${k}` in purgeDiaryAddressUpdate.$set, k);
 
 // 답변 안 한 문의는 남긴다
 assert.deepEqual(expiredInquiry(cutoff), { status: "answered", answeredAt: { $lt: cutoff } });
