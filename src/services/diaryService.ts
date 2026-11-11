@@ -88,11 +88,27 @@ const LINE_CHARS = 39;
 export const MAX_DAY_SHEETS = 3;
 
 /**
+ * 글자 폭(한글 음절 = 4, 1/4칸 단위). 네 글씨체 실측(QA 4·5 합본, 438px 칸)에서 음절보다 넓던 것만 넓게 센다(여유 포함):
+ * 한글 낱자(ㅋ·ㅠ)·전각 문자·CJK 기호·화살표·도형·♡★ 등 = 5(1.25칸, 펜 "ㅋ"×10+띄어쓰기가 한 줄 3묶음이 안 됨),
+ * 대시(— 등, 개구 1.33칸) = 6, 그 밖의 일반 구두점(“ ” … 등) = 5
+ */
+function charWidth(c: number): number {
+  if (c >= 0x2010 && c <= 0x2015) return 6;
+  if (c === 0x2e3a || c === 0x2e3b) return 6;
+  if (c >= 0x2016 && c <= 0x206f) return 5;
+  if (c >= 0x2190 && c <= 0x2bff) return 5;
+  if ((c >= 0x1100 && c <= 0x11ff) || (c >= 0x3000 && c <= 0x303f) || (c >= 0x3130 && c <= 0x318f) || (c >= 0xa960 && c <= 0xa97f) || (c >= 0xd7b0 && c <= 0xd7ff) || (c >= 0xff00 && c <= 0xffef)) return 5;
+  return 4;
+}
+
+/**
  * 하루 글이 차지하는 인쇄 장 수(넘침 포함, 자르지 않음). 한 장 1,000자 또는 24줄까지.
- * 줄은 꽉 찬 칸 CSS(pre-wrap · keep-all · overflow-wrap:anywhere) 흉내: 남은 칸에 안 드는 어절은 다음 줄, 39자 넘는 어절은 쪼갬, 줄 끝 공백은 매달림
+ * 줄은 꽉 찬 칸 CSS(pre-wrap · keep-all · overflow-wrap:anywhere) 흉내: 남은 칸에 안 드는 어절은 다음 줄, 한 줄보다 긴 어절은 쪼갬, 줄 끝 공백은 매달림.
+ * 한 줄 = 한글 음절 39자 폭, 낱자·기호는 charWidth 로 넓게(프런트와 같은 값)
  */
 export function daySheetsRaw(text: string): number {
   let sheets = 1;
+  const LINE = LINE_CHARS * 4;
   let n = 0;
   let line = 1;
   let col = 0;
@@ -100,16 +116,19 @@ export function daySheetsRaw(text: string): number {
     const ch = text[i];
     const nl = ch === "\n";
     const sp = ch === " " || ch === "\t";
+    const w = charWidth(text.charCodeAt(i));
     if (!nl && !sp) {
+      // 어절 첫 글자: 남은 칸에 어절이 안 들어가면 줄을 넘긴다
       if (col > 0 && (i === 0 || /[ \t\n]/.test(text[i - 1]))) {
-        let end = i;
-        while (end < text.length && !/[ \t\n]/.test(text[end])) end++;
-        if (col + (end - i) > LINE_CHARS) {
+        let wide = 0;
+        for (let j = i; j < text.length && !/[ \t\n]/.test(text[j]); j++) wide += charWidth(text.charCodeAt(j));
+        if (col + wide > LINE) {
           line++;
           col = 0;
         }
       }
-      if (col === LINE_CHARS) {
+      // 한 줄보다 긴 어절은 칸 끝에서 쪼갠다
+      if (col > 0 && col + w > LINE) {
         line++;
         col = 0;
       }
@@ -124,7 +143,7 @@ export function daySheetsRaw(text: string): number {
     if (nl) {
       line++;
       col = 0;
-    } else col = Math.min(LINE_CHARS, col + 1);
+    } else col = Math.min(LINE, col + w); // 줄 끝 공백은 매달린다
   }
   return sheets;
 }

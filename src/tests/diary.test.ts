@@ -155,6 +155,14 @@ assert.equal(daySheetCount(words(20, 24)), 1, "20자 어절 한 줄 1개");
 assert.equal(daySheetCount(words(20, 25)), 2);
 assert.equal(daySheetCount(words(50, 12)), 1, "50자 어절 = 두 줄");
 assert.equal(daySheetCount(words(50, 13)), 2);
+// 음절보다 넓은 글자: 프런트 check 와 같은 사례
+assert.equal(daySheetCount("ㅋ".repeat(744)), 1);
+assert.equal(daySheetCount("ㅋ".repeat(745)), 2);
+assert.equal(daySheetCount("—".repeat(624)), 1);
+assert.equal(daySheetCount("—".repeat(625)), 2);
+assert.equal(daySheetCount("♡".repeat(745)), 2);
+assert.equal(daySheetCount(("ㅋ".repeat(10) + " ").repeat(48)), 1);
+assert.equal(daySheetCount(("ㅋ".repeat(10) + " ").repeat(49)), 2);
 // PUT days 검증: 3,000자 안이어도 3장(72줄)을 넘치면 받지 않는다
 assert.equal(dayTextFits("\n".repeat(71)), true);
 assert.equal(dayTextFits("\n".repeat(80) + "끝"), false);
