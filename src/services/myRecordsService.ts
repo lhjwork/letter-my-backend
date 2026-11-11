@@ -97,26 +97,40 @@ export function toRecordItem(row: RecordRow, userId: string, replyCount = 0, adm
 const OWN = { $ne: LetterStatus.DELETED };
 const VISIBLE = { $nin: [LetterStatus.HIDDEN, LetterStatus.DELETED] };
 
+/** 내 기록 범위 쿼리: 보낸 마음 편지·답장 / 받은 편지 / 나의 사연. 다이어리 편지 붙이기도 같은 범위를 쓴다 */
+export async function recordScopes(userId: string) {
+  const me = new mongoose.Types.ObjectId(userId);
+  const [myStoryIds, adminIds] = await Promise.all([
+    Letter.find({ userId: me, type: LetterType.STORY, status: OWN }).distinct("_id"),
+    process.env.ADMIN_EMAIL
+      ? User.find({ email: process.env.ADMIN_EMAIL.toLowerCase() }).select("_id email").lean().then((us) => us.filter((u) => isAdminEmail(u.email)).map((u) => u._id))
+      : Promise.resolve([] as mongoose.Types.ObjectId[]),
+  ]);
+  const sent = { userId: me, type: LetterType.FRIEND, status: OWN };
+  const received = {
+    userId: { $ne: me },
+    status: VISIBLE,
+    $or: [
+      { type: LetterType.FRIEND, replyToId: null, "savedBy.userId": me },
+      { replyToId: { $in: myStoryIds }, $or: [{ adoptedAt: { $ne: null } }, { userId: { $in: adminIds } }] },
+    ],
+  };
+  const stories = { userId: me, type: LetterType.STORY, status: OWN };
+  return { me, myStoryIds, adminIds, sent, received, stories };
+}
+
+/** 답장 행에 원래 사연 제목을 붙인다 ("‘사연 제목’에 쓴/온 답장") */
+export async function attachStoryTitles(rows: RecordRow[]): Promise<void> {
+  const targets = rows.filter((r) => r.replyToId).map((r) => r.replyToId!);
+  if (!targets.length) return;
+  const titles = await Letter.find({ _id: { $in: targets } }).select("title").lean();
+  const map = new Map(titles.map((t) => [String(t._id), t.title]));
+  for (const r of rows) if (r.replyToId) r.storyTitle = map.get(String(r.replyToId));
+}
+
 class MyRecordsService {
   async getMyRecords(userId: string, opts: { tab: RecordTab; flow: RecordFlow; limit: number }) {
-    const me = new mongoose.Types.ObjectId(userId);
-    const [myStoryIds, adminIds] = await Promise.all([
-      Letter.find({ userId: me, type: LetterType.STORY, status: OWN }).distinct("_id"),
-      process.env.ADMIN_EMAIL
-        ? User.find({ email: process.env.ADMIN_EMAIL.toLowerCase() }).select("_id email").lean().then((us) => us.filter((u) => isAdminEmail(u.email)).map((u) => u._id))
-        : Promise.resolve([] as mongoose.Types.ObjectId[]),
-    ]);
-
-    const sent = { userId: me, type: LetterType.FRIEND, status: OWN };
-    const received = {
-      userId: { $ne: me },
-      status: VISIBLE,
-      $or: [
-        { type: LetterType.FRIEND, replyToId: null, "savedBy.userId": me },
-        { replyToId: { $in: myStoryIds }, $or: [{ adoptedAt: { $ne: null } }, { userId: { $in: adminIds } }] },
-      ],
-    };
-    const stories = { userId: me, type: LetterType.STORY, status: OWN };
+    const { me, myStoryIds, adminIds, sent, received, stories } = await recordScopes(userId);
     const byTab = { sent, received, stories, all: { $or: [sent, received, stories] } }[opts.tab];
 
     const byFlow =
@@ -142,11 +156,7 @@ class MyRecordsService {
     // 나의 사연 카드 "답장 N". 숨김·삭제 답장은 세지 않는다
     const storyIds = rows.filter((r) => r.type === LetterType.STORY).map((r) => r._id);
     const adminSet = new Set(adminIds.map(String));
-    // 답장 카드 제목 "‘사연 제목’에 쓴 답장"(내가 쓴) / "‘사연 제목’에 온 답장"(받은)
-    const myReplyTargets = rows.filter((r) => r.replyToId).map((r) => r.replyToId!);
-    const storyTitles = myReplyTargets.length ? await Letter.find({ _id: { $in: myReplyTargets } }).select("title").lean() : [];
-    const titleMap = new Map(storyTitles.map((t) => [String(t._id), t.title]));
-    for (const r of rows) if (r.replyToId) r.storyTitle = titleMap.get(String(r.replyToId));
+    await attachStoryTitles(rows);
     const replyCounts = storyIds.length
       ? await Letter.aggregate<{ _id: mongoose.Types.ObjectId; n: number }>([
           { $match: { replyToId: { $in: storyIds }, status: VISIBLE } },

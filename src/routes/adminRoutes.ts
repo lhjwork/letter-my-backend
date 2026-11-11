@@ -12,6 +12,8 @@ import noticeController from "../controllers/noticeController";
 import inquiryController from "../controllers/inquiryController";
 import { NOTICE_TITLE_MAX, NOTICE_CONTENT_MAX } from "../models/Notice";
 import { INQUIRY_STATUSES, INQUIRY_ANSWER_MAX } from "../models/Inquiry";
+import diaryController from "../controllers/diaryController";
+import { DIARY_PHYSICAL_STATUS } from "../models/Diary";
 
 const router: Router = Router();
 
@@ -53,6 +55,19 @@ router.patch("/letters/:id/adopt", adminAuthenticate, requirePermission(PERMISSI
 // ===== 실물 편지 관리 =====
 router.get("/physical-requests", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_READ), physicalLetterController.getPhysicalLetterRequests);
 router.patch("/physical-requests/:letterId", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_WRITE), physicalLetterController.updatePhysicalLetterStatus);
+
+// ===== 다이어리 책으로 받기 =====
+const diaryId = [param("id").isMongoId().withMessage("유효하지 않은 ID입니다."), validate];
+router.get("/diaries/physical-requests", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_READ), [query("status").optional().isIn(DIARY_PHYSICAL_STATUS), validate], diaryController.adminList);
+// 인쇄 열람 토큰(15분). 커뮤니티 /diary/:id/print?t= 가 GET /api/diaries/:id/print-view?t= 로 조회
+router.post("/diaries/:id/print-link", adminAuthenticate, requirePermission(PERMISSIONS.LETTERS_READ), diaryId, diaryController.adminPrintLink);
+router.patch(
+  "/diaries/:id/physical",
+  adminAuthenticate,
+  requirePermission(PERMISSIONS.LETTERS_WRITE),
+  [param("id").isMongoId(), body("status").optional().isIn(DIARY_PHYSICAL_STATUS), body("notes").optional().isString().isLength({ max: 500 }), validate],
+  diaryController.adminUpdatePhysical
+);
 
 // ===== 공지 =====
 const idParam = param("id").isMongoId().withMessage("유효하지 않은 ID입니다.");

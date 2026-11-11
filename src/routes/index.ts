@@ -9,6 +9,7 @@ import adminRoutes from "./adminRoutes";
 import adRoutes from "./adRoutes";
 import noticeRoutes from "./notices";
 import inquiryRoutes from "./inquiries";
+import diaryRoutes from "./diaries";
 
 const router: Router = Router();
 
@@ -50,6 +51,9 @@ router.use("/notices", noticeRoutes);
 
 // 1:1 문의 (로그인)
 router.use("/inquiries", inquiryRoutes);
+
+// 다이어리 v2 (로그인, 인쇄 열람만 토큰)
+router.use("/diaries", diaryRoutes);
 
 
 // Fallback for undefined routes
