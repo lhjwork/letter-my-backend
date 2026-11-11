@@ -166,6 +166,13 @@ assert.equal(daySheetCount(("ㅋ".repeat(10) + " ").repeat(49)), 2);
 // 가나·한자·말줄임표: 프런트 check 와 같은 사례
 assert.equal(daySheetCount("あ".repeat(720)), 1);
 assert.equal(daySheetCount("あ".repeat(721)), 2);
+// 띄어쓰기 없는 일본어는 、。 뒤에서만 줄이 바뀐다(QA 4·5 합본 3차, 실제 36·29·26줄)
+{
+  const ja = (s: string, n: number) => s.repeat(Math.ceil(n / s.length)).slice(0, n);
+  assert.equal(daySheetCount(ja("コーヒーショップでアルバイトをしている。", 720)), 2);
+  assert.equal(daySheetCount(ja("今日は郵便受けを開けたら、母からの返事が届いていた。", 755)), 2);
+  assert.equal(daySheetCount(ja("２０２６年１１月１２日、晴れ。", 768)), 2);
+}
 assert.equal(daySheetCount("漢".repeat(840)), 1);
 assert.equal(daySheetCount("漢".repeat(841)), 2);
 assert.equal(daySheetCount("…".repeat(624)), 1);

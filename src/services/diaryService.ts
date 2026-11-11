@@ -108,6 +108,8 @@ function charWidth(c: number): number {
  * 줄은 꽉 찬 칸 CSS(pre-wrap · keep-all · overflow-wrap:anywhere) 흉내: 남은 칸에 안 드는 어절은 다음 줄, 한 줄보다 긴 어절은 쪼갬, 줄 끝 공백은 매달림.
  * 한 줄 = 한글 음절 39자 폭, 낱자·기호는 charWidth 로 넓게(프런트와 같은 값)
  */
+/** 어절 끝: 공백·줄바꿈, 그리고 keep-all 이 뒤에서 끊는 CJK 닫는 구두점(프런트 sheetStarts 와 같은 값) */
+const WORD_END = /[ \t\n、。，．！？」』）〉》】〕｡､]/;
 export function daySheetsRaw(text: string): number {
   let sheets = 1;
   const LINE = LINE_CHARS * 20;
@@ -121,9 +123,12 @@ export function daySheetsRaw(text: string): number {
     const w = charWidth(text.charCodeAt(i));
     if (!nl && !sp) {
       // 어절 첫 글자: 남은 칸에 어절이 안 들어가면 줄을 넘긴다
-      if (col > 0 && (i === 0 || /[ \t\n]/.test(text[i - 1]))) {
+      if (col > 0 && (i === 0 || WORD_END.test(text[i - 1]))) {
         let wide = 0;
-        for (let j = i; j < text.length && !/[ \t\n]/.test(text[j]); j++) wide += charWidth(text.charCodeAt(j));
+        for (let j = i; j < text.length && !/[ \t\n]/.test(text[j]); j++) {
+          wide += charWidth(text.charCodeAt(j));
+          if (WORD_END.test(text[j])) break;
+        }
         if (col + wide > LINE) {
           line++;
           col = 0;
