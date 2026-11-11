@@ -80,6 +80,48 @@ export function monthEnd(month: string): Date {
   return new Date(`${next}-01T00:00:00+09:00`);
 }
 
+// 데일리 장 나누기 — 프런트 letter-community lib/diary-pages.ts sheetStarts 와 같은 식(바꾸면 둘 다)
+const SHEET_CHARS = 1000;
+const SHEET_LINES = 24;
+const LINE_CHARS = 42;
+const MAX_SHEETS = 3;
+
+/** 하루 글이 차지하는 인쇄 장 수(1~3). 한 장 1,000자 또는 24줄(줄바꿈, 42자 넘는 줄은 접힘)까지 */
+export function daySheetCount(text: string): number {
+  let sheets = 1;
+  let n = 0;
+  let line = 1;
+  let col = 0;
+  for (const ch of text.split("")) {
+    const nl = ch === "\n";
+    if (!nl && col === LINE_CHARS) {
+      line++;
+      col = 0;
+    }
+    if (n === SHEET_CHARS || line > SHEET_LINES) {
+      sheets++;
+      n = 0;
+      line = 1;
+      col = 0;
+    }
+    n++;
+    if (nl) {
+      line++;
+      col = 0;
+    } else col++;
+  }
+  return Math.min(MAX_SHEETS, sheets);
+}
+
+/** 그날 글이 줄어 없어진 이어 쓴 장(day-날짜-2|-3)의 데코를 뺀다 */
+export function dropShrunkDecos<T extends { page: string }>(decos: T[], date: string, text: string): T[] {
+  const sheets = daySheetCount(text);
+  return decos.filter((x) => {
+    const m = /^day-(\d{4}-\d{2}-\d{2})-([23])$/.exec(x.page);
+    return !m || m[1] !== date || Number(m[2]) <= sheets;
+  });
+}
+
 /** 쓴 흔적이 있어야 제본 신청 가능 */
 export function hasContent(d: Pick<IDiary, "days" | "decos" | "monthly" | "weeks">): boolean {
   const weekFilled = d.weeks.some((w) => w.plans.length || w.todos.length || w.line.trim());
@@ -92,7 +134,7 @@ export function lastAttached(d: Pick<IDiary, "days">): { date: string; letterId:
   return day ? { date: day.date, letterId: String(day.letters[day.letters.length - 1].letterId) } : null;
 }
 
-/** 책장 카드: 본문 대신 날짜별 글자 수(쪽 수는 프런트 lib/diary-pages.ts 가 계산). titles: 편지 id → 제목(list 가 한 번에 조회) */
+/** 책장 카드: 본문 대신 날짜별 글자 수·장 수(쪽 번호는 프런트 lib/diary-pages.ts 가 계산). titles: 편지 id → 제목(list 가 한 번에 조회) */
 export function toDiarySummary(d: IDiary, titles: Map<string, string> = new Map()) {
   const last = [...d.days].filter((x) => x.text.trim()).sort((a, b) => b.date.localeCompare(a.date))[0];
   const attached = lastAttached(d);
@@ -107,7 +149,7 @@ export function toDiarySummary(d: IDiary, titles: Map<string, string> = new Map(
     sections: d.sections,
     status: d.status,
     physicalStatus: d.physical?.status ?? "none",
-    days: d.days.map((x) => ({ date: x.date, chars: x.text.length, letters: x.letters.length })),
+    days: d.days.map((x) => ({ date: x.date, chars: x.text.length, sheets: daySheetCount(x.text), letters: x.letters.length })),
     lastDay: last ? { date: last.date, text: last.text.slice(0, 120) } : null,
     lastLetter: attached && lastTitle ? { date: attached.date, title: lastTitle } : null,
     createdAt: d.createdAt,
@@ -239,6 +281,8 @@ class DiaryService {
       const rest = d.days.filter((x) => x.date !== date);
       const empty = !value.text.trim() && !value.thanks.trim() && !value.weather && !value.letters.length;
       d.set("days", (empty ? rest : [...rest, { date, ...value }]).sort((a, b) => a.date.localeCompare(b.date)));
+      const decos = dropShrunkDecos(d.decos, date, value.text);
+      if (decos.length !== d.decos.length) d.set("decos", decos);
     });
   }
 

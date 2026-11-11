@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import mongoose from "mongoose";
 import Diary from "../models/Diary";
-import { applyAdminPhysicalStatus, isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent, lastAttached, toDiarySummary } from "../services/diaryService";
+import { applyAdminPhysicalStatus, isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent, lastAttached, toDiarySummary, daySheetCount, dropShrunkDecos } from "../services/diaryService";
 
 const userId = new mongoose.Types.ObjectId();
 const base = { userId, title: "11월의 기록", month: "2026-11" };
@@ -109,4 +109,16 @@ assert.deepEqual(toDiarySummary(withLetters, new Map([[String(l3), "엄마의 �
 assert.equal(toDiarySummary(withLetters).lastLetter, null, "제목 모르면 줄 없음");
 assert.equal(toDiarySummary(new Diary(base)).lastLetter, null);
 
+// 데일리 장 수(프런트 lib/diary-pages sheetStarts 와 같은 사례)
+assert.equal(daySheetCount(""), 1);
+assert.equal(daySheetCount("가".repeat(1000)), 1);
+assert.equal(daySheetCount("가".repeat(1001)), 2);
+assert.equal(daySheetCount("가".repeat(5000)), 3);
+assert.equal(daySheetCount(Array.from({ length: 30 }, (_, i) => `줄${i}`).join("\n")), 2, "24줄 넘으면 다음 장");
+assert.equal(daySheetCount(("가".repeat(43) + "\n").repeat(12) + "끝"), 2, "42자 넘는 줄은 두 줄");
+assert.equal(toDiarySummary(new Diary({ ...base, days: [day("가".repeat(1500))] })).days[0].sheets, 2);
+// 글이 줄어 없어진 이어 쓴 장의 데코는 빠진다(다른 날·첫 장·다른 섹션은 그대로)
+const pages = ["day-2026-11-03", "day-2026-11-03-2", "day-2026-11-03-3", "day-2026-11-04-2", "monthly"].map((page) => ({ page }));
+assert.deepEqual(dropShrunkDecos(pages, "2026-11-03", "가".repeat(1500)).map((x) => x.page), ["day-2026-11-03", "day-2026-11-03-2", "day-2026-11-04-2", "monthly"]);
+assert.deepEqual(dropShrunkDecos(pages, "2026-11-03", "").map((x) => x.page), ["day-2026-11-03", "day-2026-11-04-2", "monthly"]);
 console.log("diary.test.ts ok");
