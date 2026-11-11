@@ -6,7 +6,10 @@ import assert from "node:assert/strict";
 import mongoose from "mongoose";
 import Diary from "../models/Diary";
 import { habitDayUpdate, mergeHabits, withHabitIds, applyAdminPhysicalStatus, isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent, lastAttached, toDiarySummary, daySheetCount, dropShrunkDecos, dayTextFits, textLines, FIELD_CHARS } from "../services/diaryService";
-import { sectionRules } from "../routes/diaries";
+import { physicalRules, sectionRules } from "../routes/diaries";
+import diaryController from "../controllers/diaryController";
+import diaryService from "../services/diaryService";
+import jwt from "jsonwebtoken";
 import { validationResult } from "express-validator";
 
 const userId = new mongoose.Types.ObjectId();
@@ -223,6 +226,55 @@ const check = async (name: keyof typeof sectionRules, body: object) => {
   assert.equal(await check("review", { regret: "가".repeat(52) }), false, "아쉬웠던 일 4줄");
   assert.equal(await check("review", { good: ["가".repeat(18), "", ""] }), false, "좋았던 일 2줄");
   assert.equal(await check("review", { scene: "가".repeat(12) }), false, "한 장면 2줄");
+
+  // POST physical 검증(책으로 받기): 제본·부수·배송지
+  const bind = async (body: object) => {
+    const req = { body, params: {}, query: {}, headers: {} };
+    for (const r of physicalRules) await r.run(req);
+    return validationResult(req).isEmpty();
+  };
+  const addr = { name: "김하늘", phone: "010-1234-5678", zipCode: "04790", address1: "서울 성동구 성수이로 12" };
+  assert.equal(await bind({ binding: "spring", copies: 1, address: addr }), true);
+  assert.equal(await bind({ binding: "perfect", copies: 5, address: { ...addr, address2: "3층", memo: "문 앞에 놓아 주세요" } }), true);
+  assert.equal(await bind({ binding: "hard", copies: 1, address: addr }), false, "없는 제본");
+  assert.equal(await bind({ binding: "spring", copies: 6, address: addr }), false, "6권 거부");
+  assert.equal(await bind({ binding: "spring", copies: 0, address: addr }), false, "0권 거부");
+  assert.equal(await bind({ binding: "spring", copies: 1 }), false, "배송지 없음");
+  assert.equal(await bind({ binding: "spring", copies: 1, address: { ...addr, name: "김" } }), false, "이름 1자");
+  assert.equal(await bind({ binding: "spring", copies: 1, address: { ...addr, phone: "" } }), false, "연락처 없음");
+  assert.equal(await bind({ binding: "spring", copies: 1, address: { ...addr, phone: "02-123-4567" } }), false, "휴대폰 아님");
+  assert.equal(await bind({ binding: "spring", copies: 1, address: { ...addr, phone: ["010-1234-5678"] } }), false, "연락처 배열");
+  assert.equal(await bind({ binding: "spring", copies: 1, address: { ...addr, zipCode: "0479" } }), false, "우편번호 4자리");
+  assert.equal(await bind({ binding: "spring", copies: 1, address: { ...addr, address1: "서울" } }), false, "주소 짧음");
+
+  // 인쇄 열람(print-view): 토큰은 그 다이어리 하나에만, 응답에 배송지 없음. DB 대신 findById 만 바꿔 끼운다
+  const printed = new Diary({ ...base, days: [day("오늘은 비가 왔다.")], physical: { status: "requested", binding: "spring", copies: 1, address: addr, requestedAt: new Date() } });
+  const pid = String(printed._id);
+  const findById = Diary.findById;
+  (Diary as unknown as { findById: unknown }).findById = async (x: string) => (x === pid ? printed : null);
+  const view = await diaryService.printView(pid);
+  assert.equal("address" in view.physical, false, "인쇄 열람에 배송지 없음");
+  assert.equal(JSON.stringify(view).includes("010-1234-5678"), false);
+  assert.equal(view.physical.status, "requested");
+  assert.equal(view.days[0].text, "오늘은 비가 왔다.");
+
+  process.env.JWT_SECRET = "test-secret";
+  const sign = (payload: object, expiresIn: number | string = "15m") => jwt.sign(payload, "test-secret", { expiresIn: expiresIn as jwt.SignOptions["expiresIn"], algorithm: "HS256" });
+  const open = async (t: string) => {
+    const res = { code: 0, body: null as unknown, status(c: number) { this.code = c; return this; }, json(b: unknown) { this.body = b; return this; } };
+    await diaryController.printView({ params: { id: pid }, query: { t } } as never, res as never);
+    return res;
+  };
+  const ok = await open(sign({ type: "diary-print", diaryId: pid }));
+  assert.equal(ok.code, 200);
+  assert.equal(JSON.stringify(ok.body).includes("성수이로"), false, "토큰 열람 응답에 주소 없음");
+  assert.equal((await open(sign({ type: "diary-print", diaryId: String(new mongoose.Types.ObjectId()) }))).code, 401, "다른 다이어리 토큰");
+  assert.equal((await open(sign({ type: "diary-print", diaryId: pid }, -10))).code, 401, "만료");
+  assert.equal((await open(sign({ userId: String(userId), diaryId: pid }))).code, 401, "로그인 토큰 등 다른 종류");
+  assert.equal((await open(jwt.sign({ type: "diary-print", diaryId: pid }, "other-secret"))).code, 401, "서명 다름");
+  assert.equal((await open("")).code, 401);
+  (Diary as unknown as { findById: unknown }).findById = findById;
+
   console.log("diary.test.ts ok");
 })().catch((e) => {
   console.error(e);

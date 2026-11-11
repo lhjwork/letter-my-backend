@@ -149,23 +149,19 @@ router.put(
 /** GET /api/diaries/:id/attachable-letters */
 router.get("/:id/attachable-letters", [idParam, validate], diaryController.attachableLetters);
 
-/** POST /api/diaries/:id/physical — 책으로 받기 신청(이후 잠금). 주소 규칙은 편지 실물 신청과 동일 */
-router.post(
-  "/:id/physical",
-  physicalRequestLimiter,
-  [
-    idParam,
-    body("binding").isIn(DIARY_BINDINGS).withMessage("제본 방식을 선택해주세요."),
-    body("copies").isInt({ min: 1, max: 5 }).withMessage("부수는 1-5권입니다.").toInt(),
-    body("address.name").isString().trim().isLength({ min: 2, max: 50 }).withMessage("받는 분 성함은 2-50자 이내여야 합니다."),
-    body("address.phone").matches(/^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/).withMessage("올바른 휴대폰 번호 형식이 아닙니다."),
-    body("address.zipCode").matches(/^[0-9]{5}$/).withMessage("우편번호는 5자리 숫자여야 합니다."),
-    body("address.address1").isString().trim().isLength({ min: 5, max: 200 }).withMessage("주소는 5-200자 이내여야 합니다."),
-    body("address.address2").optional({ values: "falsy" }).isString().trim().isLength({ max: 200 }),
-    body("address.memo").optional({ values: "falsy" }).isString().trim().isLength({ max: 500 }),
-    validate,
-  ],
-  diaryController.requestPhysical,
-);
+/** 책으로 받기 신청 입력(테스트: src/tests/diary.test.ts). 주소 규칙은 편지 실물 신청과 같고, 책은 택배라 연락처가 꼭 있어야 한다 */
+export const physicalRules = [
+  body("binding").isIn(DIARY_BINDINGS).withMessage("제본 방식을 선택해주세요."),
+  body("copies").isInt({ min: 1, max: 5 }).withMessage("부수는 1-5권입니다.").toInt(),
+  body("address.name").isString().trim().isLength({ min: 2, max: 50 }).withMessage("받는 분 성함은 2-50자 이내여야 합니다."),
+  body("address.phone").isString().matches(/^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/).withMessage("올바른 휴대폰 번호 형식이 아닙니다."),
+  body("address.zipCode").isString().matches(/^[0-9]{5}$/).withMessage("우편번호는 5자리 숫자여야 합니다."),
+  body("address.address1").isString().trim().isLength({ min: 5, max: 200 }).withMessage("주소는 5-200자 이내여야 합니다."),
+  body("address.address2").optional({ values: "falsy" }).isString().trim().isLength({ max: 200 }),
+  body("address.memo").optional({ values: "falsy" }).isString().trim().isLength({ max: 500 }),
+];
+
+/** POST /api/diaries/:id/physical — 책으로 받기 신청(이후 잠금) */
+router.post("/:id/physical", physicalRequestLimiter, [idParam, ...physicalRules, validate], diaryController.requestPhysical);
 
 export default router;

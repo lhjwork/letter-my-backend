@@ -87,7 +87,10 @@ class DiaryController {
 
   requestPhysical = (req: Request, res: Response) =>
     run(res, async () => {
-      const { binding, copies, address } = req.body;
+      const { binding, copies } = req.body;
+      // 아는 칸만 저장한다(모르는 키는 버림)
+      const { name, phone, zipCode, address1, address2, memo } = req.body.address;
+      const address = { name, phone, zipCode, address1, ...(address2 && { address2 }), ...(memo && { memo }) };
       sendCreated(res, await diaryService.requestPhysical(uid(req), id(req), { binding, copies, address }), "책으로 받기를 신청했어요");
     });
 
