@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import mongoose from "mongoose";
 import Diary from "../models/Diary";
-import { habitDayUpdate, mergeHabits, withHabitIds, applyAdminPhysicalStatus, isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent, lastAttached, toDiarySummary, daySheetCount, dropShrunkDecos } from "../services/diaryService";
+import { habitDayUpdate, mergeHabits, withHabitIds, applyAdminPhysicalStatus, isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent, lastAttached, toDiarySummary, daySheetCount, dropShrunkDecos, dayTextFits } from "../services/diaryService";
 
 const userId = new mongoose.Types.ObjectId();
 const base = { userId, title: "11월의 기록", month: "2026-11" };
@@ -136,11 +136,21 @@ assert.equal(toDiarySummary(new Diary(base)).lastLetter, null);
 
 // 데일리 장 수(프런트 lib/diary-pages sheetStarts 와 같은 사례)
 assert.equal(daySheetCount(""), 1);
-assert.equal(daySheetCount("가".repeat(1000)), 1);
-assert.equal(daySheetCount("가".repeat(1001)), 2);
+// 한 줄 39자(가장 좁은 글씨체 기준) → 띄어쓰기 없는 글은 24 × 39 = 936자에서 찬다
+assert.equal(daySheetCount("가".repeat(936)), 1);
+assert.equal(daySheetCount("가".repeat(937)), 2);
+assert.equal(daySheetCount("가".repeat(1000)), 2, "띄어쓰기 없는 1,000자는 25줄");
+assert.equal(daySheetCount(("가".repeat(42) + "\n").repeat(23)), 2, "가×42 줄 23개 = 46줄");
+assert.equal(daySheetCount(("가".repeat(39) + "\n").repeat(23) + "가".repeat(39)), 1, "39자 줄 24개는 한 장");
 assert.equal(daySheetCount("가".repeat(5000)), 3);
 assert.equal(daySheetCount(Array.from({ length: 30 }, (_, i) => `줄${i}`).join("\n")), 2, "24줄 넘으면 다음 장");
-assert.equal(daySheetCount(("가".repeat(43) + "\n").repeat(12) + "끝"), 2, "42자 넘는 줄은 두 줄");
+assert.equal(daySheetCount(("가".repeat(40) + "\n").repeat(12) + "끝"), 2, "39자 넘는 줄은 두 줄");
+// PUT days 검증: 3,000자 안이어도 3장(72줄)을 넘치면 받지 않는다
+assert.equal(dayTextFits("\n".repeat(71)), true);
+assert.equal(dayTextFits("\n".repeat(80) + "끝"), false);
+assert.equal(dayTextFits("가".repeat(3 * 936)), true);
+assert.equal(dayTextFits("가".repeat(3 * 936 + 1)), false);
+assert.equal(dayTextFits(undefined), true);
 assert.equal(toDiarySummary(new Diary({ ...base, days: [day("가".repeat(1500))] })).days[0].sheets, 2);
 // 글이 줄어 없어진 이어 쓴 장의 데코는 빠진다(다른 날·첫 장·다른 섹션은 그대로)
 const pages = ["day-2026-11-03", "day-2026-11-03-2", "day-2026-11-03-3", "day-2026-11-04-2", "monthly"].map((page) => ({ page }));

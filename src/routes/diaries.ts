@@ -4,6 +4,7 @@ import diaryController from "../controllers/diaryController";
 import { authenticate } from "../middleware/auth";
 import { validate } from "../middleware/validation";
 import { physicalRequestLimiter } from "../middleware/rateLimiter";
+import { dayTextFits, MAX_DAY_SHEETS } from "../services/diaryService";
 import { DECO_TYPES, DIARY_BINDINGS, DIARY_COVERS, DIARY_FONTS, DIARY_LIMITS, DIARY_PAPERS, DIARY_WEATHERS, LETTER_STYLES } from "../models/Diary";
 
 const router: Router = Router();
@@ -100,6 +101,7 @@ router.put(
     param("date").matches(DATE).withMessage("date 는 YYYY-MM-DD 형식입니다."),
     body("weather").optional({ values: "null" }).isIn(DIARY_WEATHERS),
     text("text", DIARY_LIMITS.dayText).withMessage(`하루는 ${DIARY_LIMITS.dayText.toLocaleString()}자까지 쓸 수 있어요.`),
+    body("text").optional().custom(dayTextFits).withMessage(`하루는 ${MAX_DAY_SHEETS}장까지 쓸 수 있어요.`),
     text("thanks", DIARY_LIMITS.dayThanks),
     arr("letters", DIARY_LIMITS.dayLetters),
     body("letters.*.letterId").isMongoId(),

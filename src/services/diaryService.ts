@@ -80,14 +80,15 @@ export function monthEnd(month: string): Date {
   return new Date(`${next}-01T00:00:00+09:00`);
 }
 
-// 데일리 장 나누기 — 프런트 letter-community lib/diary-pages.ts sheetStarts 와 같은 식(바꾸면 둘 다)
+// 데일리 장 나누기 — 프런트 letter-community lib/diary-pages.ts sheetStarts 와 같은 값·같은 식(바꾸면 둘 다).
+// 한 줄 39자 = 가장 좁은 글씨체(개구 40자, 438px 칸 실측) - 여유 1. 7단계 인쇄도 같은 기준
 const SHEET_CHARS = 1000;
 const SHEET_LINES = 24;
-const LINE_CHARS = 42;
-const MAX_SHEETS = 3;
+const LINE_CHARS = 39;
+export const MAX_DAY_SHEETS = 3;
 
-/** 하루 글이 차지하는 인쇄 장 수(1~3). 한 장 1,000자 또는 24줄(줄바꿈, 42자 넘는 줄은 접힘)까지 */
-export function daySheetCount(text: string): number {
+/** 하루 글이 차지하는 인쇄 장 수(넘침 포함, 자르지 않음). 한 장 1,000자 또는 24줄(줄바꿈, 39자 넘는 줄은 접힘)까지 */
+export function daySheetsRaw(text: string): number {
   let sheets = 1;
   let n = 0;
   let line = 1;
@@ -110,8 +111,14 @@ export function daySheetCount(text: string): number {
       col = 0;
     } else col++;
   }
-  return Math.min(MAX_SHEETS, sheets);
+  return sheets;
 }
+
+/** PUT days 검증: 글자 수(3,000자)와 별도로 3장 안에 드는지(줄바꿈 많은 글). 프런트 editDay 와 같은 한도 */
+export const dayTextFits = (text: unknown) => typeof text !== "string" || daySheetsRaw(text) <= MAX_DAY_SHEETS;
+
+/** 하루 글이 차지하는 인쇄 장 수(1~3) */
+export const daySheetCount = (text: string) => Math.min(MAX_DAY_SHEETS, daySheetsRaw(text));
 
 /** 그날 글이 줄어 없어진 이어 쓴 장(day-날짜-2|-3)의 데코를 뺀다 */
 export function dropShrunkDecos<T extends { page: string }>(decos: T[], date: string, text: string): T[] {
