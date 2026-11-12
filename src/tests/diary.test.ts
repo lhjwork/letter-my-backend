@@ -216,6 +216,15 @@ assert.equal(fitsOrKept(["나".repeat(30), "가".repeat(30)], ["가".repeat(40),
 assert.equal(fitsOrKept("가".repeat(30), "", ONE_LINE.toMe, TO_ME_LINES), true, "나에게 한 줄 2줄");
 assert.equal(fitsOrKept("가".repeat(31), "", ONE_LINE.toMe, TO_ME_LINES), false);
 assert.equal(fitsOrKept(undefined, undefined, 5), true, "안 보낸 칸");
+// 표에 없던 넓은 글자(F3): 프런트 scripts/diary-pages.check.mjs 와 같은 사례
+assert.equal(fitsOrKept("㈜".repeat(11), "", ONE_LINE.resolution), true);
+assert.equal(fitsOrKept("㈜".repeat(12), "", ONE_LINE.resolution), false, "㈜ = 1.25칸");
+assert.equal(fitsOrKept("㎡".repeat(8), "", ONE_LINE.owner), false);
+assert.equal(fitsOrKept("뷁".repeat(11), "", ONE_LINE.thanks), true);
+assert.equal(fitsOrKept("뷁".repeat(12), "", ONE_LINE.thanks), false, "글씨체에 없는 음절 = 1.1칸");
+assert.equal(fitsOrKept("닭".repeat(13), "", ONE_LINE.thanks), true, "KS X 1001 음절은 그대로");
+assert.equal(fitsOrKept("빠".repeat(10), "", ONE_LINE.thanks), true);
+assert.equal(fitsOrKept("빠".repeat(11), "", ONE_LINE.thanks), false, "펜에서 넓은 음절 = 1.3칸");
 assert.equal(textLines("", FIELD_CHARS), 1);
 assert.equal(textLines("가".repeat(17), FIELD_CHARS), 1);
 assert.equal(textLines("가".repeat(18), FIELD_CHARS), 2);
