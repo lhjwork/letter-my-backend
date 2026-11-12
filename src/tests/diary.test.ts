@@ -26,7 +26,9 @@ assert.deepEqual([...d0.sections], ["first", "monthly", "goals", "weekly", "dail
 assert.equal(d0.status, "writing");
 assert.equal(d0.physical.status, "none");
 assert.ok(new Diary({ ...base, month: "2026-13" }).validateSync()?.errors.month, "13월 거부");
-assert.ok(new Diary({ ...base, title: "가".repeat(31) }).validateSync()?.errors.title, "제목 31자 거부");
+// 새 제목 30자는 라우트가 막는다. 모델은 v1 한도 50자(v1 긴 제목 문서도 저장되게)
+assert.ok(!new Diary({ ...base, title: "가".repeat(37) }).validateSync()?.errors.title, "v1 긴 제목 저장 가능");
+assert.ok(new Diary({ ...base, title: "가".repeat(51) }).validateSync()?.errors.title, "제목 51자 거부");
 assert.ok(new Diary({ ...base, cover: "pink" }).validateSync()?.errors.cover, "없는 표지 거부");
 
 // 이어 쓰기: 하루 3,000자까지

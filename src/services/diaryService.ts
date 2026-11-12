@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import Diary, { IDiary, IDiaryHabit, DIARY_SECTIONS, DiarySection } from "../models/Diary";
+import Diary, { IDiary, IDiaryHabit, DIARY_PAPERS, DIARY_SECTIONS, DiarySection } from "../models/Diary";
 import Letter from "../models/Letter";
 import User from "../models/User";
 import { recordScopes, attachStoryTitles, toRecordItem, RecordRow } from "./myRecordsService";
@@ -366,6 +366,11 @@ class DiaryService {
       await Diary.updateOne({ _id: d._id }, { $set: { "goals.habits": habits } });
       d.set("goals.habits", habits);
     }
+    // v1 문서의 paper "cream" 은 v2 에 없다(저장 검증 실패) → 무늬 없는 "blank" 로. 화면은 이미 무지로 그리고 있었다
+    if (!(DIARY_PAPERS as readonly string[]).includes(d.paper)) {
+      await Diary.updateOne({ _id: d._id }, { $set: { paper: "blank" } });
+      d.set("paper", "blank");
+    }
     return d;
   }
 
@@ -507,7 +512,7 @@ class DiaryService {
 
   // ===== 관리자 =====
   listPhysical(status?: IDiary["physical"]["status"]) {
-    const filter = status ? { "physical.status": status } : { "physical.status": { $ne: "none" as const } };
+    const filter = status ? { "physical.status": status } : { "physical.status": { $nin: ["none" as const, null] } }; // null = physical 없는 v1 문서(신청 안 함)
     return Diary.find(filter)
       .select("userId title month cover paper font sections status physical createdAt updatedAt")
       .populate("userId", "name realName email")

@@ -138,7 +138,7 @@ const DecoSchema = new Schema<IDiaryDeco>(
 const DiarySchema = new Schema<IDiary>(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    title: { type: String, required: true, trim: true, maxlength: DIARY_LIMITS.title },
+    title: { type: String, required: true, trim: true, maxlength: 50 }, // 모델은 v1 한도(50) — v1 긴 제목 문서도 저장되게. 새 입력은 라우트가 30자로 막는다
     month: { type: String, required: true, match: /^\d{4}-(0[1-9]|1[0-2])$/ },
     cover: { type: String, enum: DIARY_COVERS, default: "cream" },
     paper: { type: String, enum: DIARY_PAPERS, default: "lined" },
