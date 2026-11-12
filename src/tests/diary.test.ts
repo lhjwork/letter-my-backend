@@ -210,6 +210,9 @@ assert.equal(fitsOrKept(["가".repeat(40), "나".repeat(30)], ["가".repeat(40),
 assert.equal(fitsOrKept(["가".repeat(40), "나".repeat(40)], ["가".repeat(40), "나".repeat(39)], ONE_LINE.item), false, "그 줄의 옛 글보다 늘면 거부");
 assert.equal(fitsOrKept(["가".repeat(39) + "나"], ["가".repeat(40)], ONE_LINE.item), true, "같은 길이로 글자 바꾸기");
 assert.equal(fitsOrKept(["가".repeat(40)], ["짧게", "가".repeat(40)], ONE_LINE.item), true, "앞 줄을 지워 당겨진 옛 글");
+assert.equal(fitsOrKept(["가".repeat(39)], ["짧은 목표", "가".repeat(40)], ONE_LINE.item), true, "앞 줄 지우기와 옛 긴 글 고치기가 한 저장에(G1)");
+assert.equal(fitsOrKept(["나".repeat(19), "가".repeat(39)], ["가".repeat(40), "짧게", "나".repeat(20)], ONE_LINE.item), true, "옛 긴 글 둘을 각각 줄임(짝짓기)");
+assert.equal(fitsOrKept(["나".repeat(30), "가".repeat(30)], ["가".repeat(40), "짧게"], ONE_LINE.item), false, "옛 긴 글 하나로 새 긴 글 둘은 거부");
 assert.equal(fitsOrKept("가".repeat(30), "", ONE_LINE.toMe, TO_ME_LINES), true, "나에게 한 줄 2줄");
 assert.equal(fitsOrKept("가".repeat(31), "", ONE_LINE.toMe, TO_ME_LINES), false);
 assert.equal(fitsOrKept(undefined, undefined, 5), true, "안 보낸 칸");

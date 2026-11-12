@@ -195,18 +195,19 @@ export const TO_ME_LINES = 2;
 export const MEMO_LINES = 3;
 const list = (x: unknown): unknown[] => (Array.isArray(x) ? x : [x]);
 /**
- * 새 글(들)이 칸(chars 자 폭 × lines 줄)에 드는지. 한도를 줄이기 전에 쓴 긴 글이 저장돼 있으면 그 줄은 그 글 그대로이거나 늘지 않은 글을 받는다
- * → 그런 글이 있어도 같은 장의 다른 칸 저장이 막히지 않고, 조금씩 고쳐도 저장된다(프런트 useFitGuard 와 같은 규칙). 줄마다 그 자리의 옛 글과 견준다
- * (앞 줄을 지워 자리가 당겨진 옛 글은 같은 글이면 받는다)
- * ponytail: 앞 줄 지우기와 옛 긴 글 고치기가 한 저장에 같이 오면 400 — 프런트는 칸마다 바로 저장해 드물다. 잦으면 줄 id 로 견준다
+ * 새 글(들)이 칸(chars 자 폭 × lines 줄)에 드는지. 한도를 줄이기 전에 쓴 긴 글이 저장돼 있으면 늘지 않은 글은 받는다
+ * → 그런 글이 있어도 같은 장의 다른 칸 저장이 막히지 않고, 조금씩 고쳐도 저장된다(프런트 useFitGuard 와 같은 규칙).
+ * 줄 자리로 견주지 않는다(프런트가 빈 줄을 빼고 보내 자리가 당겨진다): 칸을 넘는 새 글마다 그보다 짧지 않은 옛 긴 글 하나를 짝지어 쓴다.
+ * 짧은 새 글부터 남은 옛 긴 글 가운데 가장 짧은 것과 짝지으면(그리디) 짝이 있을 때 반드시 찾는다
  */
 export function fitsOrKept(next: unknown, kept: unknown, chars: number, lines = 1): boolean {
-  const was = list(kept);
   const long = (v: unknown): v is string => typeof v === "string" && textLines(v, chars) > lines;
-  return list(next).every((v, i) => {
-    if (!long(v)) return true;
-    const at = was[i];
-    return (long(at) && v.trim().length <= at.trim().length) || was.some((w) => long(w) && w.trim() === v.trim());
+  const size = (v: string) => v.trim().length;
+  const olds = list(kept).filter(long).map(size).sort((a, b) => a - b);
+  const news = list(next).filter(long).map(size).sort((a, b) => a - b);
+  return news.every((n) => {
+    const i = olds.findIndex((o) => o >= n);
+    return i >= 0 && olds.splice(i, 1).length > 0;
   });
 }
 const pick = (xs: unknown, key: string): unknown[] => (Array.isArray(xs) ? xs.map((x) => x?.[key]) : []);
