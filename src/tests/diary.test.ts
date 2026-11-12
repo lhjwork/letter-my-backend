@@ -5,6 +5,7 @@
 import assert from "node:assert/strict";
 import mongoose from "mongoose";
 import Diary from "../models/Diary";
+import User from "../models/User";
 import { habitDayUpdate, mergeHabits, withHabitIds, applyAdminPhysicalStatus, isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent, lastAttached, toDiarySummary, daySheetCount, dropShrunkDecos, dayTextFits, textLines, FIELD_CHARS } from "../services/diaryService";
 import { physicalRules, sectionRules } from "../routes/diaries";
 import diaryController from "../controllers/diaryController";
@@ -253,7 +254,19 @@ const check = async (name: keyof typeof sectionRules, body: object) => {
   const pid = String(printed._id);
   const findById = Diary.findById;
   (Diary as unknown as { findById: unknown }).findById = async (x: string) => (x === pid ? printed : null);
+  // 표지 이름: 첫 장 주인 이름이 비면 계정 닉네임. 계정에서는 name 만 고른다(실명·이메일은 응답에 없다)
+  const findUser = User.findById;
+  let picked = "";
+  (User as unknown as { findById: unknown }).findById = (x: unknown) => ({
+    select: (f: string) => ((picked = f), { lean: async () => (String(x) === String(userId) ? { name: "가을편지" } : null) }),
+  });
   const view = await diaryService.printView(pid);
+  assert.equal(view.coverName, "가을편지", "주인 이름 칸이 비면 닉네임");
+  assert.equal(picked, "name", "계정에서 닉네임만 읽는다");
+  printed.first.owner = "가을";
+  assert.equal((await diaryService.printView(pid)).coverName, "가을", "주인 이름 칸이 먼저");
+  printed.first.owner = "";
+  assert.equal(/realName|email/.test(JSON.stringify(view)), false, "실명·이메일 없음");
   assert.equal("address" in view.physical, false, "인쇄 열람에 배송지 없음");
   assert.equal(JSON.stringify(view).includes("010-1234-5678"), false);
   assert.equal(view.physical.status, "requested");
@@ -293,6 +306,7 @@ const check = async (name: keyof typeof sectionRules, body: object) => {
   assert.notEqual(key("u1"), key("u2"));
   assert.equal(key("u1"), key("u1"));
   (Diary as unknown as { findById: unknown }).findById = findById;
+  (User as unknown as { findById: unknown }).findById = findUser;
 
   console.log("diary.test.ts ok");
 })().catch((e) => {

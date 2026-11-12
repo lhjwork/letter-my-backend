@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Diary, { IDiary, IDiaryHabit, DIARY_SECTIONS, DiarySection } from "../models/Diary";
 import Letter from "../models/Letter";
+import User from "../models/User";
 import { recordScopes, attachStoryTitles, toRecordItem, RecordRow } from "./myRecordsService";
 import { extractPlainText } from "../utils/htmlProcessor";
 
@@ -474,13 +475,17 @@ class DiaryService {
     if (d.physical.status === "none") throw new DiaryError(409, "책으로 받기 신청이 없는 다이어리입니다.");
   }
 
-  /** 인쇄 열람: 배송지는 빼고 */
+  /**
+   * 인쇄 열람: 배송지는 빼고. coverName = 앞표지에 찍을 이름 — 주인 화면(프런트 app/diary/[id]/load.ts)과 같은 규칙:
+   * 첫 장 "주인 이름" 칸, 비었으면 계정 닉네임. 계정에서는 닉네임(name)만 읽는다(실명·이메일·주소는 내려가지 않는다)
+   */
   async printView(id: string) {
     const d = await Diary.findById(id);
     if (!d) throw new DiaryError(404, "다이어리를 찾을 수 없습니다.");
     const v = await this.withLetters(d);
     const { address: _address, ...physical } = v.physical; // eslint-disable-line @typescript-eslint/no-unused-vars
-    return { ...v, physical };
+    const coverName = d.first?.owner || (await User.findById(d.userId).select("name").lean())?.name || "";
+    return { ...v, physical, coverName };
   }
 }
 
