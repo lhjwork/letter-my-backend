@@ -185,6 +185,30 @@ export const SCENE_CHARS = 11;
 export const PAGE_LINES = 13;
 export const REGRET_LINES = 3;
 export const TO_NEXT_LINES = 10;
+/**
+ * 한 줄 칸에 드는 글자 수(한글 음절 폭, textLines 로 센다) — 프런트 lib/diary-pages ONE_LINE 과 같은 값(실측 근거는 거기). 고칠 때 같이 고친다.
+ * 글자 수 상한(routes/diaries.ts isLength, 모델 maxlength = 옛 한도)과 따로, 화면·인쇄 칸 폭에 드는지를 본다
+ */
+export const ONE_LINE = { owner: 9, resolution: 14, toMe: 15, memo: 6, item: 13, wish: 15, habit: 5, plan: 13, weekLine: 16, thanks: 13, quoteBy: 10 } as const;
+/** 나에게 한 줄(글 칸 2줄), 먼슬리 메모(주 칸마다 3줄) */
+export const TO_ME_LINES = 2;
+export const MEMO_LINES = 3;
+const strings = (x: unknown): string[] => (Array.isArray(x) ? x : [x]).filter((v): v is string => typeof v === "string");
+/**
+ * 새 글(들)이 칸(chars 자 폭 × lines 줄)에 드는지. 한도를 줄이기 전에 쓴 긴 글이 저장돼 있으면 그 글 그대로이거나 더 짧게 줄인 글은 받는다
+ * → 그런 글이 있어도 같은 장의 다른 칸 저장이 막히지 않고, 조금씩 줄여도 저장된다(프런트 useFitGuard 와 같은 규칙). 더 늘리는 것만 막는다
+ */
+export function fitsOrKept(next: unknown, kept: unknown, chars: number, lines = 1): boolean {
+  const long = strings(kept).filter((v) => textLines(v, chars) > lines).map((v) => v.trim().length);
+  return strings(next).every((v) => textLines(v, chars) <= lines || long.some((n) => v.trim().length <= n));
+}
+const pick = (xs: unknown, key: string): unknown[] => (Array.isArray(xs) ? xs.map((x) => x?.[key]) : []);
+const rows = (memo: unknown) => (typeof memo === "string" ? memo.split("\n") : []);
+/** [새 값, 저장된 값, 칸 글자 수, 줄 수] 가운데 하나라도 칸을 넘치면 400 */
+function assertFits(checks: [unknown, unknown, number, number?][]) {
+  if (!checks.every(([next, kept, chars, lines]) => fitsOrKept(next, kept, chars, lines))) throw new DiaryError(400, "칸에 들어가는 만큼만 쓸 수 있어요.");
+}
+
 /** 값이 글이면 칸 줄 수 안에 드는지(글이 아니면 다른 규칙이 막는다) */
 export const fitsLines = (chars: number, lines: number) => (v: unknown) => typeof v !== "string" || textLines(v, chars) <= lines;
 /** 남기고 싶은 문장들(문장마다 글 줄 + 누가 줄)이 오른쪽 쪽 13줄 안에 드는지 */
@@ -368,6 +392,17 @@ class DiaryService {
       }
       const base = SECTION_DEFAULTS[name];
       const v = value as Record<string, unknown>;
+      // 한 줄 칸은 칸 폭 안에(ONE_LINE). 저장돼 있던 글 그대로는 통과
+      if (name === "first") assertFits([[v.owner, d.first.owner, ONE_LINE.owner], [v.resolutions, d.first.resolutions, ONE_LINE.resolution], [v.toMe, d.first.toMe, ONE_LINE.toMe, TO_ME_LINES]]);
+      if (name === "monthly") assertFits([[rows(v.memo), rows(d.monthly.memo), ONE_LINE.memo, MEMO_LINES]]);
+      if (name === "goals")
+        assertFits([
+          [pick(v.goals, "text"), pick(d.goals.goals, "text"), ONE_LINE.item],
+          [pick(v.todos, "text"), pick(d.goals.todos, "text"), ONE_LINE.item],
+          [pick(v.habits, "name"), pick(d.goals.habits, "name"), ONE_LINE.habit],
+          [v.wishes, d.goals.wishes, ONE_LINE.wish],
+        ]);
+      if (name === "letters") assertFits([[pick(v.quotes, "by"), pick(d.letters.quotes, "by"), ONE_LINE.quoteBy]]);
       if (name === "goals") {
         const habits = mergeHabits(d.goals.habits, (v.habits as { id: string; name: string }[] | undefined) ?? []);
         if (!habits) throw new DiaryError(400, "같은 습관이 두 번 있어요.");
@@ -394,6 +429,8 @@ class DiaryService {
       if (!d.sections.includes("weekly")) throw new DiaryError(400, "이 다이어리에 없는 구성입니다.");
       if (week > weeksInMonth(d.month)) throw new DiaryError(400, "이 달에 없는 주입니다.");
       if (value.plans.some((p) => !dateInMonth(p.date, d.month) || weekOf(p.date) !== week)) throw new DiaryError(400, "이 주에 없는 날짜입니다.");
+      const was = d.weeks.find((w) => w.week === week);
+      assertFits([[pick(value.plans, "text"), pick(was?.plans, "text"), ONE_LINE.plan], [pick(value.todos, "text"), pick(was?.todos, "text"), ONE_LINE.item], [value.line, was?.line, ONE_LINE.weekLine]]);
       const rest = d.weeks.filter((w) => w.week !== week);
       d.set("weeks", [...rest, { week, ...value }].sort((a, b) => a.week - b.week));
     });
@@ -406,6 +443,7 @@ class DiaryService {
       const ids = [...new Set(value.letters.map((l) => l.letterId))];
       if (ids.length !== value.letters.length) throw new DiaryError(400, "같은 편지를 두 번 붙일 수 없어요.");
       if (ids.length && (await letterCards(userId, { _id: { $in: ids }, createdAt: { $lt: monthEnd(d.month) } }, ids.length)).length !== ids.length) throw new DiaryError(400, "붙일 수 없는 편지입니다.");
+      assertFits([[value.thanks, d.days.find((x) => x.date === date)?.thanks, ONE_LINE.thanks]]);
       const rest = d.days.filter((x) => x.date !== date);
       const empty = !value.text.trim() && !value.thanks.trim() && !value.weather && !value.letters.length;
       d.set("days", (empty ? rest : [...rest, { date, ...value }]).sort((a, b) => a.date.localeCompare(b.date)));

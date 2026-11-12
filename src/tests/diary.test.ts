@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import mongoose from "mongoose";
 import Diary from "../models/Diary";
 import User from "../models/User";
-import { habitDayUpdate, mergeHabits, withHabitIds, applyAdminPhysicalStatus, isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent, lastAttached, toDiarySummary, daySheetCount, dropShrunkDecos, dayTextFits, textLines, FIELD_CHARS } from "../services/diaryService";
+import { habitDayUpdate, mergeHabits, withHabitIds, applyAdminPhysicalStatus, isLocked, normalizeSections, dateInMonth, weeksInMonth, weekOf, isValidPageKey, monthEnd, hasContent, lastAttached, toDiarySummary, daySheetCount, dropShrunkDecos, dayTextFits, textLines, FIELD_CHARS, fitsOrKept, ONE_LINE, TO_ME_LINES } from "../services/diaryService";
 import { physicalRules, sectionRules } from "../routes/diaries";
 import diaryController from "../controllers/diaryController";
 import diaryService from "../services/diaryService";
@@ -196,6 +196,19 @@ const pages = ["day-2026-11-03", "day-2026-11-03-2", "day-2026-11-03-3", "day-20
 assert.deepEqual(dropShrunkDecos(pages, "2026-11-03", "가".repeat(1500)).map((x) => x.page), ["day-2026-11-03", "day-2026-11-03-2", "day-2026-11-04-2", "monthly"]);
 assert.deepEqual(dropShrunkDecos(pages, "2026-11-03", "").map((x) => x.page), ["day-2026-11-03", "day-2026-11-04-2", "monthly"]);
 // 이 달의 편지·돌아보기 칸 줄 셈: 프런트 check 와 같은 사례
+// 한 줄 칸 폭(ONE_LINE): 칸에 드는 글만, 단 저장돼 있던 긴 글 그대로는 통과(옛 한도로 쓴 글이 다른 칸 저장을 막지 않게)
+assert.deepEqual(ONE_LINE, { owner: 9, resolution: 14, toMe: 15, memo: 6, item: 13, wish: 15, habit: 5, plan: 13, weekLine: 16, thanks: 13, quoteBy: 10 }, "프런트 lib/diary-pages ONE_LINE 과 같은 값");
+assert.equal(fitsOrKept("가".repeat(9), "", ONE_LINE.owner), true);
+assert.equal(fitsOrKept("가".repeat(10), "", ONE_LINE.owner), false, "칸보다 긴 새 글 거부");
+assert.equal(fitsOrKept("가".repeat(20), "가".repeat(20), ONE_LINE.owner), true, "저장돼 있던 긴 글 그대로");
+assert.equal(fitsOrKept("가".repeat(21), "가".repeat(20), ONE_LINE.owner), false, "긴 글을 더 늘리면 거부");
+assert.equal(fitsOrKept(["짧게", "가".repeat(30) + " "], ["가".repeat(30)], ONE_LINE.item), true, "여러 줄 가운데 옛 글(끝 띄어쓰기 무시)");
+assert.equal(fitsOrKept("가".repeat(15), "가".repeat(20), ONE_LINE.owner), true, "긴 글을 줄이는 중(아직 칸보다 김)");
+assert.equal(fitsOrKept("あ".repeat(9), "가".repeat(9), ONE_LINE.owner), false, "저장된 글이 칸에 들던 것이면 예외 없음(넓은 글자)");
+assert.equal(fitsOrKept(["짧게", "나".repeat(14)], ["짧게"], ONE_LINE.item), false);
+assert.equal(fitsOrKept("가".repeat(30), "", ONE_LINE.toMe, TO_ME_LINES), true, "나에게 한 줄 2줄");
+assert.equal(fitsOrKept("가".repeat(31), "", ONE_LINE.toMe, TO_ME_LINES), false);
+assert.equal(fitsOrKept(undefined, undefined, 5), true, "안 보낸 칸");
 assert.equal(textLines("", FIELD_CHARS), 1);
 assert.equal(textLines("가".repeat(17), FIELD_CHARS), 1);
 assert.equal(textLines("가".repeat(18), FIELD_CHARS), 2);
