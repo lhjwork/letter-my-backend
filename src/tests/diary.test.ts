@@ -328,6 +328,31 @@ const check = async (name: keyof typeof sectionRules, body: object) => {
   (Diary as unknown as { findById: unknown }).findById = findById;
   (User as unknown as { findById: unknown }).findById = findUser;
 
+  // 동시 저장(F5): 저장 사이에 다른 저장이 끼어 VersionError 면 다시 읽어 한 번 더 고친다. 다시 읽은 게 잠겼으면 423
+  const findOne = Diary.findOne;
+  let reads = 0;
+  let writes = 0;
+  let lockSecond = false;
+  (Diary as unknown as { findOne: unknown }).findOne = async () => {
+    const d = new Diary({ ...base, sections: ["first", "daily"], ...(lockSecond && reads === 1 && { status: "closed" }) });
+    const n = ++reads;
+    d.save = (async () => {
+      if (n === 1) throw new mongoose.Error.VersionError(d, 0, ["days"]);
+      writes++;
+    }) as never;
+    return d;
+  };
+  const did = String(new mongoose.Types.ObjectId());
+  const deco = { id: "a", type: "sticker", src: "heart", x: 10, y: 10, w: 20, rotate: 0, z: 1 };
+  const after = await diaryService.putDecos(String(userId), did, "first", [deco]);
+  assert.equal(reads, 2, "VersionError → 다시 읽음");
+  assert.equal(writes, 1);
+  assert.equal(after.decos.length, 1, "다시 읽은 다이어리에 고친 것이 실림");
+  reads = writes = 0;
+  lockSecond = true;
+  await assert.rejects(() => diaryService.putDecos(String(userId), did, "first", [deco]), (e: { status?: number }) => e.status === 423, "다시 읽은 사이 잠김 → 423");
+  (Diary as unknown as { findOne: unknown }).findOne = findOne;
+
   console.log("diary.test.ts ok");
 })().catch((e) => {
   console.error(e);

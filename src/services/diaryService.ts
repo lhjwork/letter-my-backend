@@ -358,12 +358,21 @@ class DiaryService {
     return d;
   }
 
-  /** 본인 것 + 잠금 확인 후 고치고 저장 */
-  private async edit(userId: string, id: string, mutate: (d: IDiary) => void | Promise<void>) {
+  /**
+   * 본인 것 + 잠금 확인 후 고치고 저장. 같은 다이어리에 다른 저장(날·데코·섹션)이 동시에 끼어 VersionError 가 나면
+   * 다시 읽어(소유자·잠금도 다시 확인) 한 번 더 고친다 — 서로 다른 부분은 둘 다 남고, 같은 부분은 나중 것이 이긴다
+   * ponytail: 재시도 한 번. 같은 다이어리에 셋 이상이 겹치면 다시 500 — 그럴 일이 생기면 경로별 $set 으로
+   */
+  private async edit(userId: string, id: string, mutate: (d: IDiary) => void | Promise<void>, retry = true): Promise<IDiary> {
     const d = await this.own(userId, id);
     if (isLocked(d)) throw new DiaryError(423, FORBIDDEN_LOCKED);
     await mutate(d);
-    await d.save();
+    try {
+      await d.save();
+    } catch (e) {
+      if (retry && e instanceof mongoose.Error.VersionError) return this.edit(userId, id, mutate, false);
+      throw e;
+    }
     return d;
   }
 
